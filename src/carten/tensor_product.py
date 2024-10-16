@@ -5,8 +5,8 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.core.natural_tensor import NaturalTensors, remove_trace
-from carten.core.utils import dij, eijk, letter_index
+from carten.natural_tensor import NaturalTensors, remove_trace
+from carten.utils import dij, eijk, letter_index
 
 
 class TensorProduct:

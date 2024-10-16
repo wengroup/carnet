@@ -1,13 +1,9 @@
 import torch
 
-from carten.core.natural_tensor import (
-    NaturalTensors,
-    symmetrize,
+from carten.natural_tensor import (symmetrize,
     symmetrize_and_remove_trace,
 )
-from carten.core.tensor_product_legacy import (
-    TensorProduct,
-    get_asym_part,
+from carten.tensor_product_legacy import (get_asym_part,
     get_delta_contraction_rule,
     get_epsilon_delta_contraction_rule,
     get_sym_part,
@@ -15,7 +11,7 @@ from carten.core.tensor_product_legacy import (
     get_sym_rules_3,
     tp,
 )
-from carten.core.utils import check_symmetric, check_traceless, eijk
+from carten.utils import check_symmetric, check_traceless, eijk
 
 
 def test_get_delta_contraction_rule():

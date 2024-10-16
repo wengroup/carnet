@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from carten.core.natural_tensor import symmetrize_and_remove_trace
+from carten.natural_tensor import symmetrize_and_remove_trace
 
 
 @pytest.fixture(scope="session")

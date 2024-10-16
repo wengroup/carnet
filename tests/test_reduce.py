@@ -1,8 +1,8 @@
 import torch
 
-from carten.core.natural_tensor import NaturalTensors, symmetrize
-from carten.core.reduce import get_dyadic_tensor, reduce_symmetric_tensor
-from carten.core.utils import check_symmetric, check_traceless
+from carten.natural_tensor import NaturalTensors, symmetrize
+from carten.reduce import get_dyadic_tensor, reduce_symmetric_tensor
+from carten.utils import check_symmetric, check_traceless
 
 
 def test_reduce_symmetric_tensor(T3, T4):

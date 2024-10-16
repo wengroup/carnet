@@ -1,4 +1,4 @@
-from carten.core.signature import Signature
+from carten.signature import Signature
 
 
 def test_Signature():

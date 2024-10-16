@@ -2,7 +2,7 @@ import itertools
 
 import torch
 
-from carten.core.natural_tensor import (
+from carten.natural_tensor import (
     NaturalTensors,
     flatten_tensor_dims,
     get_contraction_rule_1,
@@ -12,8 +12,8 @@ from carten.core.natural_tensor import (
     symmetrize,
     unflatten_tensor_dims,
 )
-from carten.core.signature import Signature
-from carten.core.utils import get_trace, letter_index
+from carten.signature import Signature
+from carten.utils import get_trace, letter_index
 
 
 def test_NaturalTensors(

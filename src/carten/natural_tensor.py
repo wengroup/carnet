@@ -5,8 +5,8 @@ import torch
 from torch import Tensor
 
 from carten import SETTINGS
-from carten.core.signature import Signature
-from carten.core.utils import check_shape, check_symmetric_traceless, dij, letter_index
+from carten.signature import Signature
+from carten.utils import check_shape, check_symmetric_traceless, dij, letter_index
 
 
 class NaturalTensors:

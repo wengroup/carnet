@@ -7,8 +7,8 @@ import warnings
 import torch
 from torch import Tensor
 
-from carten.core.natural_tensor import NaturalTensors, remove_trace
-from carten.core.utils import dij, letter_index
+from carten.natural_tensor import NaturalTensors, remove_trace
+from carten.utils import dij, letter_index
 
 
 def reduce_symmetric_tensor(U: Tensor, start_dim: int = 0) -> NaturalTensors:

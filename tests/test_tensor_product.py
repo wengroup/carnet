@@ -1,11 +1,11 @@
 import torch
 
-from carten.core.natural_tensor import (
+from carten.natural_tensor import (
     NaturalTensors,
     symmetrize,
     symmetrize_and_remove_trace,
 )
-from carten.core.tensor_product import (
+from carten.tensor_product import (
     TensorProduct,
     get_asym_part,
     get_delta_contraction_rule,
@@ -15,7 +15,7 @@ from carten.core.tensor_product import (
     get_sym_rules_3,
     tp,
 )
-from carten.core.utils import check_symmetric, check_traceless, eijk
+from carten.utils import check_symmetric, check_traceless, eijk
 
 
 def test_get_delta_contraction_rule():
