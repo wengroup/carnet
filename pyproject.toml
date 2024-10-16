@@ -9,17 +9,12 @@ dynamic = ["version"]
 dependencies = [
     "numpy",
     "pandas",
-    "scikit-learn",
     "pymatgen",
     "ase",
     "pydantic>=2.0.0",
     "pydantic-settings",
     "torch",
     "opt_einsum",
-    "torch_geometric",
-    "torch_scatter",
-    "ema-pytorch",
-    "wandb",
 ]
 
 [project.optional-dependencies]

@@ -1,3 +1,4 @@
-# Carten
+# CarTen
 
-Irreducible Cartesian tensor: construction, reduction, properties, and operations.
+Cartesian Tensors: irreducible representations, construction, reduction, properties, 
+and operations.
