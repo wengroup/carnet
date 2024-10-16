@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools >= 42", "versioningit >= 2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carten"
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "pymatgen",
+    "ase",
+    "pydantic>=2.0.0",
+    "pydantic-settings",
+    "torch",
+    "opt_einsum",
+    "torch_geometric",
+    "torch_scatter",
+    "ema-pytorch",
+    "wandb",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+dev = ["pre-commit>=2.19.0"]
+
+[tool.versioningit.vcs]
+method = "git"
+default-tag = "0.0.1"
+
+[tool.ruff]
+src = ["src", "tests"]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I"    # isort
+]
+fixable = ['I']
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+# This duplicates the functionlity of ruff but it is nicer to have it for pycharm usage:
+# ruff will move cursor to the bottom, while isort will not.
+# Add src_paths so that import of current package will be placed at the bottom.
+[tool.isort]
+src_paths = ["src", "tests"]
+
+[tool.black]
+line-length = 88
+
+[tool.mypy]
+ignore_missing_imports = true
+no_strict_optional = true
