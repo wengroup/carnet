@@ -1,4 +1,4 @@
 # CarTen
 
-Cartesian Tensors: irreducible representations, construction, reduction, properties, 
-and operations.
+Cartesian Tensors: irreducible representations, reduction, properties, tensor products,
+and other operations...

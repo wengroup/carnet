@@ -5,7 +5,7 @@ from carten.natural_tensor import (
     symmetrize,
     symmetrize_and_remove_trace,
 )
-from carten.tensor_product import (
+from carten.tensor_product1 import (
     TensorProduct,
     get_asym_part,
     get_delta_contraction_rule,

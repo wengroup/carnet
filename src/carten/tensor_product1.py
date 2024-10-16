@@ -1,4 +1,7 @@
-"""Tensor product between two natural tensors, with batching support."""
+"""Tensor product between two natural tensors, with batching support.
+
+This is using the symmetrizing and then removing the trace method.
+"""
 
 import itertools
 
