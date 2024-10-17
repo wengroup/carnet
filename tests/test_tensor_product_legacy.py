@@ -1,9 +1,8 @@
 import torch
 
-from carten.natural_tensor import (symmetrize,
-    symmetrize_and_remove_trace,
-)
-from carten.tensor_product_legacy import (get_asym_part,
+from carten.reduce import symmetrize, symmetrize_and_remove_trace
+from carten.tensor_product_legacy import (
+    get_asym_part,
     get_delta_contraction_rule,
     get_epsilon_delta_contraction_rule,
     get_sym_part,

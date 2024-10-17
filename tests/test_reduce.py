@@ -1,7 +1,7 @@
 import torch
 
-from carten.natural_tensor import NaturalTensors, symmetrize
-from carten.reduce import get_dyadic_tensor, reduce_symmetric_tensor
+from carten.natural_tensor import NaturalTensors
+from carten.reduce import get_dyadic_tensor, reduce_symmetric_tensor, symmetrize
 from carten.utils import check_symmetric, check_traceless
 
 

@@ -5,12 +5,14 @@ import torch
 from carten.natural_tensor import (
     NaturalTensors,
     flatten_tensor_dims,
+    unflatten_tensor_dims,
+)
+from carten.reduce import (
     get_contraction_rule_1,
     get_contraction_rule_2,
     get_unique_choose_two,
     remove_trace,
     symmetrize,
-    unflatten_tensor_dims,
 )
 from carten.signature import Signature
 from carten.utils import get_trace, letter_index

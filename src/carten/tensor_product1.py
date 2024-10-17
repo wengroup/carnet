@@ -8,7 +8,8 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.natural_tensor import NaturalTensors, remove_trace
+from carten.natural_tensor import NaturalTensors
+from carten.reduce import remove_trace
 from carten.utils import dij, eijk, letter_index
 
 
@@ -220,6 +221,9 @@ def get_sym_part(
 
     # TODO, it might be faster to separate it into two steps: 1. contract S and T to
     #  get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
+    #
+    # TODO, we should do exactly the above to avoid many einsum calls. We just get U,
+    #  and then torch.permute the indices according to the symmetrization rules.
 
     # TODO, NEED to figure out how to average, not over the batch / multi direction
     symmetrized = torch.mean(

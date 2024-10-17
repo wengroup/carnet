@@ -7,7 +7,8 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.natural_tensor import NaturalTensors, remove_trace
+from carten.natural_tensor import NaturalTensors
+from carten.reduce import remove_trace
 from carten.utils import dij, eijk, letter_index
 
 
@@ -181,10 +182,12 @@ def get_sym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
         data = [delta for _ in range(num_delta)] + data
 
     # TODO, it might be faster to separate it into two steps: 1. contract S and T to
-    # get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
+    #  get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
+    # Yes, definitely do it
     symmetrized = torch.mean(
         torch.stack([torch.einsum(r, *data) for r in rules]), dim=0
     )
+
 
     return symmetrized
 
@@ -249,7 +252,7 @@ def get_asym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
     data = [eijk()] + delta + [S, T]
 
     # TODO, it might be faster to separate it into two steps: 1. contract S and T to
-    # get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
+    #  get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
     symmetrized = torch.mean(
         torch.stack([torch.einsum(r, *data) for r in rules]), dim=0
     )
