@@ -99,22 +99,22 @@ def test_tp_rule_odd():
 def test_tp_even(NT3, NT4):
     for i in [0, 2, 4, 6]:
         out = tp_even(NT3, NT3, out_rank=i)
-        assert out.dim() == i
+        assert out.ndim == i
         check_symmetric_traceless(out)
 
     for i in [0, 2, 4, 6, 8]:
         out = tp_even(NT4, NT4, out_rank=i)
-        assert out.dim() == i
+        assert out.ndim == i
         check_symmetric_traceless(out)
 
     for i in [1, 3, 5, 7]:
         out = tp_even(NT3, NT4, out_rank=i)
-        assert out.dim() == i
+        assert out.ndim == i
         check_symmetric_traceless(out)
 
 
 def test_tp_odd(NT3, NT4):
     for i in [2, 4, 6]:
         out = tp_odd(NT3, NT4, out_rank=i)
-        assert out.dim() == i
+        assert out.ndim == i
         check_symmetric_traceless(out)

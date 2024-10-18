@@ -24,8 +24,8 @@ def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     Returns:
         A natural tensor of rank l3
     """
-    l1 = S.dim()
-    l2 = T.dim()
+    l1 = S.ndim
+    l2 = T.ndim
     l3 = out_rank
     dtype = S.dtype
     device = S.device
@@ -65,8 +65,8 @@ def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     Returns:
         A natural tensor of rank l3
     """
-    l1 = S.dim()
-    l2 = T.dim()
+    l1 = S.ndim
+    l2 = T.ndim
     l3 = out_rank
     dtype = S.dtype
     device = S.device
@@ -243,7 +243,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
 
 # TODO, this is a generalization of symmetrize in reduce.py. Merge them?
-def symmetrize(t: torch.Tensor, symmetry: str = None) -> torch.Tensor:
+def symmetrize(t: Tensor, symmetry: str = None) -> Tensor:
     """
     Symmetrize a tensor.
 
@@ -261,7 +261,7 @@ def symmetrize(t: torch.Tensor, symmetry: str = None) -> torch.Tensor:
         The symmetrized tensor.
     """
     if symmetry is None:
-        permutations = itertools.permutations(range(t.dim()))
+        permutations = itertools.permutations(range(t.ndim))
     else:
         permutations = get_permutations(symmetry)
 
@@ -319,7 +319,7 @@ def factorial(n: int, device: torch.device = None):
 
 def double_factorial(
     n: int, lower_bound: int = None, device: torch.device = None
-) -> torch.Tensor:
+) -> Tensor:
     """
     Get the double factorial of a number.
 
