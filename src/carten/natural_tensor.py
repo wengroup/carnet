@@ -7,21 +7,6 @@ from carten.signature import Signature
 from carten.utils import check_shape, check_symmetric_traceless
 
 
-class NaturalTensor(Tensor):
-    """A natural tensor.
-
-    A natural tensor is symmetric and traceless tensor. It is the irreducible
-    representations of general tensors.
-
-    This can be created and used as a regular torch.Tensor, but with additional checks
-    to ensure the tensor is symmetric and traceless.
-    """
-
-    def __init__(self, T: Tensor | np.ndarray | list, *args, **kwargs):
-        check_symmetric_traceless(T)
-        super().__init__(T, *args, **kwargs)
-
-
 class NaturalTensors:
     """A sequence of natural tensors.
 

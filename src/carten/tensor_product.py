@@ -7,12 +7,12 @@ http://dx.doi.org/10.1063/1.528515
 import itertools
 
 import torch
+from torch import Tensor
 
-from carten.natural_tensor import NaturalTensor
 from carten.utils import dij, eijk, letter_index
 
 
-def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
+def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is even.
 
@@ -24,16 +24,16 @@ def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
     Returns:
         A natural tensor of rank l3
     """
-    assert (S.dim() + T.dim() - out_rank) % 2 == 0, "l1 + l2 - l3 must be even"
-
-    l1 = S.shape[0]
-    l2 = T.shape[0]
+    l1 = S.dim()
+    l2 = T.dim()
     l3 = out_rank
     dtype = S.dtype
     device = S.device
 
+    assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
+
     k = (l1 + l2 - l3) // 2
-    out = torch.zeros(*[3] * out_rank, dtype=dtype, device=device)
+    out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
     d = dij(device)
 
@@ -43,7 +43,7 @@ def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
         )
 
         rule, symmetry = tp_rule_even(l1, l2, k, m)
-        prod = torch.einsum(rule, S, T, *[d] * m)
+        prod = torch.einsum(rule, S, T, *([d] * m))
         prod = symmetrize(prod, symmetry)
 
         out = out + coeff * prod
@@ -53,7 +53,7 @@ def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
     return out
 
 
-def tp_odd(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
+def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
 
@@ -65,27 +65,27 @@ def tp_odd(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
     Returns:
         A natural tensor of rank l3
     """
-    assert (S.dim() + T.dim() - out_rank) % 2 == 1, "l1 + l2 - l3 must be odd"
-
-    l1 = S.shape[0]
-    l2 = T.shape[0]
+    l1 = S.dim()
+    l2 = T.dim()
     l3 = out_rank
     dtype = S.dtype
     device = S.device
 
+    assert (l1 + l2 - l3) % 2 == 1, "l1 + l2 - l3 must be odd"
+
     k = (l1 + l2 - l3 - 1) // 2
-    out = torch.zeros(*[3] * out_rank, dtype=dtype, device=device)
+    out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
     d = dij(device)
     epsilon = eijk(device)
 
-    for m in range(min(l1, l2) - k + 1):
+    for m in range(min(l1, l2) - k):
         coeff = (-2) ** m / double_factorial(
             2 * l3 - 1, 2 * l3 - 2 * m - 1 + 2, device=device
         )
 
         rule, symmetry = tp_rule_odd(l1, l2, k, m)
-        prod = torch.einsum(rule, epsilon, S, T, *[d] * m)
+        prod = torch.einsum(rule, epsilon, S, T, *([d] * m))
         prod = symmetrize(prod, symmetry)
 
         out = out + coeff * prod
@@ -136,42 +136,6 @@ def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
         / double_factorial(L3 + 1, device=device)
         / factorial((L + 1) // 2, device=device)
     )
-
-
-def factorial(n: int, device: torch.device = None):
-    """
-    Get the factorial of a number.
-    """
-    return torch.prod(torch.arange(1, n + 1, device=device))
-
-
-def double_factorial(
-    n: int, lower_bound: int = None, device: torch.device = None
-) -> torch.Tensor:
-    """
-    Get the double factorial of a number.
-
-    Args:
-        n: The number to calculate the double factorial
-        lower_bound: The lower bound of the double factorial. If lower bound is
-            provided, this is calculated as n * (n-2) * ... * lower_bound. Default is
-            None, meaning 1 if n odd and 2 if n even.
-    """
-
-    if n == 0 or n == 1:
-        return torch.tensor(1, device=device)
-    elif n % 2 == 0:
-        if lower_bound is None:
-            lower_bound = 2
-        else:
-            assert lower_bound % 2 == 0, "lower_bound must be even"
-        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
-    else:
-        if lower_bound is None:
-            lower_bound = 1
-        else:
-            assert lower_bound % 2 == 1, "lower_bound must be odd"
-        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
 
 
 def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
@@ -278,6 +242,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     return rule, symmetry
 
 
+# TODO, this is a generalization of symmetrize in reduce.py. Merge them?
 def symmetrize(t: torch.Tensor, symmetry: str = None) -> torch.Tensor:
     """
     Symmetrize a tensor.
@@ -343,3 +308,39 @@ def get_permutations(symmetry: str) -> list[tuple[int, ...]]:
             unique_perm_string.add(perm_string)
 
     return unique_perms
+
+
+def factorial(n: int, device: torch.device = None):
+    """
+    Get the factorial of a number.
+    """
+    return torch.prod(torch.arange(1, n + 1, device=device))
+
+
+def double_factorial(
+    n: int, lower_bound: int = None, device: torch.device = None
+) -> torch.Tensor:
+    """
+    Get the double factorial of a number.
+
+    Args:
+        n: The number to calculate the double factorial
+        lower_bound: The lower bound of the double factorial. If lower bound is
+            provided, this is calculated as n * (n-2) * ... * lower_bound. Default is
+            None, meaning 1 if n odd and 2 if n even.
+    """
+
+    if n == 0 or n == 1:
+        return torch.tensor(1, device=device)
+    elif n % 2 == 0:
+        if lower_bound is None:
+            lower_bound = 2
+        else:
+            assert lower_bound % 2 == 0, "lower_bound must be even"
+        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
+    else:
+        if lower_bound is None:
+            lower_bound = 1
+        else:
+            assert lower_bound % 2 == 1, "lower_bound must be odd"
+        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
