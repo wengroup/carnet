@@ -16,12 +16,29 @@ def letter_index(n: int, start: int = 0) -> str:
     return string.ascii_lowercase[start : start + n]
 
 
+def multi_double_index(n: int, start: int = 0) -> list[str]:
+    """Get multiple double indices.
+
+    Args:
+        n: the number of double indices
+        start: the starting index
+
+    Examples:
+        >>> multi_double_index(2)
+        ['ab', 'cd']
+        >>> multi_double_index(3, start=1)
+        ['bc', 'cd', 'de']
+    """
+    indices = letter_index(2 * n, start)
+    return [indices[2 * i : 2 * i + 2] for i in range(n)]
+
+
 def dij(device: torch.device = None) -> Tensor:
     """Kronecker delta tensor."""
     return torch.eye(3, device=device)
 
 
-def eijk(device:torch.device=None) -> Tensor:
+def eijk(device: torch.device = None) -> Tensor:
     """Levi-Civita tensor."""
     e = torch.zeros(3, 3, 3, device=device)
     e[0, 1, 2] = 1.0
