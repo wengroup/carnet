@@ -9,7 +9,7 @@ import itertools
 import torch
 
 from carten.natural_tensor import NaturalTensor
-from carten.utils import dij, letter_index
+from carten.utils import dij, eijk, letter_index
 
 
 def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
@@ -38,10 +38,8 @@ def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
     d = dij(device)
 
     for m in range(min(l1, l2) - k + 1):
-        coeff = (
-            (-2) ** m
-            * double_factorial(2 * l3 - 2 * m - 1, device)
-            / double_factorial(2 * l3 - 1, device)
+        coeff = (-2) ** m / double_factorial(
+            2 * l3 - 1, 2 * l3 - 2 * m - 1 + 2, device=device
         )
 
         rule, symmetry = tp_rule_even(l1, l2, k, m)
@@ -55,8 +53,50 @@ def tp_even(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
     return out
 
 
+def tp_odd(S: NaturalTensor, T: NaturalTensor, out_rank: int) -> NaturalTensor:
+    """
+    Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
+
+    Args:
+        S: A natural tensor of rank l1
+        T: A natural tensor of rank l2
+        out_rank: The rank of the output tensor l3
+
+    Returns:
+        A natural tensor of rank l3
+    """
+    assert (S.dim() + T.dim() - out_rank) % 2 == 1, "l1 + l2 - l3 must be odd"
+
+    l1 = S.shape[0]
+    l2 = T.shape[0]
+    l3 = out_rank
+    dtype = S.dtype
+    device = S.device
+
+    k = (l1 + l2 - l3 - 1) // 2
+    out = torch.zeros(*[3] * out_rank, dtype=dtype, device=device)
+
+    d = dij(device)
+    epsilon = eijk(device)
+
+    for m in range(min(l1, l2) - k + 1):
+        coeff = (-2) ** m / double_factorial(
+            2 * l3 - 1, 2 * l3 - 2 * m - 1 + 2, device=device
+        )
+
+        rule, symmetry = tp_rule_odd(l1, l2, k, m)
+        prod = torch.einsum(rule, epsilon, S, T, *[d] * m)
+        prod = symmetrize(prod, symmetry)
+
+        out = out + coeff * prod
+
+    out = coeff_D(l1, l2, l3) * out
+
+    return out
+
+
 def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
-    """Coefficient C"""
+    """Coefficient C for even L."""
     L = l1 + l2 + l3
     L1 = L - 2 * l1 - 1
     L2 = L - 2 * l2 - 1
@@ -65,14 +105,36 @@ def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
     return (
         factorial(l1, device)
         * factorial(l2, device)
-        * double_factorial(2 * l3 - 1, device)
-        * factorial((L1 + 1) // 2, device)
-        * factorial((L2 + 1) // 2, device)
-        / factorial(l3, device)
-        / double_factorial(L1, device)
-        / double_factorial(L2, device)
-        / double_factorial(L3, device)
-        / factorial(L // 2, device)
+        * double_factorial(2 * l3 - 1, device=device)
+        * factorial((L1 + 1) // 2, device=device)
+        * factorial((L2 + 1) // 2, device=device)
+        / factorial(l3, device=device)
+        / double_factorial(L1, device=device)
+        / double_factorial(L2, device=device)
+        / double_factorial(L3, device=device)
+        / factorial(L // 2, device=device)
+    )
+
+
+def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
+    """Coefficient D for odd L."""
+    L = l1 + l2 + l3
+    L1 = L - 2 * l1 - 1
+    L2 = L - 2 * l2 - 1
+    L3 = L - 2 * l3 - 1
+
+    return (
+        2
+        * factorial(l1, device)
+        * factorial(l2, device)
+        * double_factorial(2 * l3 - 1, device=device)
+        * factorial(L1 // 2, device=device)
+        * factorial(L2 // 2, device=device)
+        / factorial(l3 - 1, device=device)
+        / double_factorial(L1 + 1, device=device)
+        / double_factorial(L2 + 1, device=device)
+        / double_factorial(L3 + 1, device=device)
+        / factorial((L + 1) // 2, device=device)
     )
 
 
@@ -83,20 +145,38 @@ def factorial(n: int, device: torch.device = None):
     return torch.prod(torch.arange(1, n + 1, device=device))
 
 
-def double_factorial(n: int, device: torch.device = None):
+def double_factorial(
+    n: int, lower_bound: int = None, device: torch.device = None
+) -> torch.Tensor:
     """
     Get the double factorial of a number.
+
+    Args:
+        n: The number to calculate the double factorial
+        lower_bound: The lower bound of the double factorial. If lower bound is
+            provided, this is calculated as n * (n-2) * ... * lower_bound. Default is
+            None, meaning 1 if n odd and 2 if n even.
     """
+
     if n == 0 or n == 1:
         return torch.tensor(1, device=device)
     elif n % 2 == 0:
-        return torch.prod(torch.arange(2, n, step=2, device=device))
+        if lower_bound is None:
+            lower_bound = 2
+        else:
+            assert lower_bound % 2 == 0, "lower_bound must be even"
+        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
     else:
-        return torch.prod(torch.arange(1, n, step=2, device=device))
+        if lower_bound is None:
+            lower_bound = 1
+        else:
+            assert lower_bound % 2 == 1, "lower_bound must be odd"
+        return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
 
 
 def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
-    """Get the einsum rule when l1 + l2 + l3 is even.
+    """
+    Get the einsum rule when l1 + l2 - l3 is even.
 
     x_l1 \otimes^{k+m} x_l2 \otimes I ^{\otimes^m}
 
@@ -104,6 +184,8 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     indices are still symmetric. Similarly, the resultant tensor will have l2-k-m
     symmetric indices from y. It will have 2*m indices from I. Each two indices from I
     are symmetric.
+
+    In total, the resultant tensor will have l3 = l1 + l2 - 2k - 2m indices.
 
     Returns:
         rule: The einsum rule for the tensor product
@@ -132,9 +214,65 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     # l2-k-m remaining symmetric indices from y
     # 2m indices from all deltas. Each delta has 2 symmetric indices.
     symmetry = (
-        "a" * len(x_remain)
-        + "b" * len(y_remain)
-        + "".join(c * 2 for c in letter_index(m, start=2))  # start: c
+        "x" * len(x_remain)
+        + "y" * len(y_remain)
+        + "".join(c * 2 for c in letter_index(m))
+    )
+
+    return rule, symmetry
+
+
+def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
+    """
+    Get the einsum rule when l1 + l2 - l3 is odd.
+
+    epsilon : x_l1 \otimes^{k+m} x_l2 \otimes I ^{\otimes^m}
+
+    epsilon is the Levi-Civita symbol. It contracts away one index from x and one index
+    from y. So, after contraction, the resultant tensor will have 1 index from epsilon.
+    After contraction, the resultant tensor will have l1-1-k-m indices from x, and these
+    indices are still symmetric. Similarly, the resultant tensor will have l2-1-k-m
+    symmetric indices from y. It will have 2*m indices from I. Each two indices from I
+    are symmetric.
+
+    In total, the resultant tensor will have l3 = l1 + l2 - 1 - 2k - 2m indices.
+
+
+    Returns:
+        rule: The einsum rule for the tensor product
+        symmetry: The symmetry information of the resultant tensor after the tensor
+            product. e.g. `aabb` means the first two indices are symmetric, and the last
+            two indices are symmetric.
+    """
+    # example: epsilon_abc x_bpqr  y_cpqs I_tu -> arstu
+
+    # epsilon_remain = "a"
+    # epsilon_contracted = "bc"
+    xy_contracted = letter_index(k + m, 3)
+    x_remain = letter_index(l1 - 1 - k - m, k + m + 3)
+    y_remain = letter_index(l2 - 1 - k - m, l1 + 2)
+
+    # indices for contracting m I
+    # x and y uses l1 + l2 - k - m indices
+    delta = letter_index(2 * m, l1 + l2 - k - m + 1)
+    delta = [delta[i : i + 2] for i in range(0, 2 * m, 2)]
+    delta_left = "," + ",".join(delta) if delta else ""
+    delta_right = "".join(delta)
+
+    rule = (
+        f"abc,b{xy_contracted}{x_remain},c{xy_contracted}{y_remain}{delta_left}"
+        f"->a{x_remain}{y_remain}{delta_right}"
+    )
+
+    # 1 index from epsilon
+    # l1-1-k-m remaining symmetric indices from x
+    # l2-1-k-m remaining symmetric indices from y
+    # 2m indices from all deltas. Each delta has 2 symmetric indices.
+    symmetry = (
+        "x"
+        + "y" * len(x_remain)
+        + "z" * len(y_remain)
+        + "".join(c * 2 for c in letter_index(m))
     )
 
     return rule, symmetry

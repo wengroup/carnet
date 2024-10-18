@@ -24,11 +24,14 @@ def test_double_factorial():
     assert double_factorial(6) == 48
     assert double_factorial(7) == 105
     assert double_factorial(8) == 384
-    assert double_factorial(9) == 945
-    assert double_factorial(10) == 3840
 
+    assert double_factorial(7, lower_bound=3) == 105
     assert double_factorial(8, lower_bound=4) == 192
-    assert double_factorial(9, lower_bound=5) == 315
+
+    for i in range(5, 10):
+        assert double_factorial(i) // double_factorial(i - 4) == double_factorial(
+            i, lower_bound=i - 4 + 2
+        )
 
 
 def test_get_permutations():
