@@ -30,7 +30,7 @@ def multi_double_index(n: int, start: int = 0) -> list[str]:
         ['bc', 'cd', 'de']
     """
     indices = letter_index(2 * n, start)
-    return [indices[2 * i : 2 * i + 2] for i in range(n)]
+    return [indices[i : i + 2] for i in range(0, 2 * n, 2)]
 
 
 def dij(device: torch.device = None) -> Tensor:

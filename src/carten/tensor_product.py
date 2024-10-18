@@ -9,7 +9,7 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.utils import dij, eijk, letter_index
+from carten.utils import dij, eijk, letter_index, multi_double_index
 
 
 def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
@@ -164,8 +164,7 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = letter_index(2 * m, l1 + l2 - k - m)
-    delta = [delta[i : i + 2] for i in range(0, 2 * m, 2)]
+    delta = multi_double_index(m, l1 + l2 - k - m)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
@@ -218,8 +217,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = letter_index(2 * m, l1 + l2 - k - m + 1)
-    delta = [delta[i : i + 2] for i in range(0, 2 * m, 2)]
+    delta = multi_double_index(m, l1 + l2 - k - m + 1)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
