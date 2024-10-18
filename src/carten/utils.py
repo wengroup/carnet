@@ -11,18 +11,19 @@ def letter_index(n: int, start: int = 0) -> str:
 
     Args:
         n: the length of the letters
+        start: the starting index.
     """
     return string.ascii_lowercase[start : start + n]
 
 
-def dij() -> Tensor:
+def dij(device: torch.device = None) -> Tensor:
     """Kronecker delta tensor."""
-    return torch.eye(3)
+    return torch.eye(3, device=device)
 
 
-def eijk() -> Tensor:
+def eijk(device:torch.device=None) -> Tensor:
     """Levi-Civita tensor."""
-    e = torch.zeros(3, 3, 3)
+    e = torch.zeros(3, 3, 3, device=device)
     e[0, 1, 2] = 1.0
     e[1, 2, 0] = 1.0
     e[2, 0, 1] = 1.0

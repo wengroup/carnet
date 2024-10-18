@@ -139,10 +139,12 @@ def symmetrize(t: Tensor, start_dim: int = 0) -> Tensor:
         Eq 9 of: http://dx.doi.org/10.1080/00018737800101454
     """
     # TODO, benchmarking torch.einsum and torch.permute.
+    # No need to benchmark, torch.permute is faster since it returns a view.
+    # See the symmetrize function in tensor_product.py.
     rank = t.ndim - start_dim
 
     indices = letter_index(rank)
-    perms = itertools.permutations(indices, len(indices))
+    perms = itertools.permutations(indices)
     rules = [f"...{indices}->...{''.join(p)}" for p in perms]
 
     # TODO, is there anyway to avoid torch.stack? This creates a large tensor
