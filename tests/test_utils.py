@@ -1,11 +1,11 @@
 from math import factorial as factorial_math
 
-from carten.utils import multi_double_index, factorial, double_factorial
+from carten.utils import double_index, factorial, double_factorial
 
 
 def test_multi_double_index():
-    assert multi_double_index(2) == ["ab", "cd"]
-    assert multi_double_index(3, start=1) == ["bc", "de", "fg"]
+    assert double_index(2) == ["ab", "cd"]
+    assert double_index(3, start=1) == ["bc", "de", "fg"]
 
 
 def test_factorial():

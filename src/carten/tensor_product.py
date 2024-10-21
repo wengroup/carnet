@@ -12,10 +12,11 @@ from carten.reduce import symmetrize
 from carten.utils import (
     dij,
     double_factorial,
+    double_index,
     eijk,
     factorial,
     letter_index,
-    multi_double_index,
+    repeat_double_index,
 )
 
 
@@ -171,7 +172,7 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = multi_double_index(m, l1 + l2 - k - m)
+    delta = double_index(m, l1 + l2 - k - m)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
@@ -184,9 +185,7 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     # l2-k-m remaining symmetric indices from y
     # 2m indices from all deltas. Each delta has 2 symmetric indices.
     symmetry = (
-        "x" * len(x_remain)
-        + "y" * len(y_remain)
-        + "".join(c * 2 for c in letter_index(m))
+        "x" * len(x_remain) + "y" * len(y_remain) + "".join(repeat_double_index(m))
     )
 
     return rule, symmetry
@@ -224,7 +223,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = multi_double_index(m, l1 + l2 - k - m + 1)
+    delta = double_index(m, l1 + l2 - k - m + 1)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
@@ -241,7 +240,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
         "x"
         + "y" * len(x_remain)
         + "z" * len(y_remain)
-        + "".join(c * 2 for c in letter_index(m))
+        + "".join(repeat_double_index(m))
     )
 
     return rule, symmetry

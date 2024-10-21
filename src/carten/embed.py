@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-from carten.utils import dij, eijk, letter_index, multi_double_index
+from carten.utils import dij, eijk, letter_index, double_index
 
 
 # TODO, whether this is needed? Can we simply embed using rank-T.ndim identity?
@@ -50,7 +50,7 @@ def embed(T: Tensor, rank: int) -> Tensor:
         data += [eijk(device=T.device)]
 
     if num_delta > 0:
-        delta_index = multi_double_index(num_delta, start=T.ndim + 2)
+        delta_index = double_index(num_delta, start=T.ndim + 2)
         rule_left += "," + ",".join(delta_index)
         rule_right += "".join(delta_index)
         data += [dij(device=T.device)] * num_delta

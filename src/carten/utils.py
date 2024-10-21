@@ -16,21 +16,40 @@ def letter_index(n: int, start: int = 0) -> str:
     return string.ascii_lowercase[start : start + n]
 
 
-def multi_double_index(n: int, start: int = 0) -> list[str]:
-    """Get multiple double indices.
+def double_index(n: int, start: int = 0) -> list[str]:
+    """
+    Get multiple double indices, like ['ab', 'cd', 'ef'].
 
     Args:
         n: the number of double indices
         start: the starting index
 
     Examples:
-        >>> multi_double_index(2)
+        >>> double_index(2)
         ['ab', 'cd']
-        >>> multi_double_index(3, start=1)
+        >>> double_index(3, start=1)
         ['bc', 'cd', 'de']
     """
     indices = letter_index(2 * n, start)
     return [indices[i : i + 2] for i in range(0, 2 * n, 2)]
+
+
+def repeat_double_index(n: int, start: int = 0) -> list[str]:
+    """
+    Get multiple repeated double indices, like ['aa', 'bb', 'cc'].
+
+    Args:
+        n: the number of double indices
+        start: the starting index
+
+    Examples:
+        >>> repeat_double_index(2)
+        ['aa', 'bb']
+        >>> repeat_double_index(3, start=1)
+        ['bb', 'cc', 'dd']
+    """
+    indices = letter_index(n, start)
+    return [s * 2 for s in indices]
 
 
 def dij(device: torch.device = None) -> Tensor:
