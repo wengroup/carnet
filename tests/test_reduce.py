@@ -1,7 +1,12 @@
 import torch
 
 from carten.natural_tensor import NaturalTensors
-from carten.reduce import get_dyadic_tensor, reduce_symmetric_tensor, symmetrize
+from carten.reduce import (
+    get_dyadic_tensor,
+    get_permutations,
+    reduce_symmetric_tensor,
+    symmetrize,
+)
 from carten.utils import check_symmetric, check_traceless
 
 
@@ -50,3 +55,33 @@ def test_get_dyadic_tensor():
     nr = r / torch.norm(r)
     ref = torch.einsum("i,j,k->ijk", nr, nr, nr)
     assert torch.allclose(t, ref)
+
+
+def test_get_permutations():
+    ref = [
+        [0, 1, 2, 3, 4],
+        [0, 1, 3, 2, 4],
+        [0, 1, 3, 4, 2],
+        [0, 3, 1, 2, 4],
+        [0, 3, 1, 4, 2],
+        [0, 3, 4, 1, 2],
+        [3, 0, 1, 2, 4],
+        [3, 0, 1, 4, 2],
+        [3, 0, 4, 1, 2],
+        [3, 4, 0, 1, 2],
+    ]
+    perms = get_permutations("aaabb")
+    assert perms == ref
+
+    perms = get_permutations("aaabb", start_dim=2)
+    assert perms == [[0, 1] + [2 + i for i in sub] for sub in ref]
+
+
+def test_symmetrize():
+    t = torch.arange(81).reshape(3, 3, 3, 3).to(torch.float32)
+
+    u = symmetrize(t)
+    check_symmetric(u)
+
+    u = symmetrize(t, start_dim=2)
+    check_symmetric(u, start_dim=2)

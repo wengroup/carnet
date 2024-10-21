@@ -4,11 +4,11 @@ This uses the explicit formula given in
 "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
 http://dx.doi.org/10.1063/1.528515
 """
-import itertools
 
 import torch
 from torch import Tensor
 
+from carten.reduce import symmetrize
 from carten.utils import dij, eijk, letter_index, multi_double_index
 
 
@@ -44,7 +44,7 @@ def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
 
         rule, symmetry = tp_rule_even(l1, l2, k, m)
         prod = torch.einsum(rule, S, T, *([d] * m))
-        prod = symmetrize(prod, symmetry)
+        prod = symmetrize(prod, symmetry=symmetry)
 
         out = out + coeff * prod
 
@@ -86,7 +86,7 @@ def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
 
         rule, symmetry = tp_rule_odd(l1, l2, k, m)
         prod = torch.einsum(rule, epsilon, S, T, *([d] * m))
-        prod = symmetrize(prod, symmetry)
+        prod = symmetrize(prod, symmetry=symmetry)
 
         out = out + coeff * prod
 
@@ -238,74 +238,6 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     )
 
     return rule, symmetry
-
-
-# TODO, this is a generalization of symmetrize in reduce.py. Merge them?
-def symmetrize(t: Tensor, symmetry: str = None) -> Tensor:
-    """
-    Symmetrize a tensor.
-
-    The symmetrization is done by averaging over unique permutations of the indices,
-    considering the symmetry of the indices.
-
-    Args:
-        t: The tensor to symmetrize
-        symmetry: A string that describes the symmetry of the indices. For example,
-            `abba` means the first and the fourth indices are symmetric, and the
-            second and the third indices are symmetric. Default is None, which means
-            there is no symmetry between the indices.
-
-    Returns:
-        The symmetrized tensor.
-    """
-    if symmetry is None:
-        permutations = itertools.permutations(range(t.ndim))
-    else:
-        permutations = get_permutations(symmetry)
-
-    sym_t = torch.mean(torch.stack([t.permute(p) for p in permutations]), dim=0)
-
-    return sym_t
-
-
-def get_permutations(symmetry: str) -> list[tuple[int, ...]]:
-    """
-    Get the unique permutations of the indices for symmetrizing a tensor.
-
-    This works for the case where part or all of the indices are symmetric.
-
-    Args:
-        symmetry: A string that describes the symmetry of the indices. For example,
-            `abba` means the first and the fourth indices are symmetric, and the
-            second and the third indices are symmetric.
-
-    Example:
-        >>> get_permutations('abba')
-        [(0, 1, 2, 3),  # abba
-         (0, 1, 3, 2),  # abab
-         (0, 3, 1, 2),  # aabb
-         (1, 0, 2, 3),  # baba
-         (1, 0, 3, 2),  # baab
-         (1, 2, 0, 3)]  # bbaa
-
-    Returns:
-        Each inner list contains the permutation indices for symmetrization.
-    """
-    # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py
-    #  Can we merge them?
-
-    all_perms = itertools.permutations(range(len(symmetry)))
-
-    unique_perms = []
-    unique_perm_string = set()
-    for perm in all_perms:
-        perm_string = "".join(symmetry[i] for i in perm)
-
-        if perm_string not in unique_perm_string:
-            unique_perms.append(perm)
-            unique_perm_string.add(perm_string)
-
-    return unique_perms
 
 
 def factorial(n: int, device: torch.device = None):

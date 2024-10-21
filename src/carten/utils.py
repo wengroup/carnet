@@ -143,3 +143,20 @@ def check_shape(T: Tensor, n: int = 3) -> bool:
         return False
     else:
         return True
+
+
+def time_it(func, *args, **kwargs):
+    """Time a function."""
+    import time
+
+    num_runs = 5
+
+    times = []
+    for _ in range(num_runs):
+        start = time.time()
+        func(*args, **kwargs)
+        end = time.time()
+        times.append(end - start)
+
+    avg = sum(times) / num_runs
+    print(f"Running {func.__name__} for {num_runs} times. Average time: {avg} s")

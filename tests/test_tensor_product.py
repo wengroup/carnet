@@ -3,7 +3,6 @@ from math import factorial as factorial_math
 from carten.tensor_product import (
     double_factorial,
     factorial,
-    get_permutations,
     tp_even,
     tp_odd,
     tp_rule_even,
@@ -35,25 +34,6 @@ def test_double_factorial():
         assert double_factorial(i) // double_factorial(i - 4) == double_factorial(
             i, lower_bound=i - 4 + 2
         )
-
-
-def test_get_permutations():
-    perms = get_permutations("aaabb")
-
-    ref = [
-        (0, 1, 2, 3, 4),
-        (0, 1, 3, 2, 4),
-        (0, 1, 3, 4, 2),
-        (0, 3, 1, 2, 4),
-        (0, 3, 1, 4, 2),
-        (0, 3, 4, 1, 2),
-        (3, 0, 1, 2, 4),
-        (3, 0, 1, 4, 2),
-        (3, 0, 4, 1, 2),
-        (3, 4, 0, 1, 2),
-    ]
-
-    assert perms == ref
 
 
 def test_tp_rule_even():

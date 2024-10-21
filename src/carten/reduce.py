@@ -11,12 +11,12 @@ from carten.natural_tensor import NaturalTensors
 from carten.utils import dij, letter_index
 
 
-def reduce_symmetric_tensor(U: Tensor, start_dim: int = 0) -> NaturalTensors:
+def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
     """
     Decompose a fully symmetric tensor into natural tensors.
 
     Args:
-        U: a symmetric tensor
+        u: a symmetric tensor
         start_dim: the starting dimension to treat U as a symmetric tensor. Dimensions
             before start_dim will be treated as batch dimensions.
 
@@ -33,14 +33,14 @@ def reduce_symmetric_tensor(U: Tensor, start_dim: int = 0) -> NaturalTensors:
         right = indices[num_delta * 2 :]
         return f"{delta_indices}, ...{indices} -> ...{right}"
 
-    n = U.ndim - start_dim
+    n = u.ndim - start_dim
     indices = letter_index(n)
     delta = dij()
 
-    output = [remove_trace(U, start_dim=start_dim)]
+    output = [remove_trace(u, start_dim=start_dim)]
     for i in range(1, n // 2 + 1):
         rule = get_rule(indices, i)
-        data = [delta] * i + [U]
+        data = [delta] * i + [u]
         symmetrized = torch.einsum(rule, data)
         traceless = remove_trace(symmetrized, start_dim=start_dim)
         output.append(traceless)
@@ -127,29 +127,42 @@ def symmetrize_and_remove_trace(t: Tensor, start_dim: int = 0) -> Tensor:
     return remove_trace(symmetrize(t, start_dim), start_dim)
 
 
-def symmetrize(t: Tensor, start_dim: int = 0) -> Tensor:
+def symmetrize(t: Tensor, start_dim: int = 0, symmetry: str = None) -> Tensor:
     """
-    Fully symmetrize a tensor.
+    Symmetrize a tensor.
+
+    The symmetrization is done by averaging over unique permutations of the indices,
+    considering the symmetry of the indices.
 
     Args:
-        t: input tensor
+        t: The tensor to symmetrize
         start_dim: the starting dimension from which to symmetrize the tensor.
+            Dimensions before start_dim is regarded as batch dimensions and will not be
+            symmetrized.
 
-    Reference:
-        Eq 9 of: http://dx.doi.org/10.1080/00018737800101454
+        symmetry: A string that describes the symmetry of the indices. For example,
+            `abba` means the first and the fourth indices are symmetric, and the
+            second and the third indices are symmetric. Default is None, which means
+            there is no symmetry between the indices.
+
+    Returns:
+        The symmetrized tensor.
     """
-    # TODO, benchmarking torch.einsum and torch.permute.
-    # No need to benchmark, torch.permute is faster since it returns a view.
-    # See the symmetrize function in tensor_product.py.
-    rank = t.ndim - start_dim
 
-    indices = letter_index(rank)
-    perms = itertools.permutations(indices)
-    rules = [f"...{indices}->...{''.join(p)}" for p in perms]
+    # fully symmetrize the tensor
+    if symmetry is None:
+        permutations = itertools.permutations(range(start_dim, t.ndim))
+        if start_dim > 0:
+            prefix = list(range(start_dim))
+            permutations = [prefix + list(p) for p in permutations]
+    # symmetrize with the given symmetry
+    else:
+        assert (
+            start_dim + len(symmetry) == t.ndim
+        ), "The length of the symmetry string must match the tensor shape."
+        permutations = get_permutations(symmetry)
 
-    # TODO, is there anyway to avoid torch.stack? This creates a large tensor
-    #  requiring a lot of memory.
-    sym_t = torch.mean(torch.stack([torch.einsum(s, t) for s in rules]), dim=0)
+    sym_t = torch.mean(torch.stack([t.permute(p) for p in permutations]), dim=0)
 
     return sym_t
 
@@ -432,3 +445,53 @@ def get_contraction_rule_2(indices: list[str], num: int) -> str:
     rule = f"...{left}{appendix}->{right}"
 
     return rule
+
+
+def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
+    """
+    Get the unique permutations of the indices for symmetrizing a tensor.
+
+    This works for the case where part or all of the indices are symmetric.
+
+    Args:
+        symmetry: A string that describes the symmetry of the indices. For example,
+            `abba` means the first and the fourth indices are symmetric, and the
+            second and the third indices are symmetric. The symmetry only applies to
+            the indices after the `start_dim`.
+        start_dim: the starting dimension from which to permute the indices.
+
+    Example:
+        >>> get_permutations('abba')
+        [[0, 1, 2, 3],  # abba
+         [0, 1, 3, 2],  # abab
+         [0, 3, 1, 2],  # aabb
+         [1, 0, 2, 3],  # baba
+         [1, 0, 3, 2],  # baab
+         [1, 2, 0, 3]]  # bbaa
+        >>> get_permutations('abba', 2)
+        [[0, 1, 2, 3, 4, 5],  # abba
+         [0, 1, 2, 3, 5, 4],  # abab
+         [0, 1, 2, 5, 3, 4],  # aabb
+         [0, 1, 3, 2, 4, 5],  # baba
+         [0, 1, 3, 2, 5, 4],  # baab
+         [0, 1, 3, 4, 2, 5]]  # bbaa
+
+    Returns:
+        Each inner list contains the permutation indices for symmetrization.
+    """
+    # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py
+    #  Can we merge them?
+
+    all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
+
+    prefix = list(range(start_dim))
+    unique_perms = []
+    unique_perm_string = set()
+    for perm in all_perms:
+        perm_string = "".join(symmetry[i - start_dim] for i in perm)
+
+        if perm_string not in unique_perm_string:
+            unique_perms.append(prefix + list(perm))
+            unique_perm_string.add(perm_string)
+
+    return unique_perms
