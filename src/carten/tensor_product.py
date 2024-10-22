@@ -41,9 +41,9 @@ def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
 
     k = (l1 + l2 - l3) // 2
-    out = torch.zeros([3] * l3, dtype=dtype, device=device)
-
     d = dij(device)
+
+    out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
     for m in range(min(l1, l2) - k + 1):
         coeff = (-2) ** m / double_factorial(

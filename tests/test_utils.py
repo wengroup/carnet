@@ -1,6 +1,8 @@
 from math import factorial as factorial_math
 
-from carten.utils import double_index, factorial, double_factorial
+import torch
+
+from carten.utils import double_index, factorial, double_factorial, get_trace
 
 
 def test_multi_double_index():
@@ -31,3 +33,14 @@ def test_double_factorial():
         assert double_factorial(i) // double_factorial(i - 4) == double_factorial(
             i, lower_bound=i - 4 + 2
         )
+
+
+def test_get_trace(T2, T3):
+    trace = get_trace(T2, i=0, j=1)
+    assert torch.allclose(trace, torch.tensor([12.0]))
+
+    trace = get_trace(T3, i=0, j=1)
+    assert torch.allclose(trace, torch.tensor([36.0, 39.0, 42.0]))
+
+    trace = get_trace(T3, i=1, j=2)
+    assert torch.allclose(trace, torch.tensor([12.0, 39.0, 66.0]))
