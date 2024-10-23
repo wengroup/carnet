@@ -1,14 +1,19 @@
 """Helper functions to decompose the special tensors or tensor product of two tensors
 into natural tensors."""
 import itertools
-import string
 import warnings
 
 import torch
 from torch import Tensor
 
 from carten.natural_tensor import NaturalTensors
-from carten.utils import dij, letter_index
+from carten.utils import (
+    dij,
+    double_factorial,
+    double_index,
+    letter_index,
+    repeat_double_index,
+)
 
 
 def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
@@ -17,8 +22,8 @@ def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
 
     Args:
         u: a symmetric tensor
-        start_dim: the starting dimension to treat U as a symmetric tensor. Dimensions
-            before start_dim will be treated as batch dimensions.
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
 
     Returns:
         A NaturalTensors. Let n = U.ndim - start_dim; if n is even, there would be
@@ -41,6 +46,8 @@ def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
     for i in range(1, n // 2 + 1):
         rule = get_rule(indices, i)
         data = [delta] * i + [u]
+        # TODO, this torch.einsum might be combined with those in remove_trace, if we
+        #  want to optimize the code for speed.
         symmetrized = torch.einsum(rule, data)
         traceless = remove_trace(symmetrized, start_dim=start_dim)
         output.append(traceless)
@@ -109,7 +116,9 @@ def reduce_dyadic_tensor(
     return reduce_symmetric_tensor(U)
 
 
-def symmetrize_and_remove_trace(t: Tensor, start_dim: int = 0) -> Tensor:
+def symmetrize_and_remove_trace(
+    t: Tensor, start_dim: int = 0, symmetry: str = None
+) -> Tensor:
     """
     Symmetrize and remove the trace of a (generic) tensor.
 
@@ -119,12 +128,17 @@ def symmetrize_and_remove_trace(t: Tensor, start_dim: int = 0) -> Tensor:
 
     Args:
         t: input tensor
-        start_dim: the starting dimension to perform the operation.
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
+        symmetry: a string that describes the symmetry of the indices. For example,
+            `abba` means the first and the fourth indices are symmetric, and the
+            second and the third indices are symmetric. Default is None, which means
+            there is no symmetry between
 
     Returns:
         A symmetric traceless tensor of the same rank as the input tensor.
     """
-    return remove_trace(symmetrize(t, start_dim), start_dim)
+    return remove_trace(symmetrize(t, start_dim, symmetry), start_dim)
 
 
 def symmetrize(t: Tensor, start_dim: int = 0, symmetry: str = None) -> Tensor:
@@ -136,10 +150,8 @@ def symmetrize(t: Tensor, start_dim: int = 0, symmetry: str = None) -> Tensor:
 
     Args:
         t: The tensor to symmetrize
-        start_dim: the starting dimension from which to symmetrize the tensor.
-            Dimensions before start_dim is regarded as batch dimensions and will not be
-            symmetrized.
-
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
         symmetry: A string that describes the symmetry of the indices. For example,
             `abba` means the first and the fourth indices are symmetric, and the
             second and the third indices are symmetric. Default is None, which means
@@ -160,291 +172,112 @@ def symmetrize(t: Tensor, start_dim: int = 0, symmetry: str = None) -> Tensor:
         assert (
             start_dim + len(symmetry) == t.ndim
         ), "The length of the symmetry string must match the tensor shape."
-        permutations = get_permutations(symmetry)
+        permutations = get_permutations(symmetry, start_dim)
 
-    sym_t = torch.mean(torch.stack([t.permute(p) for p in permutations]), dim=0)
+    u = torch.mean(torch.stack([t.permute(p) for p in permutations]), dim=0)
 
-    return sym_t
+    return u
 
 
-def remove_trace(t: Tensor, start_dim: int = 0):
+def symmetrize_2(t: Tensor, num_delta: int, start_dim: int = 0) -> Tensor:
     """
-    Remove the trace of a symmetric tensors to get natural tensors.
+    Symmetrize a tensor that is obtained by contracting a symmetric tensor with deltas.
 
-    Data starting from `start_dim` will be considered as a natural tensor, and the
-    leading dimensions will be considered separately. For example, if `start_dim = 2`
-    and the tensor has a shape of [2, 4, 3, 3], there will be 2*4 natural tensors, and
-    each will be processed separately.
+    Symmetrization is done by summation over unique permutations of the indices,
+    considering the three set of symmetries. See `get_permutations_2` for more details.
 
     Args:
-        t: a fully symmetric tensor
-        start_dim: the starting dimension from which an input data is considered as
-            the natural tensor.
-
-    Give a symmetric tensor S_abc...q, the symmetric traceless part is given by:
-
-    T_abc...q = S_abc...q
-        - 1/(2n-1) * \sum_C1 (\delta_ab S_rrc...q)
-        + 1/(2n-1)(2n-3) * \sum_C2 (\delta_ab\delta_cd S_rrss...q)
-        - 1/(2n-1)(2n-3)(2n-5) * \sum_C3 (\delta_ab\delta_cd\delta_ef S_rrsstt...q)
-        + ...
-
-    \sum_C1, \sum_C2, \sum_C3, ... are sums over all combinations of indices.
-    Specifically,
-    - \sum_C1 is:
-      \delta_ab S_rrc...q + \delta_ac S_rbr...q + ... \delta_pq S_abc...rr
-
-    - \sum_C2 is:
-      \delta_ab \delta_cd S_rrss...q + \delta_ab \delta_ce S_rrsds...q + ...
-
-    - \sum_C3 is:
-    \delta_ab\delta_cd\delta_ef S_rrsstt...q + \delta_ab\delta_cd\delta_eg S_rrsstft...q
-    + ...
-
-
-    For even n (the number of indices of the tensor), there will be n/2 terms C_i sums,
-    where i = 1, 2, ..., n/2. For odd n, there will be (n-1)/2 terms C_i sums, where
-    i = 1, 2, ..., (n-1)/2.
-
-    These sums are formed by combination of indices. For example, for n = 5. With
-    indices `abcde`,
-    - \sum_C1 is:
-
-        i1 = abcde
-        d1 = Choose(i1, 2)
-
-        We can use d1 to form the deltas.
-
-    - sum_C2 is:
-        i1 = abcde
-        d1 = Choose(i1, 2)
-        i2 = i1 - d1
-        d2 = Choose(i2, 2)
-
-        We then use d1 and d2 to form the deltas, with duplicates removed.
-
-    References:
-        Eq 10 of http://dx.doi.org/10.1080/00018737800101454
+        t: the tensor
+        num_delta: number of deltas used to obtain the tensor
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
 
     Returns:
-        A symmetric traceless tensor of the same rank as the input tensor.
+        A symmetrized tensor.
     """
+    # rank of the tensor, after considering the start_dim
+    m = t.ndim - start_dim
 
-    rank = t.ndim - start_dim
-    indices = letter_index(rank)
-    delta_indices = get_unique_choose_two(indices)
+    # Get unique permutations
+    permutations = get_permutations_2(m, num_delta, start_dim)
 
-    # TODO, note that t is fully symmetric, so, no matter which two indices we choose to
-    #  contract, the result is the same. Therefore, we can choose any combinations of
-    #  the two indices. And then permute the remaining indices to get the final result.
-    #  # this may be faster than the current implementation?
-    t_out = t
-    factor = 1
-    delta = dij()
-    for i, indices in delta_indices.items():
-        operand = [t] + [delta] * i
+    # Sum over the permutations
+    u = torch.sum(torch.stack([t.permute(p) for p in permutations]), dim=0)
 
-        # Note, start_dim is dealt with in the `get_contraction_rule_2` function, where
-        # the tensor `t` is always contracted from the tailing dimensions.
-        v = torch.sum(
-            torch.stack(
-                [torch.einsum(get_contraction_rule_2(d, i), operand) for d in indices]
-            ),
-            dim=0,
-        )
-        factor = -factor / (2 * rank - 2 * i + 1)
-
-        t_out = t_out + factor * v
-
-    return t_out
+    return u
 
 
-def get_unique_choose_two(
-    indices: str, remove_duplicates: bool = True
-) -> dict[int, list[list[str]]]:
+def remove_trace(u: Tensor, start_dim: int = 0) -> Tensor:
     """
-    Get all unique (set of) choosing two indices from a string of indices.
-
-    The rest of indices (not chosen ones) will be appended to the end of each group.
+    Remove the trace of a symmetric tensors to get a natural tensor of the same rank.
 
     Args:
-        indices: a string of indices with no repeat letter, e.g. "abcde".
-        remove_duplicates: whether to remove duplicates. For exmaple  ['cd', 'ab'] is a
-            duplicate of ['ab' 'cd'].
+        u: a fully symmetric tensor
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
 
-     Returns:
-        A dict of all unique (set of) choosing two indices. The number of two-indices
-        emelents in each group is the key of the dict, and it goes from 1 to n//2,
-        where n is the length of the indices. The values are the corresponding
-        two-indices combinations, and the remaining indices.
+    This implements:
+    X_{ij\dots m} = U_{ij\dots m} + \sum_{d=1}^D (-1)^d \frac{(2m-2d-1)!!}{(2m-1)!!}
+    \{ \delta_{ij}\delta_{kl} \dots U_{rrss\dots m} \}
+    where:
+    U: fully symmetric tensor of rank m
+    X: natural tensor of rank m
+    D: D=m/2 if m is even, D=(m-1)/2 if m is odd
+    {} denotes fully symmetrization.
 
-       Example:
-        >>> get_unique_choose_two("abc")
-        {1: [["ab", "c"], ["ac", "b"], ["bc", "a"]]},
+    References:
+        1. Eq 10 of http://dx.doi.org/10.1080/00018737800101454
+        2. Cartesian tensors writeup by Mingjian Wen, which is an explicit form of the
+           above reference.
 
-        >>> get_unique_choose_two("abcde")
-        {1: [["ab", "cde"], ["ac", "bde"], ["ad", "bce"], ["ae", "bcd"],
-             ["bc", "ade"], ["bd", "ace"], ["be", "acd"],
-             ["cd", "abe"], ["ce", "abd"],
-             ["de", "abc"],
-            ],
-         2: [["ab", "cd", "e"],
-             ["ab", "ce", "d"],
-             ["ab", "de", "c"],
-             ["ac", "bd", "e"],
-             ["ac", "be", "d"],
-             ["ac", "de", "b"],
-             ["ad", "bc", "e"],
-             ["ad", "be", "c"],
-             ["ad", "ce", "b"],
-             ["ae", "bc", "d"],
-             ["ae", "bd", "c"],
-             ["ae", "cd", "b"],
-             ["bc", "de", "a"],
-             ["bd", "ce", "a"],
-             ["be", "cd", "a"],
-             # Note, others like ["cd", "ab", "e"] will not appear because it is a
-             # duplicate of ["ab", "cd", "e"].
-            ]
-        }
+    Returns:
+        A natural tensor of the same shape as the input tensor.
     """
+    device = u.device
 
-    indices = "".join(sorted(indices))
+    m = u.ndim - start_dim
+    D = m // 2
 
-    results = {0: [[indices]]}
-    for i in range(1, len(indices) // 2 + 1):
-        current = []
-        for dr in results[i - 1]:
-            done = dr[:-1]
-            rest = dr[-1]
-            chosen = itertools.combinations(rest, 2)
+    delta = dij(device)
+    coeff = 1
+    out = u
+    for d in range(1, D + 1):
+        rule = remove_trace_rule(m, d)
 
-            for ch in chosen:
-                ch = "".join(ch)
-                if len(rest) > len(ch):
-                    rest_rest = "".join(sorted(set(rest) - set(ch)))
-                    current.append(done + [ch, rest_rest])
-                else:
-                    current.append(done + [ch])
+        # Contract with multiple deltas to get a tensor of the same rank as u
+        prod = torch.einsum(rule, u, *([delta] * d))
 
-        if remove_duplicates:
-            # frozenset(x[:i]) selects the current done indices and make it a key.
-            # Note, we cannot use frozenset(x) to use all because it can remove
-            # non-duplicates. For example, consider the case with 4 indices, `abcd`,
-            # and we choose a single pair of indices (i.e. i = 1). Then, we want
-            # ["ab", "cd"], ["ac", "bd"], ["ad", "bc"], ["bc", "ad"], ["bd", "ac"],
-            # ["cd", "ab"] as the results. However, if we use frozenset(x), then
-            # ["ab", "cd"], ["ac", "bd"], ["ad", "bc"] will be removed.
-            #
-            # The original list is kept as the value to keep the order of the elements
-            # in the list, so that we don't change them.
-            current = {frozenset(x[:i]): x for x in current}
-            unique = set(current.keys())
-            results[i] = [current[k] for k in unique]
-        else:
-            results[i] = current
+        prod = symmetrize_2(prod, num_delta=d, start_dim=start_dim)
 
-    # remove the first element, which is the original indices
-    results.pop(0)
+        # coeff = (-1) ** d / double_factorial(2 * m - 1, 2 * m - 2 * d - 1 + 2, device)
+        coeff = -coeff / (2 * m - 2 * d + 1)
 
-    return results
+        out = out + coeff * prod
+
+    return out
 
 
-# TODO, this seems not used anywhere. Remove it.
-def get_contraction_rule_1(indices: list[str], num: int) -> str:
+def remove_trace_rule(m: int, d: int) -> str:
     """
-    Get the contraction rule from a list of indices.
+    Get the contraction rule to remove the trace of a symmetric tensor.
+
+    Note, d <= m/2.
 
     Args:
-        indices: a list of indices
-        num: the number of index to be contracted
+        m: rank of the symmetric tensor
+        d: the number of delta
 
-    Example:
-        >>> get_contraction_rule_1(["ab"], 1)
-        "aa"
-        >>> get_contraction_rule_1(["ab", "c"], 1)
-        "aac->c"
-        >>> get_contraction_rule_1(["ac", "b"], 1)
-        "aba->b"
-        >>> get_contraction_rule_1(["bd", "ac"], 1)
-        "abcb->ac"
-        >>> get_contraction_rule_1(["ac", "bd"], 2)
-        "abab"
-        >>> get_contraction_rule_1(["bd", "ace"], 1)
-        "abcbe->ace"
-        >>> get_contraction_rule_1(["ac", "bd", "e"], 2)
-        "ababe->e"
+    Returns:
+        rule: the contraction rule
+        symmetry: the symmetry of the indices
     """
+    u_contracted = "".join(repeat_double_index(d))
+    u_remain = letter_index(m - 2 * d, start=d)
+    delta = double_index(d, start=m - d)
 
-    # get sorted letters, assume each letter only appears once
-    left = "".join(sorted("".join(indices)))
-
-    for i, x in enumerate(indices):
-        if i < num:
-            idx = left.index(x[1])
-            left = left.replace(left[idx], x[0])
-
-    right = "".join(indices[num:])
-
-    if len(right) == 0:
-        return left
-    else:
-        return f"{left}->{right}"
-
-
-def get_contraction_rule_2(indices: list[str], num: int) -> str:
-    """
-    Get the contraction rule from a list of indices, and keep the rank of tensor.
-
-    The tensor will be contracted with `num` delta tensors: delta_zy, delta_xw,
-    delta_vu... and the rank of the tensor will be kept.
-
-    Args:
-        indices: a list of indices. The indices serving two purposes: (1) the indices
-            of the tensor, and (2) the position of the indices to be contracted. For
-            example, if indices = ["ac", "b"] and num = 1, then the tensor will actually
-            be a tensor with three indices T_abc, and the first and third indices will
-            be contracted, signified by "ac".
-        num: the number of index to be contracted
-
-    Example:
-        >>> get_contraction_rule_2(["ab"], 1)
-        "...aa,zy->zy"
-        >>> get_contraction_rule_2( ["ab", "c"], 1)
-        "...aac,zy->zyc"
-        >>> get_contraction_rule_2( ["ac", "b"], 1)
-        "...aba,zy->zby"
-        >>> get_contraction_rule_2(["bd", "ac"], 1)
-        "...abcb,zy->azcy"
-        >>> get_contraction_rule_2(["ac", "bd"], 2)
-        "...abab,zy,xw->zxyw"
-        >>> get_contraction_rule_2(["bd", "ace"], 1)
-        "...abcbe,zy->azcye"
-        >>> get_contraction_rule_2(["ac", "bd", "e"], 2)
-        "...ababe,zy,xw->zxywe"
-    """
-    letters = "".join(reversed(string.ascii_lowercase))
-
-    # get sorted letters, e.g. `abcde...`, assuming each letter only appears once
-    left = "".join(sorted("".join(indices)))
-    right = left
-
-    appendix = ""
-    for i, pair in enumerate(indices[:num]):
-        idx0 = left.index(pair[0])
-        idx1 = left.index(pair[1])
-        left = left.replace(left[idx1], pair[0])
-        new_letters = letters[i * 2 : (i + 1) * 2]
-
-        appendix += "," + new_letters
-
-        right = right.replace(right[idx0], new_letters[0]).replace(
-            right[idx1], new_letters[1]
-        )
-
-    rule = f"...{left}{appendix}->{right}"
-
-    return rule
+    return (
+        f"...{u_contracted}{u_remain},{','.join(delta)}->...{u_remain}{''.join(delta)}"
+    )
 
 
 def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
@@ -458,7 +291,8 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
             `abba` means the first and the fourth indices are symmetric, and the
             second and the third indices are symmetric. The symmetry only applies to
             the indices after the `start_dim`.
-        start_dim: the starting dimension from which to permute the indices.
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
 
     Example:
         >>> get_permutations('abba')
@@ -487,11 +321,149 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
     prefix = list(range(start_dim))
     unique_perms = []
     unique_perm_string = set()
+
+    # Filter permutations based on the symmetry
     for perm in all_perms:
         perm_string = "".join(symmetry[i - start_dim] for i in perm)
 
         if perm_string not in unique_perm_string:
             unique_perms.append(prefix + list(perm))
             unique_perm_string.add(perm_string)
+
+    return unique_perms
+
+
+def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[int]]:
+    """
+    Get the unique permutations of the tensor product of a symmetric tensor and deltas.
+
+    For example, we know
+    {U_rrss \delta_ij \delta_kl}
+    = U_rrss \delta_ij \delta_kl
+    + U_rsrs \delta_ij \delta_kl
+    + U_rssr \delta_ij \delta_kl
+
+    This is equivalent to
+    1. First get V_ijkl = U_rrss \delta_ij \delta_kl
+    2. Then permute V_ijkl to get V_ikjl and V_iklj
+    3. Sum them up to get the result, i.e.
+        {U_rrss \delta_ij \delta_kl} = V_ijkl + V_ikjl + V_iklj
+
+    This function find the permutations of the indices in V.
+    There are two types of symmetry to consider in the permutations:
+    a. Minor symmetry: the symmetry of the two indices in each delta tensor. For example,
+       V_ijkl = V_jikl = V_ijlk
+    b. Major symmetry: the symmetry of indices between the deltas. For example,
+       V_ijkl = V_klij
+
+    In addition, we consider another symmetry:
+    c. The symmetry of the remaining indices of the tensor, e.g. in U_rrst\delta_ij,
+        the indices r and s are symmetric.
+
+    Args:
+        m: the rank of the symmetric tensor
+        num_delta: the number of delta tensors to be contracted
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
+
+    Returns:
+        Each inner list contains the permutation indices for symmetrization.
+
+
+    Get unique permutations of indices for symmetrizing a tensor, taking into account
+    both index symmetry within groups and contraction pattern equivalence.
+
+    The function handles two types of equivalence:
+    1. Letter repetition symmetry: 'aa' indicates that these two indices are symmetric
+       and can be swapped.
+    2. Contraction pattern symmetry: 'abab' and 'baba' represent the same contraction
+       pattern (contracting 1st with 3rd and 2nd with 4th indices) and are considered
+       equivalent.
+
+    The function generates all possible permutations and then filters out those that
+    are equivalent under these symmetry rules, keeping only unique patterns.
+
+    Args:
+        symmetry: A string describing the symmetry pattern of indices. Each character
+            represents an index, and repeated characters indicate symmetric indices.
+            For example:
+            - 'aabb': two pairs of symmetric indices
+            - 'abab': contracting first with third and second with fourth indices
+
+    Returns:
+        list[list[int]]: A list of permutations, where each permutation is represented
+        as a list of integers. The integers indicate the position each index moves to
+        in the permutation.
+
+    Examples:
+        >>> get_permutations('aabb')
+        [[0, 1, 2, 3],   # aabb, same as 'bbaa'
+         [0, 2, 1, 3],   # abab, same as 'baba'
+         [0, 2, 3, 1]]   # abba, same as 'baab'
+
+
+    Notes:
+        - The function converts input patterns to a canonical form to identify
+          equivalent configurations. For example:
+          * 'abab' -> 'abab'
+          * 'baba' -> 'abab' (same contraction pattern)
+          * 'cdcd' -> 'abab' (same contraction pattern)
+
+        - The canonical form is created by:
+          1. Mapping the first unique letter to 'a'
+          2. Mapping the second unique letter to 'b'
+          3. Reusing these mappings for repeated letters
+          This ensures that equivalent patterns get the same canonical form.
+    """
+
+    def get_canonical_form(ps: str, exclude: str) -> str:
+        """
+        Convert a permutation string to its canonical form, such that equivalent
+        permutation strings have the same representation.
+
+        This is based on first occurrence positions of each letter in the string.
+        For example, `baba` and `fefe` are equivalent permutation strings, and
+        both will be converted to `0101`.
+
+        Args:
+            ps: The permutation string to convert
+            exclude: The letter to exclude from being changed, but keep its
+                original value in the canonical form
+
+        Returns:
+            The canonical form of the permutation string
+        """
+        return "".join(c if c == exclude else str(ps.index(c)) for c in ps)
+
+    num_remain = m - 2 * num_delta
+    assert num_remain >= 0, "The number of remaining indices must be non-negative."
+
+    # Construct the symmetry pattern
+    # e.g., zzzzaabb, meaning we have 4 symmetric indices from the tensor and 2 pairs
+    # of symmetric indices from two deltas.
+    u_remain = "z" * num_remain
+    delta = "".join(repeat_double_index(num_delta))
+    symmetry = f"{u_remain}{delta}"
+
+    all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
+
+    prefix = list(range(start_dim))
+    unique_perms = []
+    unique_canonical_forms = set()
+
+    # Filter permutations based on contraction pattern
+    for perm in all_perms:
+        perm_string = "".join(symmetry[i - start_dim] for i in perm)
+
+        # Use canonical form to identify equivalent patterns, dealing with both minor
+        # symmetry and major symmetry.
+        # The index 'z' is excluded to be changed, but keep its original value, because
+        # it represents the remaining indices of the tensor, not associated with the
+        # deltas.
+        canonical_form = get_canonical_form(perm_string, exclude="z")
+
+        if canonical_form not in unique_canonical_forms:
+            unique_perms.append(prefix + list(perm))
+            unique_canonical_forms.add(canonical_form)
 
     return unique_perms
