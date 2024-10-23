@@ -7,13 +7,7 @@ import torch
 from torch import Tensor
 
 from carten.natural_tensor import NaturalTensors
-from carten.utils import (
-    dij,
-    double_factorial,
-    double_index,
-    letter_index,
-    repeat_double_index,
-)
+from carten.utils import dij, double_index, letter_index, repeat_double_index
 
 
 def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
@@ -32,24 +26,21 @@ def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
     """
 
     def get_rule(indices: str, num_delta: int):
-        delta_indices = ",".join(
-            [indices[2 * i : 2 * i + 2] for i in range(0, num_delta)]
-        )
+        delta_indices = ",".join([indices[2 * i : 2 * i + 2] for i in range(num_delta)])
         right = indices[num_delta * 2 :]
-        return f"{delta_indices}, ...{indices} -> ...{right}"
+        return f"...{indices},{delta_indices}->...{right}"
 
-    n = u.ndim - start_dim
-    indices = letter_index(n)
-    delta = dij()
+    m = u.ndim - start_dim  # rank of the tensor
+    D = m // 2  # maximum number of deltas that can be contracted
+
+    indices = letter_index(m)
+    d = dij(u.device)
 
     output = [remove_trace(u, start_dim=start_dim)]
-    for i in range(1, n // 2 + 1):
+    for i in range(1, D + 1):
         rule = get_rule(indices, i)
-        data = [delta] * i + [u]
-        # TODO, this torch.einsum might be combined with those in remove_trace, if we
-        #  want to optimize the code for speed.
-        symmetrized = torch.einsum(rule, data)
-        traceless = remove_trace(symmetrized, start_dim=start_dim)
+        v = torch.einsum(rule, u, *([d] * i))
+        traceless = remove_trace(v, start_dim=start_dim)
         output.append(traceless)
 
     return NaturalTensors.from_sequence(output, start_dim=start_dim)
