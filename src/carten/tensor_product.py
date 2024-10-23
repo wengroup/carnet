@@ -146,6 +146,8 @@ def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
     )
 
 
+# TODO, the symmetry can be simplified to retain fewer terms, if we consider the
+#  major symmetry of different deltas
 def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is even.
@@ -162,8 +164,8 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     Returns:
         rule: The einsum rule for the tensor product
         symmetry: The symmetry information of the resultant tensor after the tensor
-            product. e.g. `aabb` means the first two indices are symmetric, and the last
-            two indices are symmetric.
+            product. e.g. `xxxyyyaa` means the first three indices are symmetric, the
+            next three indices are symmetric, and the last two indices are symmetric.
     """
 
     xy_contracted = letter_index(k + m)
@@ -191,6 +193,8 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     return rule, symmetry
 
 
+# TODO, the symmetry can be simplified to retain fewer terms, if we consider the
+#  major symmetry of different deltas
 def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is odd.

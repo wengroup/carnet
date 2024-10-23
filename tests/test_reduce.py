@@ -1,9 +1,15 @@
 import torch
 
 from carten.natural_tensor import NaturalTensors
-from carten.reduce import (get_contraction_rule_1, get_dyadic_tensor, get_permutations, reduce_symmetric_tensor, remove_trace, remove_trace_rule, symmetrize,
-                           get_contraction_rule_2, )
-from carten.test_reduce import get_unique_choose_two
+from carten.reduce import (
+    get_dyadic_tensor,
+    get_permutations,
+    get_permutations_2,
+    reduce_symmetric_tensor,
+    remove_trace,
+    remove_trace_rule,
+    symmetrize,
+)
 from carten.utils import check_symmetric, check_traceless, letter_index
 
 
@@ -55,6 +61,9 @@ def test_get_dyadic_tensor():
 
 
 def test_get_permutations():
+    assert get_permutations("aaaa") == [[0, 1, 2, 3]]
+    assert get_permutations("aaaa", start_dim=2) == [[0, 1, 2, 3, 4, 5]]
+
     ref = [
         [0, 1, 2, 3, 4],
         [0, 1, 3, 2, 4],
@@ -74,6 +83,11 @@ def test_get_permutations():
     assert perms == [[0, 1] + [2 + i for i in sub] for sub in ref]
 
 
+def test_get_permutations_2():
+    perms = get_permutations_2(m=2, num_delta=1)
+    assert perms == [[0, 1]]
+
+
 def test_symmetrize(T2, T3, T4):
     for t in [T2, T3, T4]:
         for start_dim in range(2):
@@ -82,9 +96,8 @@ def test_symmetrize(T2, T3, T4):
 
 
 def test_remove_trace_rule():
-    rule, sym = remove_trace_rule(5, 2)
+    rule = remove_trace_rule(5, 2)
     assert rule == "...aabbc,de,fg->...cdefg"
-    assert sym == "abbcc"
 
 
 def test_remove_trace(T2, T3, T4):
@@ -93,148 +106,31 @@ def test_remove_trace(T2, T3, T4):
     """
     # second rank tensor
     t2 = symmetrize(T2)
-    t2 = t2.reshape(1, 1, 3, 3)
+    t2_1 = remove_trace(t2, start_dim=0)
+    assert torch.einsum("ii", t2_1) == 0.0
 
-    start_dim = 2
-    t2 = remove_trace(t2, start_dim)
+    t2_2 = t2.reshape(1, 1, 3, 3)
+    t2_tl = remove_trace(t2_2, start_dim=2)
+    assert t2_tl.shape == t2_2.shape
 
-    assert torch.einsum("...ii", t2) == 0.0
+    assert torch.einsum("...ii", t2_tl) == 0.0
 
     # third rank tensor
     t3 = symmetrize(T3)
     t3 = t3.reshape(1, 1, 3, 3, 3)
+    t3_tl = remove_trace(t3, start_dim=2)
+    assert t3_tl.shape == t3.shape
 
-    start_dim = 2
-    t3 = remove_trace(t3, start_dim)
-
-    # contract one pair of indices
-    num_contract_pair = 1
-    delta_indices = get_unique_choose_two(letter_index(3), remove_duplicates=False)
-    deltas = delta_indices[num_contract_pair]
-
-    for d in deltas:
-        rule = get_contraction_rule_1(d, num_contract_pair)
-        v = torch.einsum("..." + rule, t3)
-        assert torch.allclose(v, torch.zeros(3), atol=1e-5)
+    for rule in ["...iij", "...iji", "...jii"]:
+        out = torch.einsum(rule, t3_tl)
+        assert torch.allclose(out, torch.zeros(3), atol=1e-5)
 
     # fourth rank tensor
     t4 = symmetrize(T4)
     t4 = t4.reshape(1, 1, 3, 3, 3, 3)
+    t4_tl = remove_trace(t4, start_dim=2)
+    assert t4_tl.shape == t4.shape
 
-    start_dim = 2
-    t4 = remove_trace(t4, start_dim)
-
-    # contract one pair of indices
-    num_contract_pair = 1
-    delta_indices = get_unique_choose_two(letter_index(4), remove_duplicates=False)
-    deltas = delta_indices[num_contract_pair]
-
-    for d in deltas:
-        rule = get_contraction_rule_1(d, num_contract_pair)
-        v = torch.einsum("..." + rule, t4)
-        assert torch.allclose(v, torch.zeros(3, 3), atol=1e-4)
-
-
-def test_get_contraction_rule_1():
-    x = get_contraction_rule_1(["ab"], 1)
-    assert x == "aa"
-
-    x = get_contraction_rule_1(["ab", "c"], 1)
-    assert x == "aac->c"
-
-    x = get_contraction_rule_1(["ac", "b"], 1)
-    assert x == "aba->b"
-
-    x = get_contraction_rule_1(["bd", "ac"], 1)
-    assert x == "abcb->ac"
-
-    x = get_contraction_rule_1(["ac", "bd"], 2)
-    assert x == "abab"
-
-    x = get_contraction_rule_1(["bd", "ace"], 1)
-    assert x == "abcbe->ace"
-
-    x = get_contraction_rule_1(["ac", "bd", "e"], 2)
-    assert x == "ababe->e"
-
-
-def test_get_contraction_rule_2():
-    x = get_contraction_rule_2(["ab"], 1)
-    assert x == "...aa,zy->zy"
-
-    x = get_contraction_rule_2(["ab", "c"], 1)
-    assert x == "...aac,zy->zyc"
-
-    x = get_contraction_rule_2(["ac", "b"], 1)
-    assert x == "...aba,zy->zby"
-
-    x = get_contraction_rule_2(["bd", "ac"], 1)
-    assert x == "...abcb,zy->azcy"
-
-    x = get_contraction_rule_2(["ac", "bd"], 2)
-    assert x == "...abab,zy,xw->zxyw"
-
-    x = get_contraction_rule_2(["bd", "ace"], 1)
-    assert x == "...abcbe,zy->azcye"
-
-    x = get_contraction_rule_2(["ac", "bd", "e"], 2)
-    assert x == "...ababe,zy,xw->zxywe"
-
-
-def test_get_unique_choose_two():
-    def frozen(x):
-        """set of frozensets"""
-        return set([frozenset(s) for s in x])
-
-    indices = "abc"
-    results = get_unique_choose_two(indices)
-    assert len(results) == 1
-
-    ref = [["ab", "c"], ["ac", "b"], ["bc", "a"]]
-    assert frozen(results[1]) == frozen(ref)
-
-    indices = "abcd"
-    results = get_unique_choose_two(indices)
-    assert len(results) == 2
-
-    ref = [["ab", "cd"], ["ac", "bd"], ["ad", "bc"]]
-    assert frozen(results[1]) == frozen(ref)
-    assert frozen(results[2]) == frozen(ref)
-
-    indices = "abcde"
-
-    results = get_unique_choose_two(indices)
-    assert len(results) == 2
-
-    ref1 = [
-        ["ab", "cde"],
-        ["ac", "bde"],
-        ["ad", "bce"],
-        ["ae", "bcd"],
-        ["bc", "ade"],
-        ["bd", "ace"],
-        ["be", "acd"],
-        ["cd", "abe"],
-        ["ce", "abd"],
-        ["de", "abc"],
-    ]
-    assert frozen(results[1]) == frozen(ref1)
-
-    ref2 = [
-        ["ab", "cd", "e"],
-        ["ab", "ce", "d"],
-        ["ab", "de", "c"],
-        ["ac", "bd", "e"],
-        ["ac", "be", "d"],
-        ["ac", "de", "b"],
-        ["ad", "bc", "e"],
-        ["ad", "be", "c"],
-        ["ad", "ce", "b"],
-        ["ae", "bc", "d"],
-        ["ae", "bd", "c"],
-        ["ae", "cd", "b"],
-        ["bc", "de", "a"],
-        ["bd", "ce", "a"],
-        ["be", "cd", "a"],
-    ]
-    assert frozen(results[2]) == frozen(ref2)
+    for rule in ["...iijk", "...ijik", "...ijki", "...jiik", "...jiki", "...jkii"]:
+        out = torch.einsum(rule, t4_tl)
+        assert torch.allclose(out, torch.zeros(3, 3), atol=1e-4)

@@ -178,7 +178,7 @@ def time_it(func, *args, **kwargs):
         times.append(end - start)
 
     avg = sum(times) / num_runs
-    print(f"Running {func.__name__} for {num_runs} times. Average time: {avg} s")
+    print(f"Running {func.__name__} for {num_runs} times. Average time: {avg:.6e} s")
 
 
 def factorial(n: int, device: torch.device = None):
