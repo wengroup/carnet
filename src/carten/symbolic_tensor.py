@@ -400,8 +400,16 @@ class Tensors:
 
         return self.__class__(*evaluated)
 
-    def __add__(self, other: "Tensors"):
-        return Tensors(*self._tensors, *other._tensors)
+    def to_str(self, including_zero: bool = False) -> str:
+        """
+        Convert the tensors to string representation.
+
+        Args:
+            including_zero: If True, include zero tensors in the output.
+        """
+        str_rep = [str(t) for t in self._tensors if including_zero or t.factor != 0]
+
+        return "Tensors(\n   " + "\n + ".join(str_rep) + "\n)"
 
     def __eq__(self, other: "Tensors"):
         # TODO, we just implement the case that the constituting tensors are the same
@@ -422,8 +430,18 @@ class Tensors:
     def __iter__(self):
         return iter(self._tensors)
 
+    def __add__(self, other: "Tensors"):
+        return Tensors(*self._tensors, *other._tensors)
+
+    def __mul__(self, other: int | Fraction):
+        """Multiply the tensor by a scalar."""
+        return Tensors(*[t * other for t in self._tensors])
+
+    def __rmul__(self, other: int | Fraction):
+        return self.__mul__(other)
+
     def __str__(self):
-        return "Tensors(\n   " + "\n + ".join([str(t) for t in self._tensors]) + "\n)"
+        return self.to_str(including_zero=False)
 
 
 def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTensor:
@@ -748,7 +766,7 @@ if __name__ == "__main__":
     s2 = symmetrize(tp2, indices="akl")
     s3 = symmetrize(tp3, indices="akl")
 
-    tensors = s1 + s2 + s3
+    tensors = s1 + -1 * s2 + s3
 
     evaluated = tensors.evaluate(
         {
@@ -760,8 +778,11 @@ if __name__ == "__main__":
         }
     )
 
-    out = is_zero(evaluated)
+    evaluated_non_zero = Tensors(*[t for t in evaluated if t.factor != 0])
+
+    out = is_zero(evaluated_non_zero)
 
     print("Tensors", tensors)
-    print("evaluated", evaluated)
+    print("number of non-zeros:", len(evaluated_non_zero))
+    print("evaluated non-zeros", evaluated_non_zero)
     print("Dependence:", out)
