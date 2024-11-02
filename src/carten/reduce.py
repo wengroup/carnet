@@ -7,7 +7,28 @@ import torch
 from torch import Tensor
 
 from carten.natural_tensor import NaturalTensors
-from carten.utils import dij, double_index, letter_index, repeat_double_index
+from carten.utils import dij, double_index, letter_index, repeat_double_index, eijk
+
+
+def reduce_tensor(
+    t: Tensor, symmetry: str = None, start_dim: int = 0
+) -> NaturalTensors:
+    """
+    Decompose a general tensor into natural tensors.
+
+    The reduction spectrum can be determined recursively by the symmetry of the indices.
+
+    Args:
+        t: the input tensor
+        symmetry: a string that describes the symmetry of the indices. For example,
+            `aabb` means the first two indices are symmetric, and next two indices are
+            symmetric. Default is None, which means there is no symmetry.
+        start_dim: the starting dimension to perform the operation. Dimensions before
+            `start_dim` will not be used in the operation.
+
+    Returns:
+        A NaturalTensors.
+    """
 
 
 def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
@@ -19,10 +40,13 @@ def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
         start_dim: the starting dimension to perform the operation. Dimensions before
             `start_dim` will not be used in the operation.
 
+    Reference:
+        1. http://dx.doi.org/10.1080/00018737800101454
+
     Returns:
-        A NaturalTensors. Let n = U.ndim - start_dim; if n is even, there would be
-        n/2 + 1 natural tensors of ranks n, n-2, ..., 2, 0. If n is odd, there would be
-        (n+1)/2 natural tensors of rank n, n-2, ..., 3, 1.
+        A NaturalTensors. Let m = u.ndim - start_dim, if n is even, there would be
+        m/2 + 1 natural tensors of ranks m, m-2, ..., 2, 0; if n is odd, there would be
+        (m+1)/2 natural tensors of rank m, m-2, ..., 3, 1.
     """
 
     def get_rule(indices: str, num_delta: int):
@@ -458,3 +482,25 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
             unique_canonical_forms.add(canonical_form)
 
     return unique_perms
+
+
+if __name__ == "__main__":
+    e = eijk()
+    torch.manual_seed(0)
+    # T = torch.arange(27).reshape(3, 3, 3).to(torch.float)
+    T = torch.rand(3, 3, 3)
+
+    out1 = torch.einsum("pij,ijk->pk", e, T)
+    print(out1)
+
+    out2 = torch.einsum("pij,jki->pk", e, T)
+    print(out2)
+
+    out3 = torch.einsum("pij,kij->pk", e, T)
+    print(out3)
+
+    print(out2 + out3)
+    print(out2 + out3 + out1)
+
+    x = get_permutations_2(6, 1)
+    print(len(x))
