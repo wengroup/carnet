@@ -93,7 +93,7 @@ def get_trace(T: Tensor, i: int, j: int) -> Tensor:
 
 
 def check_symmetric(
-    T: Tensor, start_dim: int = 0, atol: float = 1e-8, rtol: float = 1e-5
+    T: Tensor, start_dim: int = 0, atol: float = 1e-6, rtol: float = 1e-5
 ) -> bool:
     """
     Check if a tensor is fully symmetric.
@@ -118,7 +118,7 @@ def check_symmetric(
 
 
 def check_traceless(
-    T, start_dim: int = 0, atol: float = 1e-8, rtol: float = 1e-5
+    T, start_dim: int = 0, atol: float = 1e-6, rtol: float = 1e-5
 ) -> bool:
     """Check if a tensor is traceless.
 

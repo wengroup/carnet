@@ -2,6 +2,7 @@ import torch
 
 from carten.natural_tensor import NaturalTensors
 from carten.reduce import (
+    get_contraction_with_delta_rules,
     get_dyadic_tensor,
     get_permutations,
     get_permutations_2,
@@ -134,3 +135,65 @@ def test_remove_trace(T2, T3, T4):
     for rule in ["...iijk", "...ijik", "...ijki", "...jiik", "...jiki", "...jkii"]:
         out = torch.einsum(rule, t4_tl)
         assert torch.allclose(out, torch.zeros(3, 3), atol=1e-4)
+
+
+def test_get_contraction_with_delta_rules():
+    out = get_contraction_with_delta_rules(3, 1)
+    assert out == ["abc,bc->a", "abc,ac->b", "abc,ab->c"]
+
+    out = get_contraction_with_delta_rules(4, 1)
+    assert set(out) == {
+        "abcd,cd->ab",
+        "abcd,bd->ac",
+        "abcd,bc->ad",
+        "abcd,ad->bc",
+        "abcd,ac->bd",
+        "abcd,ab->cd",
+    }
+
+    out = get_contraction_with_delta_rules(4, 2)
+    assert set(out) == {
+        "abcd,ab,cd->",
+        "abcd,ac,bd->",
+        "abcd,ad,bc->",
+    }
+
+    out = get_contraction_with_delta_rules(5, 1)
+    assert set(out) == {
+        "abcde,ab->cde",
+        "abcde,ac->bde",
+        "abcde,ad->bce",
+        "abcde,ae->bcd",
+        #
+        "abcde,bc->ade",
+        "abcde,bd->ace",
+        "abcde,be->acd",
+        #
+        "abcde,cd->abe",
+        "abcde,ce->abd",
+        #
+        "abcde,de->abc",
+    }
+
+    out = get_contraction_with_delta_rules(5, 2)
+    assert set(out) == {
+        "abcde,bc,de->a",
+        "abcde,bd,ce->a",
+        "abcde,be,cd->a",
+        #
+        "abcde,ac,de->b",
+        "abcde,ad,ce->b",
+        "abcde,ae,cd->b",
+        #
+        "abcde,ab,de->c",
+        "abcde,ad,be->c",
+        "abcde,ae,bd->c",
+        #
+        "abcde,ab,ce->d",
+        "abcde,ac,be->d",
+        "abcde,ae,bc->d",
+        #
+        "abcde,ab,cd->e",
+        "abcde,ac,bd->e",
+        "abcde,ad,bc->e",
+    }

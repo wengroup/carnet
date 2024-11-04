@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from carten.natural_tensor import NaturalTensors
-from carten.utils import dij, double_index, letter_index, repeat_double_index, eijk
+from carten.utils import dij, double_index, eijk, letter_index, repeat_double_index
 
 
 def reduce_tensor(
@@ -182,6 +182,7 @@ def symmetrize(t: Tensor, start_dim: int = 0, symmetry: str = None) -> Tensor:
         if start_dim > 0:
             prefix = list(range(start_dim))
             permutations = [prefix + list(p) for p in permutations]
+
     # symmetrize with the given symmetry
     else:
         assert (
@@ -210,7 +211,7 @@ def symmetrize_2(t: Tensor, num_delta: int, start_dim: int = 0) -> Tensor:
     Returns:
         A symmetrized tensor.
     """
-    # rank of the tensor, after considering the start_dim
+    # rank of the symmetric tensor, after considering the start_dim
     m = t.ndim - start_dim
 
     # Get unique permutations
@@ -364,10 +365,11 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
     3. Sum them up to get the result, i.e.
         {U_rrss \delta_ij \delta_kl} = V_ijkl + V_ikjl + V_iklj
 
+
     This function find the permutations of the indices in V.
     There are two types of symmetry to consider in the permutations:
-    a. Minor symmetry: the symmetry of the two indices in each delta tensor. For example,
-       V_ijkl = V_jikl = V_ijlk
+    a. Minor symmetry: the symmetry of the two indices in each delta tensor.
+       For example, V_ijkl = V_jikl = V_ijlk
     b. Major symmetry: the symmetry of indices between the deltas. For example,
        V_ijkl = V_klij
 
@@ -383,52 +385,6 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
 
     Returns:
         Each inner list contains the permutation indices for symmetrization.
-
-
-    Get unique permutations of indices for symmetrizing a tensor, taking into account
-    both index symmetry within groups and contraction pattern equivalence.
-
-    The function handles two types of equivalence:
-    1. Letter repetition symmetry: 'aa' indicates that these two indices are symmetric
-       and can be swapped.
-    2. Contraction pattern symmetry: 'abab' and 'baba' represent the same contraction
-       pattern (contracting 1st with 3rd and 2nd with 4th indices) and are considered
-       equivalent.
-
-    The function generates all possible permutations and then filters out those that
-    are equivalent under these symmetry rules, keeping only unique patterns.
-
-    Args:
-        symmetry: A string describing the symmetry pattern of indices. Each character
-            represents an index, and repeated characters indicate symmetric indices.
-            For example:
-            - 'aabb': two pairs of symmetric indices
-            - 'abab': contracting first with third and second with fourth indices
-
-    Returns:
-        list[list[int]]: A list of permutations, where each permutation is represented
-        as a list of integers. The integers indicate the position each index moves to
-        in the permutation.
-
-    Examples:
-        >>> get_permutations('aabb')
-        [[0, 1, 2, 3],   # aabb, same as 'bbaa'
-         [0, 2, 1, 3],   # abab, same as 'baba'
-         [0, 2, 3, 1]]   # abba, same as 'baab'
-
-
-    Notes:
-        - The function converts input patterns to a canonical form to identify
-          equivalent configurations. For example:
-          * 'abab' -> 'abab'
-          * 'baba' -> 'abab' (same contraction pattern)
-          * 'cdcd' -> 'abab' (same contraction pattern)
-
-        - The canonical form is created by:
-          1. Mapping the first unique letter to 'a'
-          2. Mapping the second unique letter to 'b'
-          3. Reusing these mappings for repeated letters
-          This ensures that equivalent patterns get the same canonical form.
     """
 
     def get_canonical_form(ps: str, exclude: str) -> str:
@@ -482,6 +438,91 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
             unique_canonical_forms.add(canonical_form)
 
     return unique_perms
+
+
+def contract_with_epsilon(t: Tensor, indices: tuple[int, int]) -> Tensor:
+    """
+    Double contract the Levi-Civita tensor \epsilon_abc with a generic tensor t:
+
+    \epsilon_abc T_...dbce... -> S_a...de...
+
+    where the indices b and c are contracted away, and this results in a tensor of rank
+    one less than the input tensor.
+
+    Args:
+        t: the tensor
+        indices: the two positions of the indices in t to contract with the epsilon
+    """
+
+    letters = list(letter_index(t.ndim, start=3))
+    letters[indices[0]] = "b"
+    letters[indices[1]] = "c"
+    t_rule_left = "".join(letters)
+    t_rule_right = t_rule_left.replace("b", "").replace("c", "")
+
+    rule = f"abc,{t_rule_left}->a{t_rule_right}"
+
+    return torch.einsum(rule, eijk(), t)
+
+
+# TODO, implement start_dim
+def get_contraction_with_delta_rules(n: int, num_delta: int) -> list[str]:
+    """
+    Get all contraction rules of a generic tensor with deltas.
+
+    T_...aijklb... delta_ij, delta_kl, ..., -> S_...ab...
+
+    This considers symmetries between the deltas.
+    For example, T_ijkl delta_ij delta_kl is the same as T_klij delta_ij delta_lk, and
+    thus the two will be considered only once.
+
+    Args:
+        n: the rank of the tensor
+        num_delta: the number of delta tensors to contract with
+
+    Returns:
+        A list of contraction rules, e.g. ['abc,bc->a', 'abc,ac->b', 'abc,ab->c'] for
+        n=3 and num_delta=1.
+    """
+    # For example, for a rank-5 tensor
+    #
+    # S_mijkl = T_mrrss delta_ij delta_kl,
+    # which corresponds to permutation (0, 1, 2, 3, 4).
+    # 0, 1, 2, 3, 4 can be thought of as the positions of the indices in the tensor.
+    # Then we see that, (0, 1, 2, 3, 4) means the first two indices are contracted
+    # and the next two indices are contracted, ...
+    # Then, we have:
+    #
+    # Permutation        Contraction
+    # (0, 1, 2, 3, 4)     T_mrrss
+    # (0, 1, 3, 2, 4)     T_mrsrs
+    # ...
+    # (1, 4, 2, 3, 0)     T_rsrsm
+    #
+    # The first rank-2*num_delta indices of t are not contracted, and the rest
+    # 2*num_delta are contracted with deltas. In other words, the last 2*num_delta
+    # indices are contracted with deltas.
+    #
+
+    perms = get_permutations_2(n, num_delta)
+
+    t_indices = letter_index(n)
+
+    start_idx = n - 2 * num_delta
+
+    rules = []
+    for p in perms:
+        delta = [
+            t_indices[p.index(start_idx + 2 * i)]
+            + t_indices[p.index(start_idx + 2 * i + 1)]
+            for i in range(num_delta)
+        ]
+        remaining = sorted(set(t_indices) - set("".join(delta)))
+
+        r = f"{t_indices},{','.join(delta)}->{''.join(remaining)}"
+        rules.append(r)
+
+    return rules
 
 
 if __name__ == "__main__":
