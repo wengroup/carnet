@@ -465,6 +465,44 @@ def contract_with_epsilon(t: Tensor, indices: tuple[int, int]) -> Tensor:
     return torch.einsum(rule, eijk(), t)
 
 
+# TODO, for contract_with_epsilon, we put the epsilon tensor in the front. But here
+#  we put the deltas at the end. Would be great to make them consistent.
+#  At the front seems more natural.
+def contract_with_delta(
+    t: Tensor, num_delta: int, rules: list[str] = None
+) -> list[Tensor]:
+    """
+    Contract a generic tensor with multiple deltas.
+
+    T_aijkl \delta_ij \delta_kl -> S_a
+
+    The output tensor will be of rank: n - 2 * num_delta, where n is the rank of the
+    input tensor.
+
+    Args:
+        t: the tensor
+        num_delta: number of deltas to contract with
+        rules: the contraction rules. If None, all unique contraction rules will be
+            generated and used.
+
+    Returns:
+        A list of tensors, where each tensor is the result of contracting the input
+        tensor with deltas based on the contraction rules.
+    """
+    # TODO, num_delta is not needed, because it can be inferred from rule
+    #  here, we use it for simplicity.
+
+    if rules is None:
+        rules = get_contraction_with_delta_rules(t.ndim, num_delta)
+
+    d = dij(t.device)
+    deltas = [d] * num_delta
+
+    out = [torch.einsum(r, t, *deltas) for r in rules]
+
+    return out
+
+
 # TODO, implement start_dim
 def get_contraction_with_delta_rules(n: int, num_delta: int) -> list[str]:
     """
@@ -508,6 +546,9 @@ def get_contraction_with_delta_rules(n: int, num_delta: int) -> list[str]:
 
     t_indices = letter_index(n)
 
+    # TODO, this depends on the order of the indices get_permutations_2 returns, where
+    #   we put the remaining indices of t at the front, and the contracted indices at
+    #   the end.
     start_idx = n - 2 * num_delta
 
     rules = []
@@ -526,22 +567,7 @@ def get_contraction_with_delta_rules(n: int, num_delta: int) -> list[str]:
 
 
 if __name__ == "__main__":
-    e = eijk()
-    torch.manual_seed(0)
-    # T = torch.arange(27).reshape(3, 3, 3).to(torch.float)
-    T = torch.rand(3, 3, 3)
+    t = torch.randn(3, 3, 3, 3, 3)
+    rules = get_contraction_with_delta_rules(5, 2)
 
-    out1 = torch.einsum("pij,ijk->pk", e, T)
-    print(out1)
-
-    out2 = torch.einsum("pij,jki->pk", e, T)
-    print(out2)
-
-    out3 = torch.einsum("pij,kij->pk", e, T)
-    print(out3)
-
-    print(out2 + out3)
-    print(out2 + out3 + out1)
-
-    x = get_permutations_2(6, 1)
-    print(len(x))
+    contract_with_delta(t, 2, rules)
