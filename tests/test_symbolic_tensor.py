@@ -14,6 +14,7 @@ from carten.symbolic_tensor import (
     contract_epsilon_delta,
     contract_two_epsilon,
     contract_with_delta,
+    simplify,
     symmetrize,
 )
 
@@ -121,3 +122,76 @@ def test_symmetrize():
     t = TensorProduct(Epsilon("aij"), CartesianTensor("ijkl"))
     s = symmetrize(t)
     assert s == tensors
+
+
+def test_simplify():
+    d1 = Delta("ij", factor=2)
+    d2 = Delta("jk", factor=2)
+    e1 = Epsilon("ijk", factor=3)
+    e2 = Epsilon("ikl", factor=3)
+    e3 = Epsilon("ilm", factor=3)
+    T1 = CartesianTensor("ijkl", factor=4)
+
+    tp = TensorProduct(d1, d2)
+    tp_s = simplify(tp)
+    assert len(tp_s) == 1
+    assert tp_s[0] == TensorProduct(Delta("ik", factor=4))
+
+    tp = TensorProduct(d1, e1)
+    tp_s = simplify(tp)
+    assert len(tp_s) == 1
+    assert tp_s[0] == TensorProduct(Zero())
+
+    tp = TensorProduct(d1, e2)
+    tp_s = simplify(tp)
+    assert len(tp_s) == 1
+    assert tp_s[0] == TensorProduct(Epsilon("jkl", factor=6))
+
+    tp = TensorProduct(d2, e2)
+    tp_s = simplify(tp)
+    assert len(tp_s) == 1
+    assert tp_s[0] == TensorProduct(Epsilon("ijl", factor=6))
+
+    tp = TensorProduct(e1, e2)
+    tp_s = simplify(tp)
+    assert len(tp_s) == 1
+    assert tp_s[0] == TensorProduct(Delta("jl", factor=-18))
+
+    tp = TensorProduct(e1, e3)
+    tp_s = simplify(tp)
+    assert tp_s == Tensors(
+        TensorProduct(Delta("jl"), Delta("km"), factor=9),
+        TensorProduct(Delta("jm"), Delta("kl"), factor=-9),
+    )
+
+    tp = TensorProduct(d1, e1, e3)
+    tp_s = simplify(tp)
+    assert tp_s == Tensors(
+        TensorProduct(Delta("il"), Delta("km"), factor=18),
+        TensorProduct(Delta("im"), Delta("kl"), factor=-18),
+    )
+
+    tp = TensorProduct(d1, T1)
+    tp_s = simplify(tp)
+    assert tp_s == Tensors(
+        TensorProduct(CartesianTensor("jjkl", factor=8)),
+    )
+
+    tp = TensorProduct(d1, e1, e2, T1)
+    tp_s = simplify(tp)
+    assert tp_s == Tensors(
+        TensorProduct(
+            CartesianTensor("ljkl", factor=-144),
+        ),
+    )
+
+    tp = TensorProduct(d1, e1, e3, T1)
+    tp_s = simplify(tp)
+    assert tp_s == Tensors(
+        TensorProduct(
+            CartesianTensor("ljml", factor=72),
+        ),
+        TensorProduct(
+            CartesianTensor("mjll", factor=-72),
+        ),
+    )

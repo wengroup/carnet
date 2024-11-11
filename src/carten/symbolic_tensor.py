@@ -251,27 +251,39 @@ class TensorProduct:
         factor: Additional factor multiplied to the tensor product. Each tensor in the
             product can have its own factor. So, the overall factor is the product of
             the factors of the constituting tensors and this factor.
+        combine_scalars: If True, combine scalars in the tensor product. For example, all
+            scalars will be combined into the factor of the tensor product, and the scalars
+            will be removed from the tensor product. Default is True.
     """
 
     def __init__(
         self,
         *tensors: CartesianTensor | Epsilon | Delta | Scalar,
         factor: int | Fraction = 1,
+        combine_scalars: bool = True,
     ):
-        # get overall factor
-        for t in tensors:
-            factor *= t.factor
-        self._factor = factor
+        self.combine_scalars = combine_scalars
 
-        # set the factor of the constituting tensors to 1
-        self._tensors = []
-        for t in tensors:
-            if isinstance(t, Zero):
-                self._tensors.append(t)
-            elif isinstance(t, Scalar):
-                self._tensors.append(t.__class__(1))
+        if not combine_scalars:
+            self._factor = factor
+            self._tensors = list(tensors)
+        else:
+            # get overall factor
+            for t in tensors:
+                factor *= t.factor
+            self._factor = factor
+
+            if self._factor == 0:
+                self._tensors = [Zero()]
+
             else:
-                self._tensors.append(t.__class__(t.indices, 1, t.symbol))
+                # set the factor of the constituting tensors to 1
+                self._tensors = []
+                for t in tensors:
+                    if isinstance(t, Scalar):
+                        pass  # scalars already been included in the factor
+                    else:
+                        self._tensors.append(t.__class__(t.indices, 1, t.symbol))
 
     @property
     def factor(self):
@@ -351,11 +363,8 @@ class TensorProduct:
         if self.factor != other.factor:
             return False
 
-        # compare symbol and indices (not factor) of the constituting tensors
+        # compare symbol and indices of the constituting tensors
         for x, y in zip(self._tensors, other._tensors):
-            # set the factor to 1 for comparison
-            x = x.__class__(x.indices, 1, x.symbol)
-            y = y.__class__(y.indices, 1, y.symbol)
             if x != y:
                 return False
 
@@ -367,6 +376,12 @@ class TensorProduct:
 
     def __rmul__(self, other: int | Fraction):
         return self.__mul__(other)
+
+    def __iter__(self):
+        return iter(self._tensors)
+
+    def __getitem__(self, item):
+        return self._tensors[item]
 
     def __len__(self):
         return len(self._tensors)
@@ -429,6 +444,9 @@ class Tensors:
 
     def __iter__(self):
         return iter(self._tensors)
+
+    def __getitem__(self, item):
+        return self._tensors[item]
 
     def __add__(self, other: "Tensors"):
         return Tensors(*self._tensors, *other._tensors)
@@ -513,7 +531,7 @@ def contract_epsilon_delta(epsilon: Epsilon, delta: Delta):
     if len(set(epsilon) & set(delta)) == 2:
         return Zero()
 
-    return contract_with_delta(epsilon, delta)
+    return contract_with_delta(delta, epsilon)
 
 
 def contract_two_epsilon(epsilon1: Epsilon, epsilon2: Epsilon):
@@ -748,6 +766,168 @@ def is_zero(tensors: Tensors) -> bool:
     neg_count = Counter([str(t) for t in negative])
 
     return pos_count == neg_count
+
+
+def simplify(tp: TensorProduct) -> Tensors:
+    """
+    Simplify a tensor product by apply delta and epsilon rules.
+
+    For example,
+    d_ij e_imn d_nq T_qpr -> e_jmq T_qpr
+    """
+
+    def _simplify(product: TensorProduct) -> tuple[TensorProduct | Tensors, bool]:
+        """
+        Simplify a tensor product by apply delta and epsilon rules.
+
+        Returns:
+            out: The simplified tensor product or tensors.
+            performed: If any simplification is performed.
+        """
+        # Simplify product two epsilon tensors
+        epsilon_pos = [i for i, t in enumerate(product) if isinstance(t, Epsilon)]
+        if len(epsilon_pos) >= 2:
+            i = epsilon_pos[0]
+            for j in epsilon_pos[1:]:
+                # check if they share at least one index
+                if set(product[i].indices) & set(product[j].indices):
+                    out = contract_two_epsilon(product[i], product[j])
+
+                    # Create simplified tensors, without the two epsilon tensors
+                    # and with the contracted tensor placed at the beginning
+                    new_tensors = [t for p, t in enumerate(product) if p not in [i, j]]
+
+                    # three identical indices, resulting in a scalar
+                    if isinstance(out, Scalar):
+                        return (
+                            TensorProduct(out, *new_tensors, factor=product.factor),
+                            True,
+                        )
+                    # two identical indices, resulting in a delta tensor
+                    elif isinstance(out, Delta):
+                        return (
+                            TensorProduct(out, *new_tensors, factor=product.factor),
+                            True,
+                        )
+                    # one identical index, resulting in linear combination of tensor
+                    # products of delta tensors e_ijk e_ilm = d_jl d_km - d_jm d_kl
+                    elif isinstance(out, Tensors):
+                        linear_comb = []
+                        for tp in out:
+                            new_tp = TensorProduct(
+                                *tp._tensors,
+                                *new_tensors,
+                                factor=tp.factor * product.factor,
+                            )
+                            linear_comb.append(new_tp)
+
+                        return Tensors(*linear_comb), True
+
+                    else:
+                        raise ValueError("Invalid output")
+
+        # simplify product with delta
+
+        # check if there are delta tensors
+        delta_pos = [i for i, t in enumerate(product) if isinstance(t, Delta)]
+
+        for i in delta_pos:
+            delta: Delta = product[i]
+            for j, t in enumerate(product):
+                if j == i:
+                    continue
+
+                # check if they share at least one index
+                if set(delta.indices) & set(t.indices):
+                    if isinstance(t, Epsilon):
+                        out = contract_epsilon_delta(t, delta)
+                    else:
+                        out = contract_with_delta(delta, t)
+
+                    # Create simplified tensors, without the two epsilon tensors
+                    # and with the contracted tensor placed at the beginning
+                    new_tensors = [t for p, t in enumerate(product) if p not in [i, j]]
+
+                    return TensorProduct(out, *new_tensors, factor=product.factor), True
+
+        return product, False
+
+    # Iteratively simplify the tensor product
+    performed = True
+    simplified = Tensors(tp)
+    while performed:
+        # positions in new_simplified that are results of a double epsilon contraction
+        # This leads to a sum of two tensor products of delta tensors, and we need
+        # to expand it to be produced with others
+        double_epsilon = None
+        double_epsilon_pos = None
+        new_simplified = []
+        performed = []
+        for i, tp in enumerate(simplified):
+            sim, perf = _simplify(tp)
+            new_simplified.append(sim)
+            performed.append(perf)
+            if isinstance(sim, Tensors):
+                double_epsilon_pos = i
+                double_epsilon = sim
+
+        # expand double epsilon contraction (two terms) with others
+        if double_epsilon is not None:
+            linear_comb = []
+
+            for de in double_epsilon:
+                # list of tensor products
+                comb = new_simplified.copy()
+                comb[double_epsilon_pos] = de
+
+                tensors = []
+                factor = Fraction(1)
+                for tp in comb:
+                    # each tp is a tensor product
+                    tensors.extend(tp._tensors)
+                    factor *= tp.factor
+                new_tp = TensorProduct(*tensors, factor=factor)
+                linear_comb.append(new_tp)
+        else:
+            linear_comb = new_simplified
+
+        # prepare for the next iteration
+        performed = any(performed)
+        simplified = Tensors(*linear_comb)
+
+    # # Iteratively simplify the tensor product
+    # performed = True
+    # simplified = Tensors(tp)
+    # while performed:
+    #     new_simplified = []
+    #     performed = []
+    #     for tp in simplified:
+    #         sim, perf = _simplify(tp)
+    #         new_simplified.append(sim)
+    #         performed.append(perf)
+    #
+    #     # Each value in new_simplified is a Tensors object, so we need to unpack them
+    #     # and product all possible combinations
+    #     # e.g. (a+b)(c+d) = ac + ad + bc + bd
+    #     linear_comb = []
+    #     for prod in itertools.product(*[t._tensors for t in new_simplified]):
+    #         # TODO, maybe move this to the TensorProduct class
+    #         # multiply multiple tensor product
+    #         tensors = []
+    #         factor = Fraction(1)
+    #         for tp in prod:
+    #             # each tp is a tensor product
+    #             tensors.extend(tp._tensors)
+    #             factor *= tp.factor
+    #         new_tp = TensorProduct(*tensors, factor=factor)
+    #
+    #         linear_comb.append(new_tp)
+    #
+    #     # prepare for the next iteration
+    #     performed = any(performed)
+    #     simplified = Tensors(*linear_comb)
+
+    return simplified
 
 
 if __name__ == "__main__":
