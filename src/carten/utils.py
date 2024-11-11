@@ -5,15 +5,19 @@ import torch
 from torch import Tensor
 
 
-def letter_index(n: int, start: int = 0) -> str:
+def letter_index(n: int, start: int = 0, upper_case: bool = False) -> str:
     """
     Get a list of letters 'abc...' of length n.
 
     Args:
         n: the length of the letters
         start: the starting index.
+        upper_case: whether to use upper case letters.
     """
-    return string.ascii_lowercase[start : start + n]
+    if upper_case:
+        return string.ascii_uppercase[start : start + n]
+    else:
+        return string.ascii_lowercase[start : start + n]
 
 
 def double_index(n: int, start: int = 0) -> list[str]:
