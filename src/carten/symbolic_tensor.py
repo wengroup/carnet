@@ -415,16 +415,14 @@ class Tensors:
 
         return self.__class__(*evaluated)
 
-    def to_str(self, including_zero: bool = False) -> str:
+    def to_str_list(self, including_zero: bool = False) -> list[str]:
         """
         Convert the tensors to string representation.
 
         Args:
             including_zero: If True, include zero tensors in the output.
         """
-        str_rep = [str(t) for t in self._tensors if including_zero or t.factor != 0]
-
-        return "Tensors(\n   " + "\n + ".join(str_rep) + "\n)"
+        return [str(t) for t in self._tensors if including_zero or t.factor != 0]
 
     def __eq__(self, other: "Tensors"):
         # TODO, we just implement the case that the constituting tensors are the same
@@ -459,7 +457,38 @@ class Tensors:
         return self.__mul__(other)
 
     def __str__(self):
-        return self.to_str(including_zero=False)
+        str_rep = self.to_str_list(including_zero=False)
+
+        return "Tensors(\n   " + "\n + ".join(str_rep) + "\n)"
+
+
+def multiply(
+    *tensors: CartesianTensor | TensorProduct, factor: int | Fraction = 1
+) -> TensorProduct:
+    """
+    Multiple a list of tensors or tensor products to create a new tensor product.
+
+    Args:
+        *tensors: the tensors or tensor products to multiply.
+        factor: Additional factor to be multiplied to the tensor product, default is 1.
+
+    Returns:
+        The new tensor product.
+    """
+    new_tensors = []
+    factor = Fraction(factor)
+    for t in tensors:
+        if isinstance(t, CartesianTensor):
+            new_tensors.append(t)
+        elif isinstance(t, TensorProduct):
+            new_tensors.extend(t._tensors)
+            factor *= t.factor
+        else:
+            raise ValueError("Unexpected type")
+
+    tp = TensorProduct(*new_tensors, factor=factor)
+
+    return tp
 
 
 def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTensor:
@@ -874,19 +903,11 @@ def simplify(tp: TensorProduct) -> Tensors:
         # expand double epsilon contraction (two terms) with others
         if double_epsilon is not None:
             linear_comb = []
-
             for de in double_epsilon:
                 # list of tensor products
                 comb = new_simplified.copy()
                 comb[double_epsilon_pos] = de
-
-                tensors = []
-                factor = Fraction(1)
-                for tp in comb:
-                    # each tp is a tensor product
-                    tensors.extend(tp._tensors)
-                    factor *= tp.factor
-                new_tp = TensorProduct(*tensors, factor=factor)
+                new_tp = multiply(*comb)
                 linear_comb.append(new_tp)
         else:
             linear_comb = new_simplified
@@ -894,38 +915,6 @@ def simplify(tp: TensorProduct) -> Tensors:
         # prepare for the next iteration
         performed = any(performed)
         simplified = Tensors(*linear_comb)
-
-    # # Iteratively simplify the tensor product
-    # performed = True
-    # simplified = Tensors(tp)
-    # while performed:
-    #     new_simplified = []
-    #     performed = []
-    #     for tp in simplified:
-    #         sim, perf = _simplify(tp)
-    #         new_simplified.append(sim)
-    #         performed.append(perf)
-    #
-    #     # Each value in new_simplified is a Tensors object, so we need to unpack them
-    #     # and product all possible combinations
-    #     # e.g. (a+b)(c+d) = ac + ad + bc + bd
-    #     linear_comb = []
-    #     for prod in itertools.product(*[t._tensors for t in new_simplified]):
-    #         # TODO, maybe move this to the TensorProduct class
-    #         # multiply multiple tensor product
-    #         tensors = []
-    #         factor = Fraction(1)
-    #         for tp in prod:
-    #             # each tp is a tensor product
-    #             tensors.extend(tp._tensors)
-    #             factor *= tp.factor
-    #         new_tp = TensorProduct(*tensors, factor=factor)
-    #
-    #         linear_comb.append(new_tp)
-    #
-    #     # prepare for the next iteration
-    #     performed = any(performed)
-    #     simplified = Tensors(*linear_comb)
 
     return simplified
 

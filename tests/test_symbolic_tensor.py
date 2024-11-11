@@ -134,64 +134,40 @@ def test_simplify():
 
     tp = TensorProduct(d1, d2)
     tp_s = simplify(tp)
-    assert len(tp_s) == 1
-    assert tp_s[0] == TensorProduct(Delta("ik", factor=4))
+    assert tp_s.to_str_list() == ["(4) δ_ik"]
 
     tp = TensorProduct(d1, e1)
     tp_s = simplify(tp)
-    assert len(tp_s) == 1
     assert tp_s[0] == TensorProduct(Zero())
 
     tp = TensorProduct(d1, e2)
     tp_s = simplify(tp)
-    assert len(tp_s) == 1
-    assert tp_s[0] == TensorProduct(Epsilon("jkl", factor=6))
+    assert tp_s.to_str_list() == ["(6) ε_jkl"]
 
     tp = TensorProduct(d2, e2)
     tp_s = simplify(tp)
-    assert len(tp_s) == 1
-    assert tp_s[0] == TensorProduct(Epsilon("ijl", factor=6))
+    assert tp_s.to_str_list() == ["(6) ε_ijl"]
 
     tp = TensorProduct(e1, e2)
     tp_s = simplify(tp)
-    assert len(tp_s) == 1
-    assert tp_s[0] == TensorProduct(Delta("jl", factor=-18))
+    assert tp_s.to_str_list() == ["(-18) δ_jl"]
 
     tp = TensorProduct(e1, e3)
     tp_s = simplify(tp)
-    assert tp_s == Tensors(
-        TensorProduct(Delta("jl"), Delta("km"), factor=9),
-        TensorProduct(Delta("jm"), Delta("kl"), factor=-9),
-    )
+    assert tp_s.to_str_list() == ["(9) δ_jl δ_km", "(-9) δ_jm δ_kl"]
 
     tp = TensorProduct(d1, e1, e3)
     tp_s = simplify(tp)
-    assert tp_s == Tensors(
-        TensorProduct(Delta("il"), Delta("km"), factor=18),
-        TensorProduct(Delta("im"), Delta("kl"), factor=-18),
-    )
+    assert tp_s.to_str_list() == ["(18) δ_il δ_km", "(-18) δ_im δ_kl"]
 
     tp = TensorProduct(d1, T1)
     tp_s = simplify(tp)
-    assert tp_s == Tensors(
-        TensorProduct(CartesianTensor("jjkl", factor=8)),
-    )
+    assert tp_s.to_str_list() == ["(8) T_jjkl"]
 
     tp = TensorProduct(d1, e1, e2, T1)
     tp_s = simplify(tp)
-    assert tp_s == Tensors(
-        TensorProduct(
-            CartesianTensor("ljkl", factor=-144),
-        ),
-    )
+    assert tp_s.to_str_list() == ["(-144) T_ljkl"]
 
     tp = TensorProduct(d1, e1, e3, T1)
     tp_s = simplify(tp)
-    assert tp_s == Tensors(
-        TensorProduct(
-            CartesianTensor("ljml", factor=72),
-        ),
-        TensorProduct(
-            CartesianTensor("mjll", factor=-72),
-        ),
-    )
+    assert tp_s.to_str_list() == ["(72) T_ljml", "(-72) T_mjll"]
