@@ -14,7 +14,7 @@ import itertools
 from fractions import Fraction
 
 from carten.reduce import get_permutations_2
-from carten.symbolic_tensor import Delta, TensorProduct, Tensors, multiply_2
+from carten.symbolic_tensor import Delta, Epsilon, TensorProduct, Tensors, multiply_2
 from carten.utils import letter_index
 
 
@@ -59,7 +59,7 @@ def E(j: int, s_letters: str = None) -> Tensors:
 
         out.extend(delta_tensors)
 
-        print(f"@@@ debug E_j: j={j}, t={t}, c={c}")
+        # print(f"@@@ debug E_j: j={j}, t={t}, c={c}")
 
     return Tensors(*out)
 
@@ -69,6 +69,8 @@ def G_even(j: int, n: int) -> list[Tensors]:
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
     G(n|j)^q = E_j \otimes^{n-j} f_{n-j}^q.
+
+    This is for even n-j.
 
     Reference: Eq. 2.4 of [AG82].
 
@@ -82,13 +84,46 @@ def G_even(j: int, n: int) -> list[Tensors]:
 
     assert (n - j) % 2 == 0, f"n-j must be even, got n={n}, j={j}"
 
-    E_s_letters, f_rules = get_G_rules_even(j, n)
+    E_s_letters, delta_rules = get_G_rules_even(j, n)
 
     all_G = []
-    for si, fr in zip(E_s_letters, f_rules):
+    for si, rule in zip(E_s_letters, delta_rules):
         E_j = E(j, s_letters=si)
-        f_q = create_delta_tensors(fr)
+        f_q = create_delta_tensors(rule)
         G = multiply_2(E_j, f_q)
+        all_G.append(G)
+
+    return all_G
+
+
+def G_odd(j: int, n: int) -> list[Tensors]:
+    """
+    Mapping operator G to map minimal rank tensor subspaces j onto the space n.
+
+
+    G(n|j)^q = E_j \otimes^{n-j} f_{n-j}^q.
+
+    This is for odd n-j.
+
+    Reference: Eq. 2.5 of [AG82].
+
+    Args:
+        j: the minimal tensor subspace
+        n: the space to map to
+
+    Returns:
+        A list of Tensors objects, each corresponding to a q in f_{n-j}^q.
+    """
+    assert (n - j) % 2 == 1, f"n-j must be odd, got n={n}, j={j}"
+
+    E_s_letters, f_epsilon_rules, f_delta_rules = get_G_rules_odd(j, n)
+
+    all_G = []
+    for si, e_rule, d_rule in zip(E_s_letters, f_epsilon_rules, f_delta_rules):
+        E_j = E(j, s_letters=si)
+        f_q_epsilon = Epsilon(e_rule)
+        f_q_delta = create_delta_tensors(d_rule)
+        G = multiply_2(E_j, f_q_epsilon, f_q_delta)
         all_G.append(G)
 
     return all_G
@@ -221,11 +256,66 @@ def get_G_rules_even(j: int, n: int) -> tuple[list[str], list[list[str]]]:
         indices = [letters[perm.index(i)] for i in range(n)]
 
         # indices for f_{n-j}^q
-        pairs = [indices[i] + indices[i + 1] for i in range(start, n, 2)]
-        f_rules.append(pairs)
+        delta_pairs = [indices[i] + indices[i + 1] for i in range(start, n, 2)]
+        f_rules.append(delta_pairs)
 
         # s indices for E_j
         s_remaining = "".join(indices[:start])
         E_s_letters.append(s_remaining)
 
     return E_s_letters, f_rules
+
+
+def get_G_rules_odd(j: int, n: int) -> tuple[list[str], list[str], list[list[str]]]:
+    """
+    Rules for G(n|j) for odd n-j.
+
+    Args:
+        j:
+        n:
+
+    Returns:
+        E_s_indices: s letters to use for E_j
+        f_epsilon_rules: rules to create epsilons for f_{n-j}^q
+        f_delta_rules: rules to create deltas for for f_{n-j}^q
+    """
+    assert (n - j) % 2 == 1, f"n-j must be odd, got n={n}, j={j}"
+
+    # All s letters
+    letters = letter_index(n, upper_case=True)
+
+    # Extra letter used in epsilon. See Table I of [AG82]
+    tau_letter = letter_index(1, start=n, upper_case=True)
+
+    all_perms = get_permutations_2(n, num_delta=(n - j - 1) // 2)
+
+    # TODO, this depends on the order of the indices get_permutations_2 returns, where
+    #   we put the remaining indices of t at the front, and the contracted indices at
+    #   the end.
+    start = j + 1
+
+    f_delta_rules = []
+    f_epsilon_rules = []
+    E_s_letters = []
+    for perm in all_perms:  # each perm for a q in f_q
+        indices = [letters[perm.index(i)] for i in range(n)]
+
+        # delta indices for f_{n-j}^q
+        delta_pairs = [indices[i] + indices[i + 1] for i in range(start, n, 2)]
+
+        # remaining indices for epsilon and E_j
+        s_remaining = indices[:start]
+        s_remaining_set = set(s_remaining)
+
+        for comb in itertools.combinations(s_remaining, 2):
+            f_delta_rules.append(delta_pairs)
+
+            # choose two indices for epsilon
+            f_epsilon_rules.append(tau_letter + "".join(sorted(comb)))
+
+            # the remaining indices and also tau for E_j
+            E_s_letters.append(
+                "".join(sorted(s_remaining_set - set(comb))) + tau_letter
+            )
+
+    return E_s_letters, f_epsilon_rules, f_delta_rules

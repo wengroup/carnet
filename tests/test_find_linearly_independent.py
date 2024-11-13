@@ -1,4 +1,4 @@
-from carten.find_linearly_independent import E, G_even, get_E_rules
+from carten.find_linearly_independent import E, G_even, G_odd, get_E_rules
 
 
 def test_get_E_rules():
@@ -208,6 +208,16 @@ def test_E():
 
 
 def test_G_even():
+    # n=0, j=0
+    all_G = G_even(j=0, n=0)
+    assert len(all_G) == 1
+    assert set(all_G[0].to_str_list()) == {"(1)"}
+
+    # n=1, j=1
+    all_G = G_even(j=1, n=1)
+    assert len(all_G) == 1
+    assert set(all_G[0].to_str_list()) == {"(1) δ_aA"}
+
     # n=2, j=0
     all_G = G_even(j=0, n=2)
     assert len(all_G) == 1
@@ -277,4 +287,87 @@ def test_G_even():
         "(1/2) δ_aC δ_bD δ_AB",
         "(1/2) δ_aD δ_bC δ_AB",
         "(-1/3) δ_ab δ_CD δ_AB",
+    }
+
+
+def test_G_odd():
+    # n = 1, j = 0 not possible
+
+    # # n = 2, j = 1
+    # all_G = G_odd(j=1, n=2)
+    # assert len(all_G) == 1
+    # assert set(all_G[0].to_str_list()) == {"(1) δ_aC ε_CAB"}
+
+    # TODO, seems we need to implement triple products os epsilon
+    # n 3, j = 0
+    # all_G = G_odd(j=0, n=3)
+    # assert len(all_G) == 3
+    # assert set(all_G[0].to_str_list()) == {"(1) ε_CAB δ_aC"}
+
+    # n = 3, j = 2
+    all_G = G_odd(j=2, n=3)
+    assert len(all_G) == 3
+    assert set(all_G[0].to_str_list()) == {
+        "(-1/3) δ_ab δ_CD ε_DAB",
+        "(1/2) δ_aD δ_bC ε_DAB",
+        "(1/2) δ_aC δ_bD ε_DAB",
+    }
+    assert set(all_G[1].to_str_list()) == {
+        "(-1/3) δ_ab δ_BD ε_DAC",
+        "(1/2) δ_aD δ_bB ε_DAC",
+        "(1/2) δ_aB δ_bD ε_DAC",
+    }
+    assert set(all_G[2].to_str_list()) == {
+        "(-1/3) δ_ab δ_AD ε_DBC",
+        "(1/2) δ_aD δ_bA ε_DBC",
+        "(1/2) δ_aA δ_bD ε_DBC",
+    }
+
+    # n = 4, j = 1
+    all_G = G_odd(j=1, n=4)
+    assert len(all_G) == 6
+    assert set(all_G[0].to_str_list()) == {"(1) δ_aE ε_EAB δ_CD"}
+    assert set(all_G[1].to_str_list()) == {"(1) δ_aE ε_EAC δ_BD"}
+    assert set(all_G[2].to_str_list()) == {"(1) δ_aE ε_EAD δ_BC"}
+    assert set(all_G[3].to_str_list()) == {"(1) δ_aE ε_EBC δ_AD"}
+    assert set(all_G[4].to_str_list()) == {"(1) δ_aE ε_EBD δ_AC"}
+    assert set(all_G[5].to_str_list()) == {"(1) δ_aE ε_ECD δ_AB"}
+
+    # n = 4, j = 3
+    all_G = G_odd(j=3, n=4)
+    assert len(all_G) == 6
+    assert set(all_G[0].to_str_list()) == {
+        "(-1/15) δ_aC δ_bc δ_DE ε_EAB",
+        "(-1/15) δ_aD δ_bc δ_CE ε_EAB",
+        "(-1/15) δ_aE δ_bc δ_CD ε_EAB",
+        "(-1/15) δ_bC δ_ac δ_DE ε_EAB",
+        "(-1/15) δ_bD δ_ac δ_CE ε_EAB",
+        "(-1/15) δ_bE δ_ac δ_CD ε_EAB",
+        "(-1/15) δ_cC δ_ab δ_DE ε_EAB",
+        "(-1/15) δ_cD δ_ab δ_CE ε_EAB",
+        "(-1/15) δ_cE δ_ab δ_CD ε_EAB",
+        "(1/6) δ_aC δ_bD δ_cE ε_EAB",
+        "(1/6) δ_aC δ_bE δ_cD ε_EAB",
+        "(1/6) δ_aD δ_bC δ_cE ε_EAB",
+        "(1/6) δ_aD δ_bE δ_cC ε_EAB",
+        "(1/6) δ_aE δ_bC δ_cD ε_EAB",
+        "(1/6) δ_aE δ_bD δ_cC ε_EAB",
+    }
+    # ignore a couple of them
+    assert set(all_G[5].to_str_list()) == {
+        "(-1/15) δ_aA δ_bc δ_BE ε_ECD",
+        "(-1/15) δ_aB δ_bc δ_AE ε_ECD",
+        "(-1/15) δ_aE δ_bc δ_AB ε_ECD",
+        "(-1/15) δ_bA δ_ac δ_BE ε_ECD",
+        "(-1/15) δ_bB δ_ac δ_AE ε_ECD",
+        "(-1/15) δ_bE δ_ac δ_AB ε_ECD",
+        "(-1/15) δ_cA δ_ab δ_BE ε_ECD",
+        "(-1/15) δ_cB δ_ab δ_AE ε_ECD",
+        "(-1/15) δ_cE δ_ab δ_AB ε_ECD",
+        "(1/6) δ_aA δ_bB δ_cE ε_ECD",
+        "(1/6) δ_aA δ_bE δ_cB ε_ECD",
+        "(1/6) δ_aB δ_bA δ_cE ε_ECD",
+        "(1/6) δ_aB δ_bE δ_cA ε_ECD",
+        "(1/6) δ_aE δ_bA δ_cB ε_ECD",
+        "(1/6) δ_aE δ_bB δ_cA ε_ECD",
     }
