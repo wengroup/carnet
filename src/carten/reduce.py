@@ -351,6 +351,10 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
 
 def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[int]]:
     """
+    TODO, this is much more general than for tensor product of symmetric tensor and deltas.
+      It can handel a lot of cases related to deltas. We need to modify the description
+      to make it more general.
+
     Get the unique permutations of the tensor product of a symmetric tensor and deltas.
 
     For example, we know
