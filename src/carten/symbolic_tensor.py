@@ -476,7 +476,7 @@ def multiply(
     *tensors: CartesianTensor | TensorProduct, factor: int | Fraction = 1
 ) -> TensorProduct:
     """
-    Multiple a list of tensors or tensor products to create a new tensor product.
+    Multiple tensors, tensor products to create a new tensor product.
 
     Args:
         *tensors: the tensors or tensor products to multiply.
@@ -499,6 +499,36 @@ def multiply(
     tp = TensorProduct(*new_tensors, factor=factor)
 
     return tp
+
+
+def multiply_2(
+    *tensors: CartesianTensor | TensorProduct | Tensors, factor: int | Fraction = 1
+) -> Tensors:
+    """
+    Multiple tensors, tensor products, tensors to create a new Tensors object.
+
+    Args:
+        *tensors: the tensors or tensor products to multiply.
+        factor: Additional factor to be multiplied to the tensor product, default is 1.
+
+    Returns:
+        The new tensor product.
+    """
+    # First, convert input to Tensors
+    new_tensors = []
+    for t in tensors:
+        if isinstance(t, (CartesianTensor, TensorProduct)):
+            new_tensors.append(Tensors(t))
+        elif isinstance(t, Tensors):
+            new_tensors.append(t)
+        else:
+            raise ValueError("Unexpected type")
+
+    all_tp = []
+    for prod in itertools.product(*new_tensors):
+        all_tp.append(multiply(*prod, factor=factor))
+
+    return Tensors(*all_tp)
 
 
 def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTensor:

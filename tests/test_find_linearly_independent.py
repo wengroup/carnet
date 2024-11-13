@@ -1,17 +1,17 @@
-from carten.find_linearly_independent import E, expand_delta_rules
+from carten.find_linearly_independent import E, G_even, get_E_rules
 
 
-def test_expand_rules():
+def test_get_E_rules():
     def as_set(data):
         new_data = []
         for d in data:
             new_data.append(frozenset({k: frozenset(v) for k, v in d.items()}.items()))
         return set(new_data)
 
-    out = expand_delta_rules(1, 0)
+    out = get_E_rules(1, 0)
     assert as_set(out) == as_set([{"d_rs": ["aA"], "d_rr": [], "d_ss": []}])
 
-    out = expand_delta_rules(2, 0)
+    out = get_E_rules(2, 0)
     assert as_set(out) == as_set(
         [
             {"d_rs": ["aA", "bB"], "d_rr": [], "d_ss": []},
@@ -19,14 +19,14 @@ def test_expand_rules():
         ]
     )
 
-    out = expand_delta_rules(2, 1)
+    out = get_E_rules(2, 1)
     assert as_set(out) == as_set(
         [
             {"d_rs": [], "d_rr": ["ab"], "d_ss": ["AB"]},
         ]
     )
 
-    out = expand_delta_rules(3, 0)
+    out = get_E_rules(3, 0)
     assert as_set(out) == as_set(
         [
             {"d_rs": ["aA", "bB", "cC"], "d_rr": [], "d_ss": []},
@@ -38,7 +38,7 @@ def test_expand_rules():
         ]
     )
 
-    out = expand_delta_rules(3, 1)
+    out = get_E_rules(3, 1)
     assert as_set(out) == as_set(
         [
             {"d_rs": ["cC"], "d_rr": ["ab"], "d_ss": ["AB"]},
@@ -204,4 +204,77 @@ def test_E():
         "(1/105) δ_ad δ_bc δ_AB δ_CD",
         "(1/105) δ_ad δ_bc δ_AC δ_BD",
         "(1/105) δ_ad δ_bc δ_AD δ_BC",
+    }
+
+
+def test_G_even():
+    # n=2, j=0
+    all_G = G_even(j=0, n=2)
+    assert len(all_G) == 1
+    assert set(all_G[0].to_str_list()) == {"(1) δ_AB"}
+
+    # n=2, j=2
+    all_G = G_even(j=2, n=2)
+    assert len(all_G) == 1
+    assert set(all_G[0].to_str_list()) == {
+        "(-1/3) δ_ab δ_AB",
+        "(1/2) δ_aB δ_bA",
+        "(1/2) δ_aA δ_bB",
+    }
+
+    # n=3, j=1
+    all_G = G_even(j=1, n=3)
+    assert len(all_G) == 3
+    assert set(all_G[0].to_str_list()) == {"(1) δ_aA δ_BC"}
+    assert set(all_G[1].to_str_list()) == {"(1) δ_aB δ_AC"}
+    assert set(all_G[2].to_str_list()) == {"(1) δ_aC δ_AB"}
+
+    # n=3, j=3
+    all_G = G_even(j=3, n=3)
+    assert len(all_G) == 1
+    assert set(all_G[0].to_str_list()) == set(E(3).to_str_list())
+
+    # n=4, j=0
+    all_G = G_even(j=0, n=4)
+    assert len(all_G) == 3
+    assert set(all_G[0].to_str_list()) == {"(1) δ_AB δ_CD"}
+    assert set(all_G[1].to_str_list()) == {"(1) δ_AC δ_BD"}
+    assert set(all_G[2].to_str_list()) == {"(1) δ_AD δ_BC"}
+
+    # n=4, j=2
+    all_G = G_even(j=2, n=4)
+    assert len(all_G) == 6
+    assert set(all_G[0].to_str_list()) == {
+        "(1/2) δ_aA δ_bB δ_CD",
+        "(1/2) δ_aB δ_bA δ_CD",
+        "(-1/3) δ_ab δ_AB δ_CD",
+    }
+    assert set(all_G[1].to_str_list()) == {
+        "(1/2) δ_aA δ_bC δ_BD",
+        "(1/2) δ_aC δ_bA δ_BD",
+        "(-1/3) δ_ab δ_AC δ_BD",
+    }
+
+    assert set(all_G[2].to_str_list()) == {
+        "(1/2) δ_aA δ_bD δ_BC",
+        "(1/2) δ_aD δ_bA δ_BC",
+        "(-1/3) δ_ab δ_AD δ_BC",
+    }
+
+    assert set(all_G[3].to_str_list()) == {
+        "(1/2) δ_aB δ_bC δ_AD",
+        "(1/2) δ_aC δ_bB δ_AD",
+        "(-1/3) δ_ab δ_BC δ_AD",
+    }
+
+    assert set(all_G[4].to_str_list()) == {
+        "(1/2) δ_aB δ_bD δ_AC",
+        "(1/2) δ_aD δ_bB δ_AC",
+        "(-1/3) δ_ab δ_BD δ_AC",
+    }
+
+    assert set(all_G[5].to_str_list()) == {
+        "(1/2) δ_aC δ_bD δ_AB",
+        "(1/2) δ_aD δ_bC δ_AB",
+        "(-1/3) δ_ab δ_CD δ_AB",
     }

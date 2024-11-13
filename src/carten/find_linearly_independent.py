@@ -4,28 +4,31 @@ Find linearly independent natural tensors.
 Reference:
 
 References:
-    Eq 19, Eq 21, Table 1, Irreducible Cartesian Tensors. II. General Formulation,
-    http://dx.doi.org/10.1063/1.1665190
+1. [CS70] Irreducible Cartesian Tensors. II. General Formulation, http://dx.doi.org/10.1063/1.1665190
+2. [AG82] Irreducible fourth-rank Cartesian tensors, https://doi.org/10.1103/PhysRevA.25.2647
+
+
 
 """
 import itertools
 from fractions import Fraction
 
 from carten.reduce import get_permutations_2
-from carten.symbolic_tensor import Delta, TensorProduct, Tensors
+from carten.symbolic_tensor import Delta, TensorProduct, Tensors, multiply_2
 from carten.utils import letter_index
 
 
-def E(j: int) -> Tensors:
+def E(j: int, s_letters: str = None) -> Tensors:
     """
-    Projectors to get natural tensors of rank j: E(j | j).
+    Invariant tensors of rank j: E(j | j).
 
     References:
-        Eq 19, Eq 21, Table 1, Irreducible Cartesian Tensors. II. General Formulation,
-        http://dx.doi.org/10.1063/1.1665190
+        Eq 19 and Eq 21 of [CS70].
 
     Args:
         j: rank of the projection operator
+        s_letters: letters for the upper case indices, if None, use the default:
+            A, B, C, etc.
 
     Returns:
         Tensor operations with delta tensors. We use lower case letters `a`, `b`, `c`,
@@ -41,55 +44,87 @@ def E(j: int) -> Tensors:
                 (j - 2 * t + 2) * (j - 2 * t + 1), 2 * t * (2 * j - 2 * t + 1)
             )
 
-        # converting dict rules to list rules
-        all_rules = expand_delta_rules(j, t)
-        list_rules = [rule["d_rs"] + rule["d_rr"] + rule["d_ss"] for rule in all_rules]
+        # get all rules
+        all_rules = get_E_rules(j, t, s_letters)
+
+        # Total factor: c * 1/len(all_rules), where 1/len(all_rules) averages over all
+        # the rules.
+        factor = Fraction(1, len(all_rules)) * c
 
         # create tensor products of deltas for each rule
-        deltas = create_delta_tensors(list_rules, factor=c)
-        out.extend(deltas)
+        delta_tensors = [
+            create_delta_tensors(rule["d_rs"] + rule["d_rr"] + rule["d_ss"], factor)
+            for rule in all_rules
+        ]
+
+        out.extend(delta_tensors)
 
         print(f"@@@ debug E_j: j={j}, t={t}, c={c}")
 
     return Tensors(*out)
 
 
-def create_delta_tensors(
-    rules: list[list[str]], factor: int | Fraction = 1
-) -> list[TensorProduct]:
+def G_even(j: int, n: int) -> list[Tensors]:
+    """
+    Mapping operator G to map minimal rank tensor subspaces j onto the space n.
+
+    G(n|j)^q = E_j \otimes^{n-j} f_{n-j}^q.
+
+    Reference: Eq. 2.4 of [AG82].
+
+    Args:
+        j: the minimal tensor subspace
+        n: the space to map to
+
+    Returns:
+        A list of Tensors objects, each corresponding to a q in f_{n-j}^q.
+    """
+
+    assert (n - j) % 2 == 0, f"n-j must be even, got n={n}, j={j}"
+
+    E_s_letters, f_rules = get_G_rules_even(j, n)
+
+    all_G = []
+    for si, fr in zip(E_s_letters, f_rules):
+        E_j = E(j, s_letters=si)
+        f_q = create_delta_tensors(fr)
+        G = multiply_2(E_j, f_q)
+        all_G.append(G)
+
+    return all_G
+
+
+def create_delta_tensors(rule: list[str], factor: int | Fraction = 1) -> TensorProduct:
     """Create a Tensors object for deltas given the rules.
 
     Args:
-        rules: Each inner list contains the indices for the deltas.
+        rule: Each string contains a pair of indices for a delta tensor.
         factor: additional factor to multiply with the tensor product
 
     Returns:
         List of TensorProduct objects.
     """
-    # final factor is equal to 1 / len(rules) multiple the given factor
-    factor = Fraction(1, len(rules)) * factor
 
-    all_tp = []
-    for rule in rules:
-        tensors = [Delta(pair) for pair in rule]
-        tp = TensorProduct(*tensors, factor=factor)
-        all_tp.append(tp)
+    tensors = [Delta(pair) for pair in rule]
+    tp = TensorProduct(*tensors, factor=factor)
 
-    return all_tp
+    return tp
 
 
-def expand_delta_rules(j: int, t: int) -> list[dict[str : list[str]]]:
+def get_E_rules(j: int, t: int, s_letters: str = None) -> list[dict[str : list[str]]]:
     """
-    Rules for d_{rs}^{j-2t} d_{rr}^t d_{ss}^t.
+    Rules for E(j|j): d_{rs}^{j-2t} d_{rr}^t d_{ss}^t.
 
     This is in Eq. 19 of the paper.
 
     Args:
         j: rank of the projection operator
         t: number of d_rr and d_ss
+        s_letters: letters for the upper case indices, if None, use the default:
+            A, B, C, etc.
 
     Examples:
-        >>> expand_delta_rules(3, 1)
+        >>> get_E_rules(3, 1)
         [{'d_rs': ['cC'], 'd_rr': ['ab'], 'd_ss': ['AB']},
          {'d_rs': ['cB'], 'd_rr': ['ab'], 'd_ss': ['AC']},
          {'d_rs': ['cA'], 'd_rr': ['ab'], 'd_ss': ['BC']},
@@ -109,7 +144,9 @@ def expand_delta_rules(j: int, t: int) -> list[dict[str : list[str]]]:
     assert j >= 2 * t, f"j must be greater than or equal to 2*t, got j={j}, t={t}"
 
     r_letters = letter_index(j, upper_case=False)
-    s_letters = letter_index(j, upper_case=True)
+
+    if s_letters is None:
+        s_letters = letter_index(j, upper_case=True)
 
     perms = get_permutations_2(j, num_delta=t)
 
@@ -153,3 +190,42 @@ def expand_delta_rules(j: int, t: int) -> list[dict[str : list[str]]]:
                 )
 
     return all_indices
+
+
+def get_G_rules_even(j: int, n: int) -> tuple[list[str], list[list[str]]]:
+    """
+    Rules for G(n|j) for even n-j.
+
+    Args:
+        j:
+        n:
+
+    Returns:
+        E_s_indices: s letters to use for E_j
+        f_rules: rules to create deltas for for f_{n-j}^q
+    """
+    assert (n - j) % 2 == 0, f"n-j must be even, got n={n}, j={j}"
+
+    letters = letter_index(n, upper_case=True)
+
+    all_perms = get_permutations_2(n, num_delta=(n - j) // 2)
+
+    # TODO, this depends on the order of the indices get_permutations_2 returns, where
+    #   we put the remaining indices of t at the front, and the contracted indices at
+    #   the end.
+    start = j
+
+    f_rules = []
+    E_s_letters = []
+    for perm in all_perms:  # each perm for a q in f_q
+        indices = [letters[perm.index(i)] for i in range(n)]
+
+        # indices for f_{n-j}^q
+        pairs = [indices[i] + indices[i + 1] for i in range(start, n, 2)]
+        f_rules.append(pairs)
+
+        # s indices for E_j
+        s_remaining = "".join(indices[:start])
+        E_s_letters.append(s_remaining)
+
+    return E_s_letters, f_rules
