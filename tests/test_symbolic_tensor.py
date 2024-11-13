@@ -79,9 +79,9 @@ def test_epsilon(epsilon_ijk, epsilon_kij, epsilon_jik):
 
 
 def test_contract_with_delta(T4, delta_ij, delta_ik, delta_ai):
-    assert contract_with_delta(T4, delta_ij) == CartesianTensor("jjkl")
-    assert contract_with_delta(T4, delta_ik) == CartesianTensor("kjkl")
-    assert contract_with_delta(T4, delta_ai) == CartesianTensor("ajkl")
+    assert contract_with_delta(delta_ij, T4) == CartesianTensor("jjkl")
+    assert contract_with_delta(delta_ik, T4) == CartesianTensor("kjkl")
+    assert contract_with_delta(delta_ai, T4) == CartesianTensor("ajkl")
 
     assert contract_with_delta(delta_ij, delta_ik) == Delta("jk")
 

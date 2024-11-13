@@ -291,6 +291,11 @@ class TensorProduct:
         return self._factor
 
     @property
+    def components(self):
+        """Constituting tensors of the product, without considering the factor."""
+        return self._tensors
+
+    @property
     def indices(self):
         """The indices of the tensor product."""
         return "".join([t.indices for t in self._tensors])
@@ -415,6 +420,11 @@ class Tensors:
 
         return self.__class__(*evaluated)
 
+    @property
+    def components(self):
+        """The constituting tensor products."""
+        return self._tensors
+
     def to_str_list(self, including_zero: bool = False) -> list[str]:
         """
         Convert the tensors to string representation.
@@ -481,7 +491,7 @@ def multiply(
         if isinstance(t, CartesianTensor):
             new_tensors.append(t)
         elif isinstance(t, TensorProduct):
-            new_tensors.extend(t._tensors)
+            new_tensors.extend(t.components)
             factor *= t.factor
         else:
             raise ValueError("Unexpected type")
@@ -844,7 +854,7 @@ def simplify(tp: TensorProduct) -> Tensors:
                         linear_comb = []
                         for tp in out:
                             new_tp = TensorProduct(
-                                *tp._tensors,
+                                *tp.components,
                                 *new_tensors,
                                 factor=tp.factor * product.factor,
                             )
