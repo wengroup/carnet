@@ -348,7 +348,7 @@ def shift_index(
 
     def _shift(t: CartesianTensor):
         indices = "".join([chr(ord(i) + shift) for i in t.indices])
-        return t.__class__(indices, factor=tensor.factor, symbol=t.symbol)
+        return t.__class__(indices, factor=t.factor, symbol=t.symbol)
 
     if isinstance(tensor, CartesianTensor):
         return _shift(tensor)
