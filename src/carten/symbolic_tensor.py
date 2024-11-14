@@ -959,6 +959,21 @@ def simplify(tp: TensorProduct) -> Tensors:
     return simplified
 
 
+def simplify_2(tensor: Tensors) -> Tensors:
+    """Simpify a linear combination of tensors."""
+    simplified = []
+    for t in tensor:
+        if isinstance(t, CartesianTensor):
+            simplified.append(t)
+        elif isinstance(t, TensorProduct):
+            out = simplify(t)
+            simplified.extend(out)
+        else:
+            raise ValueError("Unexpected type")
+
+    return Tensors(*simplified)
+
+
 if __name__ == "__main__":
     ###
     # Example 1
