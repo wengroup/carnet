@@ -122,9 +122,9 @@ class CartesianTensor:
 
     def __str__(self):
         if self.factor == Fraction(1):
-            return f"{self._symbol}_{self.indices}"
+            return f"{self.symbol}_{self.indices}"
         else:
-            return f"({self.factor}) {self._symbol}_{self.indices}"
+            return f"({self.factor}) {self.symbol}_{self.indices}"
 
 
 class Scalar(CartesianTensor):
@@ -960,7 +960,7 @@ def simplify(tp: TensorProduct) -> Tensors:
 
 
 def simplify_2(tensor: Tensors) -> Tensors:
-    """Simpify a linear combination of tensors."""
+    """Simplify a linear combination of tensors."""
     simplified = []
     for t in tensor:
         if isinstance(t, CartesianTensor):

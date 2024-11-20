@@ -9,11 +9,17 @@ References:
 
 """
 import itertools
-from collections import defaultdict
-from distutils.command.check import check
+from collections import Counter, defaultdict
 from fractions import Fraction
+from functools import reduce
+from math import gcd
+from pprint import pprint
 
-from carten.reduce import get_permutations_2
+import torch
+from example.utils2 import find_independent_tensors
+from torch import Tensor
+
+from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
 from carten.symbolic_tensor import (
     CartesianTensor,
     Delta,
@@ -24,7 +30,7 @@ from carten.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
-from carten.utils import letter_index
+from carten.utils import dij, eijk, letter_index
 
 
 def E(j: int, s_letters: str = None) -> Tensors:
@@ -279,6 +285,12 @@ def get_G_rules_odd(j: int, n: int) -> tuple[list[str], list[str], list[list[str
     """
     Rules for G(n|j) for odd n-j.
 
+
+    # NOTE,
+    Upper case letter n+1 will be used as the index in epsilon to contract with E(j|j).
+    In other words, it is the tau index.
+    For example, if n = 3, then the letter D will be used as the tau index.
+
     Args:
         j:
         n:
@@ -447,6 +459,42 @@ def canonize_delta_indices_2(tensor: Tensors) -> Tensors:
     return Tensors(*components)
 
 
+def order_tp_components(tp: TensorProduct) -> TensorProduct:
+    """Order the components of tensor product according to string representation.
+
+    For example,
+    delta_ab delta_cd -> delta_ab delta_cd
+    delta_cd delta_ab -> delta_ab delta_cd
+    """
+    # the tensor product is just a scalar factor
+    if len(tp) == 0:
+        return tp
+
+    symbols = [t.symbol for t in tp]
+    indices = [t.indices for t in tp]
+
+    str_rep = [f"{s}_{i}" for s, i in zip(symbols, indices)]
+
+    # sort the components according to the sorted string representation
+    sorted_comp, _ = zip(*sorted(zip(tp.components, str_rep), key=lambda x: x[1]))
+
+    # create new to using the sorted symbols and indices
+    new_tp = TensorProduct(*sorted_comp, factor=tp.factor)
+
+    return new_tp
+
+
+def order_tp_components_2(tensor: Tensors) -> Tensors:
+    """Order the components of tensor product according to string representation."""
+    out = []
+    for t in tensor:
+        if isinstance(t, TensorProduct):
+            out.append(order_tp_components(t))
+        else:
+            out.append(t)
+    return Tensors(*out)
+
+
 def combine_terms(tensor: Tensors) -> Tensors:
     """
     Combine terms with the same indices. This currently only works for delta tensors.
@@ -496,6 +544,184 @@ def combine_terms(tensor: Tensors) -> Tensors:
     return Tensors(*all_combined)
 
 
+def scalar_factor(t1: Tensors, t2: Tensors) -> Fraction | None:
+    """
+    Check if two tensors are scalar multiples of each other.
+
+    Namely, t1 = c * t2, where c is a scalar.
+
+    Args:
+        t1:
+        t2:
+
+    Returns:
+        The scalar factor to multiple with t2 to get t1. If None, t1 is not a scalar
+        multiple of t2.
+    """
+
+    def to_dict(tensor: Tensors):
+        d = {}
+        for tp in tensor:
+            k = " ".join([f"{t.symbol}_{t.indices}" for t in tp])
+            d[k] = tp.factor
+        return d
+
+    t1_d = to_dict(t1)
+    t2_d = to_dict(t2)
+
+    if t1_d.keys() == t2_d.keys():
+        factors = [t1_d[k] / t2_d[k] for k in t1_d.keys()]
+        # Check all the factors are the same
+        if len(set(factors)) == 1:
+            return factors[0]
+        else:
+            raise ValueError(
+                "Tensor 1 is not a scale multiple of tensor 2, although they have "
+                "the same components Symbols."
+            )
+
+    else:
+        return None
+
+
+def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
+    """
+    Compute a single g_pq value, which is defined as
+     G^p(n|j} \odot^n G^q(n|j) = g_pq E(j|j).
+
+    Args:
+        j:
+
+    Returns:
+        The scalar factor g_pq. If None, G_p and G_q are not scalar multiples of each
+        other.
+    """
+    # G_p and G_q are using the same set of indices. Should shift one of them to carry
+    # out the contraction.
+    if (n - j) % 2 == 0:
+        shift = n
+    else:
+        shift = n + 1  # the additional one for tau
+    G_q = shift_index_2(G_q, shift)
+
+    def get_upper_indices(G: Tensors) -> str:
+        letters = set()
+        for t in G:
+            letters.update([i for i in t.indices if i.isupper()])
+        return "".join(sorted(letters))
+
+    # Contracted indices s1, s2, ..., sn of G_p and G_q (upper case letters)
+    p_idx = get_upper_indices(G_p)
+    q_idx = get_upper_indices(G_q)
+
+    # For odd n-j, the index tau should not be contracted.
+    # It is the latest upper case letter, see get_G_rules_odd().
+    if (n - j) % 2 == 1:
+        p_idx = p_idx[:-1]
+        q_idx = q_idx[:-1]
+
+    contracted = contract_G(G_p, G_q, p_idx, q_idx)
+    contracted = combine_terms(
+        order_tp_components_2(canonize_delta_indices_2(evaluate_2(contracted)))
+    )
+
+    # in the contracted tensor, all upper case indices s1, ... sn are contracted.
+    # To ensure contracted and E_jj using the same set of indices, we provide the
+    # remaining indices in G_q to E_jj.
+    remaining_indices = set()
+    for t in G_q:
+        remaining_indices.update([i for i in t.indices if i.islower()])
+    remaining_indices = "".join(sorted(remaining_indices))
+
+    E_jj = E(j, remaining_indices)
+    E_jj = order_tp_components_2(E_jj)
+
+    # Compare contracted and E_jj to get the factor  g_pq
+
+    factor = scalar_factor(contracted, E_jj)
+
+    return factor
+
+
+def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]):
+    """
+    Compute a matrix of g_pq values.
+    Args:
+        j:
+        n:
+        all_G:
+
+    Returns:
+    """
+    num = len(all_G)
+
+    matrix = [[None] * num for _ in range(num)]
+    for p in range(num):
+        for q in range(num):
+            matrix[p][q] = get_g_pq(j, n, all_G[p], all_G[q])
+
+    return matrix
+
+
+def evaluate_S(j: int, G: Tensors, seed: int = 35) -> Tensor:
+    """
+    Evaluate S(n) = G(n|j) \odot^n X(j).
+
+    We create an arbitrary tensor X(j) and contract with G(n|j).
+
+    Recall, in G, lower case indices are for r1, r2, ..., rj, and upper case indices
+    are for s1, s2, ..., sn.
+
+    Args:
+        G: the contraction rule.
+    """
+
+    torch.manual_seed(seed)
+    X = torch.randn(3**j).reshape([3] * j)
+    X = symmetrize_and_remove_trace(X)
+
+    d = dij()
+    e = eijk()
+
+    # tp only consists of delta and epsilon tensors
+    output = []
+    for tp in G:
+        indices = [t.indices for t in tp]
+
+        # create contraction rule
+        delta_epsilon_rule = ",".join(indices)
+        X_rule = "".join([i for i in "".join(indices) if i.islower()])
+
+        # For odd n-j, the index for tau will appear twice, they should be removed.
+        upper = "".join([i for i in "".join(indices) if i.isupper()])
+        S_rule = "".join(sorted([s for s, n in Counter(upper).items() if n == 1]))
+
+        rule = f"{delta_epsilon_rule},{X_rule}->{S_rule}"
+
+        # get delta and epsilon tensors for contraction
+        delta_epsilon = []
+        seen_epsilon = False
+        for comp in tp:
+            if isinstance(comp, Delta):
+                delta_epsilon.append(d)
+            elif isinstance(comp, Epsilon):
+                if seen_epsilon:
+                    raise ValueError("Only one epsilon tensor is allowed.")
+                else:
+                    seen_epsilon = True
+                delta_epsilon.append(e)
+            else:
+                raise ValueError("Unexpected type.")
+
+        # TODO, the rules tensor product epsilons and deltas can be precomputed and
+        #  summed up. Then, we only need a single contraction.
+        # perform the contraction
+        S = float(tp.factor) * torch.einsum(rule, *delta_epsilon, X)
+        output.append(S)
+
+    return torch.stack(output).sum(dim=0)
+
+
 def check_one(prod):
     evaluated = evaluate_2(prod)
     print("@@@ evaluated:", evaluated)
@@ -503,35 +729,159 @@ def check_one(prod):
     canolized = canonize_delta_indices_2(evaluated)
     print("@@@ canolized:", canolized)
 
-    combined = combine_terms(canolized)
+    ordered = order_tp_components_2(canolized)
+    print("@@@ ordered:", ordered)
+
+    combined = combine_terms(ordered)
     print("@@@ combined:", combined)
 
 
+def find_matrix_factorization(
+    A: list[list[Fraction]],
+) -> tuple[Fraction, list[list[int]]]:
+    """
+    For a matrix A consisting of Fraction, find the scalar factor c and integer
+    matrix B such that A = c*B.
+    """
+    # Flatten and get nums/denoms
+    nums = [f.numerator for row in A for f in row if f is not None]
+    denoms = [f.denominator for row in A for f in row if f is not None]
+
+    # Find GCD of nums and LCM of denoms
+    def lcm(a, b):
+        return abs(a * b) // gcd(a, b)
+
+    num_gcd = reduce(gcd, [abs(n) for n in nums])
+    denom_lcm = reduce(lcm, denoms)
+
+    # Scalar factor
+    c = Fraction(num_gcd, denom_lcm)
+
+    # Integer matrix B = A/c
+    B = [[int(f / c) if f is not None else None for f in row] for row in A]
+
+    return c, B
+
+
 if __name__ == "__main__":
-    all_G = G_odd(j=2, n=3)
+    # ################################################################################
+    # odd n-j
+    # j = 2
+    # n = 3
+    # all_G = G_odd(j, n)
 
-    G1 = all_G[0]
-    G2 = all_G[1]
-    G3 = all_G[2]
-    print("G_1:", G1)
-    print("G_2:", G2)
-    print("G_3:", G3)
+    # G1 = all_G[0]
+    # G2 = all_G[1]
+    # G3 = all_G[2]
+    # print("G_1:", G1)
+    # print("G_2:", G2)
+    # print("G_3:", G3)
 
-    G2 = shift_index_2(all_G[1], shift=4)
-    G3 = shift_index_2(all_G[2], shift=8)
-    print("G_1, after shift:", G1)
-    print("G_2, after shift:", G2)
-    print("G_3, after shift:", G3)
+    # G1_shifted = shift_index_2(G1, shift=12)
+    # G2_shifted = shift_index_2(G2, shift=4)
+    # G3_shifted = shift_index_2(G3, shift=8)
+    # print("G_1, after shift:", G1_shifted)
+    # print("G_2, after shift:", G2_shifted)
+    # print("G_3, after shift:", G3_shifted)
+    #
+    # # check they are linearly independent
+    # prod = contract_G(G1, G2_shifted, "ABC", "EFG")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G1, G3_shifted, "ABC", "IJK")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G2_shifted, G3_shifted, "EFG", "IJK")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G1, G1_shifted, "ABC", "MNO")
+    # print("=" * 40)
+    # check_one(prod)
 
-    # check they are linearly independent
-    prod = contract_G(G1, G2, "ABC", "EFG")
-    print("=" * 40)
-    check_one(prod)
+    ################################################################################
+    # # even n-j
+    # j = 4
+    # n = 4
+    # all_G = G_even(j, n)
+    #
+    # print("number of G", len(all_G))
 
-    prod = contract_G(G1, G3, "ABC", "IJK")
-    print("=" * 40)
-    check_one(prod)
+    # G1 = all_G[0]
+    # G2 = all_G[1]
+    # G3 = all_G[2]
+    # print("G_1:", G1)
+    # print("G_2:", G2)
+    # print("G_3:", G3)
+    #
+    # G1_shifted = shift_index_2(G1, shift=12)
+    # G2_shifted = shift_index_2(G2, shift=4)
+    # G3_shifted = shift_index_2(G3, shift=8)
+    # print("G_1, after shift:", G1_shifted)
+    # print("G_2, after shift:", G2_shifted)
+    # print("G_3, after shift:", G3_shifted)
+    #
+    # # check they are linearly independent
+    # prod = contract_G(G1, G2_shifted, "ABCD", "EFGH")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G1, G3_shifted, "ABCD", "IJKL")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G2_shifted, G3_shifted, "EFGH", "IJKL")
+    # print("=" * 40)
+    # check_one(prod)
+    #
+    # prod = contract_G(G1, G1_shifted, "ABCD", "MNOP")
+    # print("=" * 40)
+    # check_one(prod)
 
-    prod = contract_G(G2, G3, "EFG", "IJK")
-    print("=" * 40)
-    check_one(prod)
+    ################################################################################
+    # determine g_pq
+    ####################
+
+    # setting
+    j = 3
+    n = 3
+
+    print("=" * 80)
+    print(f"j={j}, n={n}")
+
+    # create G mapping operator
+    if (n - j) % 2 == 0:
+        all_G = G_even(j, n)
+    else:
+        all_G = G_odd(j, n)
+
+    # Get S tensors mapped to the space n
+    all_S = [evaluate_S(j, G) for G in all_G]
+    print("Number of candidate G:", len(all_S))
+
+    g_pq = get_g_pq_matrix(j, n, all_G)
+    c, g_pq = find_matrix_factorization(g_pq)
+    print("g_pq matrix for all G:")
+    print("c:", c)
+    print("matrix:")
+    pprint(g_pq)
+
+    # find linearly independent S tensors
+    _, independent_indices = find_independent_tensors(all_S)
+
+    independent_G = [all_G[i] for i in independent_indices]
+    print("Number of independent G:", len(independent_G))
+    print("Selected independent indices:", independent_indices)
+    for p, G in enumerate(independent_G):
+        print(f"p={p}, G=")
+        print(G)
+
+    # find g_pq matrix for independent G
+    g_pq = get_g_pq_matrix(j, n, independent_G)
+    c, g_pq = find_matrix_factorization(g_pq)
+    print("g_pq matrix for independent ones:")
+    print("c:", c)
+    print("matrix:")
+    pprint(g_pq)
