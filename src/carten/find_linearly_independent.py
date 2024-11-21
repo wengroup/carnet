@@ -16,7 +16,6 @@ from math import gcd
 from pprint import pprint
 
 import torch
-from example.utils2 import find_independent_tensors
 from torch import Tensor
 
 from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
@@ -35,6 +34,7 @@ from carten.utils import (
     check_traceless,
     dij,
     eijk,
+    find_independent_tensors,
     letter_index,
     matrix_inverse,
 )
@@ -985,7 +985,19 @@ if __name__ == "__main__":
 
     ################################################################################
 
-    def get_one(j, n, T):
+    def extract_and_embed(j: int, n: int, T: Tensor):
+        """
+        Extract the natural tensor X(j) from T(j) and embed it back to space n.
+
+        Args:
+            j: weight
+            n: dim of the space T is in
+            T: A general tensor in space n.
+
+        Returns:
+            All embedding tensors S^p(n), whose corresponding G^p(n|j) are linearly
+            independent.
+        """
         print("=" * 80)
         print(f"j={j}, n={n}")
 
@@ -1000,25 +1012,25 @@ if __name__ == "__main__":
         print("Number of candidate G:", len(all_S))
 
         # determine g_pq for all G
-        g_pq = get_g_pq_matrix(j, n, all_G)
-        if len(all_G) > 1:
-            c, g_pq_int = find_matrix_factorization(g_pq)
-        else:
-            c = 1
-            g_pq_int = g_pq
-        print("g_pq matrix for all G:")
-        print("c:", c)
-        print("matrix:")
-        pprint(g_pq_int)
+        # g_pq = get_g_pq_matrix(j, n, all_G)
+        # if len(all_G) > 1:
+        #     c, g_pq_int = find_matrix_factorization(g_pq)
+        # else:
+        #     c = 1
+        #     g_pq_int = g_pq
+        # print("g_pq matrix for all G:")
+        # print("c:", c)
+        # print("matrix:")
+        # pprint(g_pq_int)
 
         # Get linearly independent G tensors
         _, independent_indices = find_independent_tensors(all_S)
         independent_G = [all_G[i] for i in independent_indices]
         print("Number of independent G:", len(independent_G))
         print("Selected independent indices:", independent_indices)
-        for p, G in enumerate(independent_G):
-            print(f"p={p}, G=")
-            print(G)
+        # for p, G in enumerate(independent_G):
+        #     print(f"p={p}, G=")
+        #     print(G)
 
         # Get g_pq matrix for independent G
         g_pq = get_g_pq_matrix(j, n, independent_G)
@@ -1057,6 +1069,11 @@ if __name__ == "__main__":
 
         return all_S
 
+    ################################################################################
+    # Extract and re-embed, and then check the sum of S (from different weight j and
+    # seniority n) is equal to T.
+    ################################################################################
+
     # create a T of rank n
     n = 4
     torch.manual_seed(35)
@@ -1064,12 +1081,8 @@ if __name__ == "__main__":
 
     all_S = []
     for j in range(n + 1):
-        S_j = get_one(j, n, T)
+        S_j = extract_and_embed(j, n, T)
         all_S.extend(S_j)
 
     sum_S = torch.stack(all_S).sum(dim=0)
-
-    print("sum_S:", sum_S)
-    print("T:", T)
-    print("diff", sum_S - T)
     assert torch.allclose(sum_S, T), "The sum of S is not equal to T"
