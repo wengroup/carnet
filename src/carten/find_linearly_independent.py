@@ -30,10 +30,17 @@ from carten.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
-from carten.utils import dij, eijk, letter_index
+from carten.utils import (
+    check_symmetric,
+    check_traceless,
+    dij,
+    eijk,
+    letter_index,
+    matrix_inverse,
+)
 
 
-def E(j: int, s_letters: str = None) -> Tensors:
+def get_E(j: int, s_letters: str = None) -> Tensors:
     """
     Invariant tensors of rank j: E(j | j).
 
@@ -49,11 +56,11 @@ def E(j: int, s_letters: str = None) -> Tensors:
         Tensor operations with delta tensors. We use lower case letters `a`, `b`, `c`,
         etc. for indices `r`, and upper case letters `A`, `B`, `C`, etc. for indices `s`.
     """
-    n = j // 2
+    k = j // 2
 
     out = []
     c = 1  # c for t = 0
-    for t in range(n + 1):
+    for t in range(k + 1):
         if t > 0:
             c = -c * Fraction(
                 (j - 2 * t + 2) * (j - 2 * t + 1), 2 * t * (2 * j - 2 * t + 1)
@@ -79,7 +86,7 @@ def E(j: int, s_letters: str = None) -> Tensors:
     return Tensors(*out)
 
 
-def G_even(j: int, n: int) -> list[Tensors]:
+def get_G_even(j: int, n: int) -> list[Tensors]:
     """
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
@@ -103,7 +110,7 @@ def G_even(j: int, n: int) -> list[Tensors]:
 
     all_G = []
     for si, rule in zip(E_s_letters, delta_rules):
-        E_j = E(j, s_letters=si)
+        E_j = get_E(j, s_letters=si)
         f_q = create_delta_tensors(rule)
         G = multiply_2(E_j, f_q)
         all_G.append(G)
@@ -111,7 +118,7 @@ def G_even(j: int, n: int) -> list[Tensors]:
     return all_G
 
 
-def G_odd(j: int, n: int) -> list[Tensors]:
+def get_G_odd(j: int, n: int) -> list[Tensors]:
     """
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
@@ -135,13 +142,43 @@ def G_odd(j: int, n: int) -> list[Tensors]:
 
     all_G = []
     for si, e_rule, d_rule in zip(E_s_letters, f_epsilon_rules, f_delta_rules):
-        E_j = E(j, s_letters=si)
+        E_j = get_E(j, s_letters=si)
         f_q_epsilon = Epsilon(e_rule)
         f_q_delta = create_delta_tensors(d_rule)
         G = multiply_2(E_j, f_q_epsilon, f_q_delta)
         all_G.append(G)
 
     return all_G
+
+
+def get_h_pq(g_pq: list[list[Fraction]]) -> list[list[Fraction]]:
+    """
+    Compute h_pq matrix, which is the inverse of g_pq.
+    """
+    g_pq_new = []
+    for row in g_pq:
+        g_pq_new.append([i if i is not None else Fraction(0) for i in row])
+
+    h_pq = matrix_inverse(g_pq_new)
+
+    return h_pq
+
+
+def get_H(h_pq: list[list[Fraction]], G: list[Tensors]) -> list[Tensors]:
+    """
+    Get the H mapping: H^p = \sum_q h_pq G^q.
+    """
+    H = []
+    for row in h_pq:
+        tensors = []
+        for h_q, G_q in zip(row, G):
+            if h_q == 0:
+                continue
+            t = multiply_2(Scalar(h_q), G_q)
+            tensors.extend(t)
+        H.append(Tensors(*tensors))
+
+    return H
 
 
 def create_delta_tensors(rule: list[str], factor: int | Fraction = 1) -> TensorProduct:
@@ -298,9 +335,12 @@ def get_G_rules_odd(j: int, n: int) -> tuple[list[str], list[str], list[list[str
     Returns:
         E_s_indices: s letters to use for E_j
         f_epsilon_rules: rules to create epsilons for f_{n-j}^q
-        f_delta_rules: rules to create deltas for for f_{n-j}^q
+        f_delta_rules: rules to create deltas for f_{n-j}^q
     """
     assert (n - j) % 2 == 1, f"n-j must be odd, got n={n}, j={j}"
+
+    if j == 0:
+        return get_G_rules_odd_j0(j, n)
 
     # All s letters
     letters = letter_index(n, upper_case=True)
@@ -338,6 +378,44 @@ def get_G_rules_odd(j: int, n: int) -> tuple[list[str], list[str], list[list[str
             E_s_letters.append(
                 "".join(sorted(s_remaining_set - set(comb))) + tau_letter
             )
+
+    return E_s_letters, f_epsilon_rules, f_delta_rules
+
+
+def get_G_rules_odd_j0(j, n):
+    """
+    For j = 0, and odd n, the rules for G(n|0) are different from the general case.
+
+    Here we do a trivial contraction with epsilon tensor, instead of a double contraction in the general case.
+    """
+    assert j == 0, f"j must be 0, got {j}"
+    assert n % 2 == 1, f"n must be odd, got {n}"
+
+    # All s letters
+    letters = letter_index(n, upper_case=True)
+
+    all_perms = get_permutations_2(n, num_delta=(n - 3) // 2)
+
+    # TODO, this depends on the order of the indices get_permutations_2 returns, where
+    #   we put the remaining indices of t at the front, and the contracted indices at
+    #   the end.
+    start = 3
+
+    f_delta_rules = []
+    f_epsilon_rules = []
+    E_s_letters = []
+
+    for perm in all_perms:  # each perm for a q in f_q
+        indices = [letters[perm.index(i)] for i in range(n)]
+
+        # delta indices for f_{n-j}^q
+        delta_pairs = [indices[i] + indices[i + 1] for i in range(start, n, 2)]
+        f_delta_rules.append(delta_pairs)
+
+        # remaining indices for epsilon (indices for E_j is empty)
+        s_remaining = indices[:start]
+        f_epsilon_rules.append("".join(sorted(s_remaining)))
+        E_s_letters.append("")
 
     return E_s_letters, f_epsilon_rules, f_delta_rules
 
@@ -384,7 +462,7 @@ def shift_index_2(tensor: Tensors, shift: int) -> Tensors:
     return Tensors(*components)
 
 
-def evaluate(
+def evaluate_delta(
     tensor: CartesianTensor | TensorProduct,
 ) -> CartesianTensor | TensorProduct:
     """Evaluate delta_ii to 3."""
@@ -405,9 +483,9 @@ def evaluate(
         raise ValueError("Unexpected type")
 
 
-def evaluate_2(tensor: Tensors) -> Tensors:
+def evaluate_delta_2(tensor: Tensors) -> Tensors:
     """Evaluate a linear combination of tensors."""
-    components = [evaluate(t) for t in tensor]
+    components = [evaluate_delta(t) for t in tensor]
     return Tensors(*components)
 
 
@@ -596,12 +674,17 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
         The scalar factor g_pq. If None, G_p and G_q are not scalar multiples of each
         other.
     """
+    even = (n - j) % 2 == 0
+
     # G_p and G_q are using the same set of indices. Should shift one of them to carry
     # out the contraction.
-    if (n - j) % 2 == 0:
+    if even:
         shift = n
     else:
-        shift = n + 1  # the additional one for tau
+        if j == 0:
+            shift = n  # there is no tau
+        else:
+            shift = n + 1  # the additional one for tau
     G_q = shift_index_2(G_q, shift)
 
     def get_upper_indices(G: Tensors) -> str:
@@ -614,15 +697,16 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
     p_idx = get_upper_indices(G_p)
     q_idx = get_upper_indices(G_q)
 
-    # For odd n-j, the index tau should not be contracted.
+    # For odd n-j and j is not 0, the index tau should not be contracted.
     # It is the latest upper case letter, see get_G_rules_odd().
-    if (n - j) % 2 == 1:
+    # For odd n-j, and j is 0, there is no tau index.
+    if not even and j != 0:
         p_idx = p_idx[:-1]
         q_idx = q_idx[:-1]
 
     contracted = contract_G(G_p, G_q, p_idx, q_idx)
     contracted = combine_terms(
-        order_tp_components_2(canonize_delta_indices_2(evaluate_2(contracted)))
+        order_tp_components_2(canonize_delta_indices_2(evaluate_delta_2(contracted)))
     )
 
     # in the contracted tensor, all upper case indices s1, ... sn are contracted.
@@ -633,7 +717,7 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
         remaining_indices.update([i for i in t.indices if i.islower()])
     remaining_indices = "".join(sorted(remaining_indices))
 
-    E_jj = E(j, remaining_indices)
+    E_jj = get_E(j, remaining_indices)
     E_jj = order_tp_components_2(E_jj)
 
     # Compare contracted and E_jj to get the factor  g_pq
@@ -643,7 +727,7 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
     return factor
 
 
-def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]):
+def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]) -> list[list[Fraction]]:
     """
     Compute a matrix of g_pq values.
     Args:
@@ -663,7 +747,7 @@ def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]):
     return matrix
 
 
-def evaluate_S(j: int, G: Tensors, seed: int = 35) -> Tensor:
+def embed(j: int, G: Tensors, X: Tensor = None, seed: int = 35) -> Tensor:
     """
     Evaluate S(n) = G(n|j) \odot^n X(j).
 
@@ -674,25 +758,30 @@ def evaluate_S(j: int, G: Tensors, seed: int = 35) -> Tensor:
 
     Args:
         G: the contraction rule.
+        X: the natural tensor X(j) to contract with G. If None, create a random natural
+           tensor.
+
+    Return:
+        S(n) in the space n.
     """
 
-    torch.manual_seed(seed)
-    X = torch.randn(3**j).reshape([3] * j)
-    X = symmetrize_and_remove_trace(X)
+    if X is None:
+        torch.manual_seed(seed)
+        X = torch.randn(3**j).reshape([3] * j)
+        X = symmetrize_and_remove_trace(X)
 
     d = dij()
     e = eijk()
 
-    # tp only consists of delta and epsilon tensors
     output = []
     for tp in G:
-        indices = [t.indices for t in tp]
-
         # create contraction rule
+        indices = [t.indices for t in tp]
         delta_epsilon_rule = ",".join(indices)
-        X_rule = "".join([i for i in "".join(indices) if i.islower()])
+        X_rule = "".join(sorted([i for i in "".join(indices) if i.islower()]))
 
-        # For odd n-j, the index for tau will appear twice, they should be removed.
+        # For odd n-j and j != 0 the index for tau will appear twice, they should be
+        # removed for the S rule.
         upper = "".join([i for i in "".join(indices) if i.isupper()])
         S_rule = "".join(sorted([s for s, n in Counter(upper).items() if n == 1]))
 
@@ -722,8 +811,62 @@ def evaluate_S(j: int, G: Tensors, seed: int = 35) -> Tensor:
     return torch.stack(output).sum(dim=0)
 
 
+def extract(H: Tensors, T: Tensor = None) -> Tensor:
+    """
+    Evaluate X^p,j = H^p(j|n) \odot^n T(n).
+
+    Args:
+        H:
+        T:
+
+    Returns:
+    """
+
+    d = dij()
+    e = eijk()
+
+    output = []
+    for tp in H:
+        # create contraction rule
+        indices = [t.indices for t in tp]
+        delta_epsilon_rule = ",".join(indices)
+        X_rule = "".join(sorted([i for i in "".join(indices) if i.islower()]))
+
+        # For odd n-j and j!=0, the index for tau will appear twice, they should be
+        # removed for the T rule.
+        upper = "".join([i for i in "".join(indices) if i.isupper()])
+        T_rule = "".join(sorted([s for s, n in Counter(upper).items() if n == 1]))
+
+        rule = f"{delta_epsilon_rule},{T_rule}->{X_rule}"
+
+        # get delta and epsilon tensors for contraction
+        delta_epsilon = []
+        seen_epsilon = False
+        for comp in tp:
+            if isinstance(comp, Delta):
+                delta_epsilon.append(d)
+            elif isinstance(comp, Epsilon):
+                if seen_epsilon:
+                    raise ValueError("Only one epsilon tensor is allowed.")
+                else:
+                    seen_epsilon = True
+                delta_epsilon.append(e)
+            else:
+                # tp only consists of delta and epsilon tensors
+                raise ValueError(f"Unexpected type. {type(comp)}")
+
+        # TODO, the rules tensor product epsilons and deltas can be precomputed and
+        #  summed up. Then, we only need a single contraction.
+        #
+        # perform the contraction
+        X = float(tp.factor) * torch.einsum(rule, *delta_epsilon, T)
+        output.append(X)
+
+    return torch.stack(output).sum(dim=0)
+
+
 def check_one(prod):
-    evaluated = evaluate_2(prod)
+    evaluated = evaluate_delta_2(prod)
     print("@@@ evaluated:", evaluated)
 
     canolized = canonize_delta_indices_2(evaluated)
@@ -768,7 +911,7 @@ if __name__ == "__main__":
     # odd n-j
     # j = 2
     # n = 3
-    # all_G = G_odd(j, n)
+    # all_G = get_G_odd(j, n)
 
     # G1 = all_G[0]
     # G2 = all_G[1]
@@ -805,7 +948,7 @@ if __name__ == "__main__":
     # # even n-j
     # j = 4
     # n = 4
-    # all_G = G_even(j, n)
+    # all_G = get_G_even(j, n)
     #
     # print("number of G", len(all_G))
 
@@ -841,47 +984,92 @@ if __name__ == "__main__":
     # check_one(prod)
 
     ################################################################################
-    # determine g_pq
-    ####################
 
-    # setting
-    j = 3
-    n = 3
+    def get_one(j, n, T):
+        print("=" * 80)
+        print(f"j={j}, n={n}")
 
-    print("=" * 80)
-    print(f"j={j}, n={n}")
+        # create G mapping operator
+        if (n - j) % 2 == 0:
+            all_G = get_G_even(j, n)
+        else:
+            all_G = get_G_odd(j, n)
 
-    # create G mapping operator
-    if (n - j) % 2 == 0:
-        all_G = G_even(j, n)
-    else:
-        all_G = G_odd(j, n)
+        # Get S tensors, embedding space j to space n
+        all_S = [embed(j, G) for G in all_G]
+        print("Number of candidate G:", len(all_S))
 
-    # Get S tensors mapped to the space n
-    all_S = [evaluate_S(j, G) for G in all_G]
-    print("Number of candidate G:", len(all_S))
+        # determine g_pq for all G
+        g_pq = get_g_pq_matrix(j, n, all_G)
+        if len(all_G) > 1:
+            c, g_pq_int = find_matrix_factorization(g_pq)
+        else:
+            c = 1
+            g_pq_int = g_pq
+        print("g_pq matrix for all G:")
+        print("c:", c)
+        print("matrix:")
+        pprint(g_pq_int)
 
-    g_pq = get_g_pq_matrix(j, n, all_G)
-    c, g_pq = find_matrix_factorization(g_pq)
-    print("g_pq matrix for all G:")
-    print("c:", c)
-    print("matrix:")
-    pprint(g_pq)
+        # Get linearly independent G tensors
+        _, independent_indices = find_independent_tensors(all_S)
+        independent_G = [all_G[i] for i in independent_indices]
+        print("Number of independent G:", len(independent_G))
+        print("Selected independent indices:", independent_indices)
+        for p, G in enumerate(independent_G):
+            print(f"p={p}, G=")
+            print(G)
 
-    # find linearly independent S tensors
-    _, independent_indices = find_independent_tensors(all_S)
+        # Get g_pq matrix for independent G
+        g_pq = get_g_pq_matrix(j, n, independent_G)
+        if len(independent_G) > 1:
+            c, g_pq_int = find_matrix_factorization(g_pq)
+        else:
+            c = 1
+            g_pq_int = g_pq
+        print("g_pq matrix for independent ones:")
+        print("c:", c)
+        print("matrix:")
+        pprint(g_pq_int)
 
-    independent_G = [all_G[i] for i in independent_indices]
-    print("Number of independent G:", len(independent_G))
-    print("Selected independent indices:", independent_indices)
-    for p, G in enumerate(independent_G):
-        print(f"p={p}, G=")
-        print(G)
+        # Get h_pq matrix
+        h_pq = get_h_pq(g_pq)
+        print("h_pq:")
+        pprint(h_pq)
 
-    # find g_pq matrix for independent G
-    g_pq = get_g_pq_matrix(j, n, independent_G)
-    c, g_pq = find_matrix_factorization(g_pq)
-    print("g_pq matrix for independent ones:")
-    print("c:", c)
-    print("matrix:")
-    pprint(g_pq)
+        # Get H tensors, extracting from the space n to space j
+        all_H = get_H(h_pq, independent_G)
+        for p, H in enumerate(all_H):
+            print(f"p={p}, H=")
+            print(H)
+
+        ########################################
+
+        # Extracting X from T
+        all_X = [extract(H, T) for H in all_H]
+
+        for X in all_X:
+            assert check_symmetric(X), f"X={X} is not symmetric"
+            assert check_traceless(X), f"X={X} is not traceless"
+
+        # Embed X back to space n
+        all_S = [embed(j, G, X) for G, X in zip(independent_G, all_X)]
+
+        return all_S
+
+    # create a T of rank n
+    n = 4
+    torch.manual_seed(35)
+    T = torch.randn(3**n).reshape([3] * n)
+
+    all_S = []
+    for j in range(n + 1):
+        S_j = get_one(j, n, T)
+        all_S.extend(S_j)
+
+    sum_S = torch.stack(all_S).sum(dim=0)
+
+    print("sum_S:", sum_S)
+    print("T:", T)
+    print("diff", sum_S - T)
+    assert torch.allclose(sum_S, T), "The sum of S is not equal to T"
