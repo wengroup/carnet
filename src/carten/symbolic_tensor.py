@@ -841,6 +841,9 @@ def simplify(tp: TensorProduct) -> Tensors:
     """
     Simplify a tensor product by apply delta and epsilon rules.
 
+    The simplification is done iteratively until no more simplification can be done.
+    Zeros resulting from the simplification are removed.
+
     For example,
     d_ij e_imn d_nq T_qpr -> e_jmq T_qpr
     """
@@ -925,7 +928,7 @@ def simplify(tp: TensorProduct) -> Tensors:
     performed = True
     simplified = Tensors(tp)
     while performed:
-        # positions in new_simplified that are results of a double epsilon contraction
+        # Positions in new_simplified that are results of a double epsilon contraction
         # This leads to a sum of two tensor products of delta tensors, and we need
         # to expand it to be produced with others
         double_epsilon = None
@@ -956,13 +959,22 @@ def simplify(tp: TensorProduct) -> Tensors:
         performed = any(performed)
         simplified = Tensors(*linear_comb)
 
+    # Remove zeros
+    simplified = Tensors(*[t for t in simplified if t.factor != 0])
+
     return simplified
 
 
 def simplify_2(tensor: Tensors) -> Tensors:
-    """Simplify a linear combination of tensors."""
+    """Simplify a linear combination of tensors.
+    1. Applying delta and epsilon rules.
+    2. Removing zero tensors or tensor products.
+
+    """
     simplified = []
     for t in tensor:
+        if t.factor == 0:  # remove zeros
+            continue
         if isinstance(t, CartesianTensor):
             simplified.append(t)
         elif isinstance(t, TensorProduct):
