@@ -71,12 +71,12 @@ class CartesianTensor:
 
         return self.__class__(indices, factor * self.factor, self.symbol)
 
-    def evaluate(self, mapping: dict[str, str]) -> "Tensors":
+    def evaluate(self, mapping: dict[str, str]) -> "LinearCombination":
         """Evaluate tensor indices to 1, 2, 3."""
         indices = evaluate_indices(self.indices, mapping)
         tensors = [self.__class__(i, self.factor, self.symbol) for i in indices]
 
-        return Tensors(*tensors)
+        return LinearCombination(*tensors)
 
     @staticmethod
     def _check_indices(indices: str):
@@ -199,7 +199,9 @@ class Epsilon(CartesianTensor):
         assert len(indices) == 3, "The epsilon tensor must have three indices"
         super().__init__(indices, factor, symbol)
 
-    def evaluate(self, mapping: dict[str, str]) -> Union["CartesianTensor", "Tensors"]:
+    def evaluate(
+        self, mapping: dict[str, str]
+    ) -> Union["CartesianTensor", "LinearCombination"]:
         """
         Evaluate tensor indices to 1, 2, 3.
 
@@ -331,7 +333,7 @@ class TensorProduct:
 
         return TensorProduct(*tensors, factor=factor * self.factor)
 
-    def evaluate(self, mapping: dict[str, str]) -> "Tensors":
+    def evaluate(self, mapping: dict[str, str]) -> "LinearCombination":
         """
         Evaluate tensor indices to 1, 2, 3.
         """
@@ -347,7 +349,7 @@ class TensorProduct:
             evaluated = []
             for t in self._tensors:
                 out = t.evaluate(new_mapping)
-                if isinstance(out, Tensors):
+                if isinstance(out, LinearCombination):
                     evaluated.append(list(out._tensors))
                 else:
                     evaluated.append([out])
@@ -356,7 +358,7 @@ class TensorProduct:
                 tp = TensorProduct(*tensors, factor=self.factor)
                 tensor_product.append(tp)
 
-        return Tensors(*tensor_product)
+        return LinearCombination(*tensor_product)
 
     def __eq__(self, other: Union[CartesianTensor, "TensorProduct"]):
         # TODO, we just implement the case that the constituting tensors are the same
@@ -401,19 +403,19 @@ class TensorProduct:
         return f"({self.factor}){rep}"
 
 
-class Tensors:
-    """A linear combination of multiple Cartesian tensors."""
+class LinearCombination:
+    """A linear combination of Cartesian tensors or tensor Product."""
 
     def __init__(self, *tensors: CartesianTensor | Delta | Epsilon | TensorProduct):
         self._tensors = tensors
 
-    def evaluate(self, mapping: dict[str, str]) -> "Tensors":
+    def evaluate(self, mapping: dict[str, str]) -> "LinearCombination":
         """Evaluate tensor indices to 1, 2, 3."""
 
         evaluated = []
         for t in self._tensors:
             e = t.evaluate(mapping)
-            if isinstance(e, Tensors):
+            if isinstance(e, LinearCombination):
                 evaluated.extend(e)
             else:
                 evaluated.append(e)
@@ -434,7 +436,7 @@ class Tensors:
         """
         return [str(t) for t in self._tensors if including_zero or t.factor != 0]
 
-    def __eq__(self, other: "Tensors"):
+    def __eq__(self, other: "LinearCombination"):
         # TODO, we just implement the case that the constituting tensors are the same
         #  and in the same order. Of course, this is not general.
 
@@ -456,12 +458,12 @@ class Tensors:
     def __getitem__(self, item):
         return self._tensors[item]
 
-    def __add__(self, other: "Tensors"):
-        return Tensors(*self._tensors, *other._tensors)
+    def __add__(self, other: "LinearCombination"):
+        return LinearCombination(*self._tensors, *other._tensors)
 
     def __mul__(self, other: int | Fraction):
         """Multiply the tensor by a scalar."""
-        return Tensors(*[t * other for t in self._tensors])
+        return LinearCombination(*[t * other for t in self._tensors])
 
     def __rmul__(self, other: int | Fraction):
         return self.__mul__(other)
@@ -502,8 +504,9 @@ def multiply(
 
 
 def multiply_2(
-    *tensors: CartesianTensor | TensorProduct | Tensors, factor: int | Fraction = 1
-) -> Tensors:
+    *tensors: CartesianTensor | TensorProduct | LinearCombination,
+    factor: int | Fraction = 1,
+) -> LinearCombination:
     """
     Multiple tensors, tensor products, tensors to create a new Tensors object.
 
@@ -518,8 +521,8 @@ def multiply_2(
     new_tensors = []
     for t in tensors:
         if isinstance(t, (CartesianTensor, TensorProduct)):
-            new_tensors.append(Tensors(t))
-        elif isinstance(t, Tensors):
+            new_tensors.append(LinearCombination(t))
+        elif isinstance(t, LinearCombination):
             new_tensors.append(t)
         else:
             raise ValueError("Unexpected type")
@@ -528,7 +531,7 @@ def multiply_2(
     for prod in itertools.product(*new_tensors):
         all_tp.append(multiply(*prod, factor=factor))
 
-    return Tensors(*all_tp)
+    return LinearCombination(*all_tp)
 
 
 def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTensor:
@@ -704,13 +707,17 @@ def contract_two_epsilon(epsilon1: Epsilon, epsilon2: Epsilon):
         d2 = Delta(eps1[1] + eps2[1])
         d3 = Delta(eps1[0] + eps2[1])
         d4 = Delta(eps1[1] + eps2[0])
-        return Tensors(TensorProduct(d1, d2), TensorProduct(d3, d4, factor=-1))
+        return LinearCombination(
+            TensorProduct(d1, d2), TensorProduct(d3, d4, factor=-1)
+        )
 
     else:
         raise ValueError("No repeated indices")
 
 
-def symmetrize(tensor: CartesianTensor | TensorProduct, indices: str = None) -> Tensors:
+def symmetrize(
+    tensor: CartesianTensor | TensorProduct, indices: str = None
+) -> LinearCombination:
     """
     Symmetrize a tensor.
 
@@ -745,7 +752,7 @@ def symmetrize(tensor: CartesianTensor | TensorProduct, indices: str = None) -> 
         t = tensor.permute_indices(permute, factor=Fraction(1, len(permutations)))
         all_tensors.append(t)
 
-    return Tensors(*all_tensors)
+    return LinearCombination(*all_tensors)
 
 
 def evaluate_indices(
@@ -812,7 +819,7 @@ def evaluate_indices(
     return indices
 
 
-def is_zero(tensors: Tensors) -> bool:
+def is_zero(tensors: LinearCombination) -> bool:
     """
     Check whether a linear combination of tensors is zero.
     """
@@ -837,7 +844,7 @@ def is_zero(tensors: Tensors) -> bool:
     return pos_count == neg_count
 
 
-def simplify(tp: TensorProduct) -> Tensors:
+def simplify(tp: TensorProduct) -> LinearCombination:
     """
     Simplify a tensor product by apply delta and epsilon rules.
 
@@ -848,7 +855,9 @@ def simplify(tp: TensorProduct) -> Tensors:
     d_ij e_imn d_nq T_qpr -> e_jmq T_qpr
     """
 
-    def _simplify(product: TensorProduct) -> tuple[TensorProduct | Tensors, bool]:
+    def _simplify(
+        product: TensorProduct,
+    ) -> tuple[TensorProduct | LinearCombination, bool]:
         """
         Simplify a tensor product by apply delta and epsilon rules.
 
@@ -883,7 +892,7 @@ def simplify(tp: TensorProduct) -> Tensors:
                         )
                     # one identical index, resulting in linear combination of tensor
                     # products of delta tensors e_ijk e_ilm = d_jl d_km - d_jm d_kl
-                    elif isinstance(out, Tensors):
+                    elif isinstance(out, LinearCombination):
                         linear_comb = []
                         for tp in out:
                             new_tp = TensorProduct(
@@ -893,7 +902,7 @@ def simplify(tp: TensorProduct) -> Tensors:
                             )
                             linear_comb.append(new_tp)
 
-                        return Tensors(*linear_comb), True
+                        return LinearCombination(*linear_comb), True
 
                     else:
                         raise ValueError("Invalid output")
@@ -926,7 +935,7 @@ def simplify(tp: TensorProduct) -> Tensors:
 
     # Iteratively simplify the tensor product
     performed = True
-    simplified = Tensors(tp)
+    simplified = LinearCombination(tp)
     while performed:
         # Positions in new_simplified that are results of a double epsilon contraction
         # This leads to a sum of two tensor products of delta tensors, and we need
@@ -939,7 +948,7 @@ def simplify(tp: TensorProduct) -> Tensors:
             sim, perf = _simplify(tp)
             new_simplified.append(sim)
             performed.append(perf)
-            if isinstance(sim, Tensors):
+            if isinstance(sim, LinearCombination):
                 double_epsilon_pos = i
                 double_epsilon = sim
 
@@ -957,15 +966,15 @@ def simplify(tp: TensorProduct) -> Tensors:
 
         # prepare for the next iteration
         performed = any(performed)
-        simplified = Tensors(*linear_comb)
+        simplified = LinearCombination(*linear_comb)
 
     # Remove zeros
-    simplified = Tensors(*[t for t in simplified if t.factor != 0])
+    simplified = LinearCombination(*[t for t in simplified if t.factor != 0])
 
     return simplified
 
 
-def simplify_2(tensor: Tensors) -> Tensors:
+def simplify_2(tensor: LinearCombination) -> LinearCombination:
     """Simplify a linear combination of tensors.
     1. Applying delta and epsilon rules.
     2. Removing zero tensors or tensor products.
@@ -983,7 +992,7 @@ def simplify_2(tensor: Tensors) -> Tensors:
         else:
             raise ValueError("Unexpected type")
 
-    return Tensors(*simplified)
+    return LinearCombination(*simplified)
 
 
 if __name__ == "__main__":
@@ -1014,7 +1023,7 @@ if __name__ == "__main__":
         }
     )
 
-    evaluated_non_zero = Tensors(*[t for t in evaluated if t.factor != 0])
+    evaluated_non_zero = LinearCombination(*[t for t in evaluated if t.factor != 0])
 
     out = is_zero(evaluated_non_zero)
 

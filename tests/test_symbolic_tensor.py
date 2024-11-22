@@ -9,7 +9,7 @@ from carten.symbolic_tensor import (
     Epsilon,
     Scalar,
     TensorProduct,
-    Tensors,
+    LinearCombination,
     Zero,
     contract_epsilon_delta,
     contract_two_epsilon,
@@ -94,7 +94,7 @@ def test_contract_epsilon_delta(epsilon_ijk, delta_ij, delta_ai):
 def test_contract_two_epsilon(epsilon_ijk, epsilon_ijl, epsilon_ilm):
     assert contract_two_epsilon(epsilon_ijl, epsilon_ijl) == Scalar(6)
     assert contract_two_epsilon(epsilon_ijk, epsilon_ijl) == Delta("kl", factor=2)
-    assert contract_two_epsilon(epsilon_ijk, epsilon_ilm) == Tensors(
+    assert contract_two_epsilon(epsilon_ijk, epsilon_ilm) == LinearCombination(
         TensorProduct(Delta("jl"), Delta("km")),
         TensorProduct(Delta("jm"), Delta("kl"), factor=-1),
     )
@@ -106,7 +106,7 @@ def test_symmetrize():
         CartesianTensor("".join(p), factor=Fraction(1, 24))
         for p in itertools.permutations(indices)
     ]
-    assert symmetrize(CartesianTensor(indices)) == Tensors(*tensors)
+    assert symmetrize(CartesianTensor(indices)) == LinearCombination(*tensors)
 
     indices = "akl"  # symmetrizing indices
     tensors = []
@@ -117,11 +117,11 @@ def test_symmetrize():
             factor=Fraction(1, 6),
         )
         tensors.append(t)
-    tensors = Tensors(*tensors)
+    lin_comb = LinearCombination(*tensors)
 
     t = TensorProduct(Epsilon("aij"), CartesianTensor("ijkl"))
     s = symmetrize(t)
-    assert s == tensors
+    assert s == lin_comb
 
 
 def test_simplify():
