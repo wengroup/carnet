@@ -82,7 +82,8 @@ class CartesianTensor:
     def _check_indices(indices: str):
         """Check indices are repeated at most twice.
 
-        Only check for alphabetic indices, not integer indices. When the indices are evaluated, there can be many repeated values of the same integer.
+        Only check for alphabetic indices, not integer indices. When the indices are
+        evaluated, there can be many repeated values of the same integer.
         """
         for i in indices:
             if i.isalpha() and indices.count(i) > 2:
@@ -649,7 +650,7 @@ def contract_two_epsilon(epsilon1: Epsilon, epsilon2: Epsilon):
         Canonicalize the order of the indices.
 
         Put idx1 at the second position, idx2 at the third position.
-        It relative order of the indices is changed, the sign is flipped.
+        If relative order of the indices is changed, the sign is flipped.
 
         For example,
         (ijk, i, j) -> kij
@@ -692,7 +693,14 @@ def contract_two_epsilon(epsilon1: Epsilon, epsilon2: Epsilon):
     repeated = set(epsilon1) & set(epsilon2)
 
     if len(repeated) == 3:
-        return Scalar(6)
+        # Canonicalize the indices of epsilon2 such that it has the same indices as
+        # epsilon1, and change the sign if necessary
+        idx1 = epsilon1.indices[1]
+        idx2 = epsilon1.indices[2]
+        eps2 = canonicalize_two(epsilon2, idx1, idx2)
+        factor = epsilon1.factor * eps2.factor
+        return Scalar(6 * factor)
+
     elif len(repeated) == 2:
         idx1, idx2 = sorted(repeated)
         eps1 = canonicalize_two(epsilon1, idx1, idx2)
@@ -844,6 +852,117 @@ def is_zero(tensors: LinearCombination) -> bool:
     return pos_count == neg_count
 
 
+def simplify_epsilon(
+    product: TensorProduct,
+) -> tuple[TensorProduct | LinearCombination, bool]:
+    """
+    Evaluate product of two epsilon tensors in a tensor product.
+    """
+
+    epsilon_pos = [i for i, t in enumerate(product) if isinstance(t, Epsilon)]
+
+    for i, j in itertools.combinations(epsilon_pos, 2):
+        # check if they share at least one index
+        if set(product[i].indices) & set(product[j].indices):
+            out = contract_two_epsilon(product[i], product[j])
+
+            # Remaining components after the two epsilon tensors are contracted
+            remaining = [t for p, t in enumerate(product) if p not in [i, j]]
+
+            # three identical indices, resulting in a scalar
+            if isinstance(out, Scalar):
+                return (
+                    TensorProduct(out, *remaining, factor=product.factor),
+                    True,
+                )
+
+            # two identical indices, resulting in a delta tensor
+            elif isinstance(out, Delta):
+                return (
+                    TensorProduct(out, *remaining, factor=product.factor),
+                    True,
+                )
+
+            # one identical index, resulting in linear combination of tensor products
+            # of delta tensors e_ijk e_ilm = d_jl d_km - d_jm d_kl
+            elif isinstance(out, LinearCombination):
+                all_tp = []
+                for tp in out:
+                    new_tp = TensorProduct(
+                        *tp.components,
+                        *remaining,
+                        factor=tp.factor * product.factor,
+                    )
+                    all_tp.append(new_tp)
+
+                return LinearCombination(*all_tp), True
+
+            else:
+                raise ValueError("Invalid output")
+
+    return product, False
+
+
+def simplify_delta(product: TensorProduct) -> tuple[TensorProduct, bool]:
+    """
+    Evaluate product of a delta tensor with another tensor in a tensor product.
+
+    This will contract all possible delta tensors in the product.
+    """
+    # Positions of delta tensors in the product
+    delta_pos = [i for i, t in enumerate(product) if isinstance(t, Delta)]
+
+    # This is the dictionary of components, which will be updated as we contract
+    components = {i: t for i, t in enumerate(product)}
+
+    performed = False
+
+    n = len(components)
+
+    while delta_pos:
+        i = delta_pos.pop()
+        delta = components[i]
+
+        new_components = components.copy()
+
+        for j, t in components.items():
+            if j == i:
+                continue
+
+            # Perform contraction if delta and t share common indices
+            if set(delta.indices) & set(t.indices):
+                if isinstance(t, Epsilon):
+                    out = contract_epsilon_delta(t, delta)
+                else:
+                    out = contract_with_delta(delta, t)
+
+                # Remove the delta and t from the components
+                new_components.pop(i)
+                new_components.pop(j)
+
+                # Add the contracted result, create a new index
+                new_components[n] = out
+
+                # Update delta_pos: if t is a delta tensor, remove it; if the contracted
+                # result is a delta tensor, add it
+                if isinstance(t, Delta):
+                    delta_pos.remove(j)
+                    delta_pos.append(n)
+
+                performed = True
+
+                n += 1
+
+                break
+
+        components = new_components
+
+    if performed:
+        return TensorProduct(*components.values(), factor=product.factor), True
+    else:
+        return product, False
+
+
 def simplify(tp: TensorProduct) -> LinearCombination:
     """
     Simplify a tensor product by apply delta and epsilon rules.
@@ -855,104 +974,38 @@ def simplify(tp: TensorProduct) -> LinearCombination:
     d_ij e_imn d_nq T_qpr -> e_jmq T_qpr
     """
 
-    def _simplify(
-        product: TensorProduct,
-    ) -> tuple[TensorProduct | LinearCombination, bool]:
-        """
-        Simplify a tensor product by apply delta and epsilon rules.
-
-        Returns:
-            out: The simplified tensor product or tensors.
-            performed: If any simplification is performed.
-        """
-        # Simplify product two epsilon tensors
-        epsilon_pos = [i for i, t in enumerate(product) if isinstance(t, Epsilon)]
-        if len(epsilon_pos) >= 2:
-            i = epsilon_pos[0]
-            for j in epsilon_pos[1:]:
-                # check if they share at least one index
-                if set(product[i].indices) & set(product[j].indices):
-                    out = contract_two_epsilon(product[i], product[j])
-
-                    # Create simplified tensors, without the two epsilon tensors
-                    # and with the contracted tensor placed at the beginning
-                    new_tensors = [t for p, t in enumerate(product) if p not in [i, j]]
-
-                    # three identical indices, resulting in a scalar
-                    if isinstance(out, Scalar):
-                        return (
-                            TensorProduct(out, *new_tensors, factor=product.factor),
-                            True,
-                        )
-                    # two identical indices, resulting in a delta tensor
-                    elif isinstance(out, Delta):
-                        return (
-                            TensorProduct(out, *new_tensors, factor=product.factor),
-                            True,
-                        )
-                    # one identical index, resulting in linear combination of tensor
-                    # products of delta tensors e_ijk e_ilm = d_jl d_km - d_jm d_kl
-                    elif isinstance(out, LinearCombination):
-                        linear_comb = []
-                        for tp in out:
-                            new_tp = TensorProduct(
-                                *tp.components,
-                                *new_tensors,
-                                factor=tp.factor * product.factor,
-                            )
-                            linear_comb.append(new_tp)
-
-                        return LinearCombination(*linear_comb), True
-
-                    else:
-                        raise ValueError("Invalid output")
-
-        # simplify product with delta
-
-        # check if there are delta tensors
-        delta_pos = [i for i, t in enumerate(product) if isinstance(t, Delta)]
-
-        for i in delta_pos:
-            delta: Delta = product[i]
-            for j, t in enumerate(product):
-                if j == i:
-                    continue
-
-                # check if they share at least one index
-                if set(delta.indices) & set(t.indices):
-                    if isinstance(t, Epsilon):
-                        out = contract_epsilon_delta(t, delta)
-                    else:
-                        out = contract_with_delta(delta, t)
-
-                    # Create simplified tensors, without the two epsilon tensors
-                    # and with the contracted tensor placed at the beginning
-                    new_tensors = [t for p, t in enumerate(product) if p not in [i, j]]
-
-                    return TensorProduct(out, *new_tensors, factor=product.factor), True
-
-        return product, False
-
     # Iteratively simplify the tensor product
     performed = True
     simplified = LinearCombination(tp)
     while performed:
-        # Positions in new_simplified that are results of a double epsilon contraction
-        # This leads to a sum of two tensor products of delta tensors, and we need
-        # to expand it to be produced with others
         double_epsilon = None
         double_epsilon_pos = None
         new_simplified = []
         performed = []
         for i, tp in enumerate(simplified):
-            sim, perf = _simplify(tp)
-            new_simplified.append(sim)
-            performed.append(perf)
+            # Simplify epsilon first
+            sim, perf = simplify_epsilon(tp)
+
+            # Double epsilon contraction will return a LinearCombination
             if isinstance(sim, LinearCombination):
+                if double_epsilon is not None:
+                    raise ValueError(
+                        "Double epsilon simplification already done. The current "
+                        "Implementation does not support multiple double epsilon."
+                    )
                 double_epsilon_pos = i
                 double_epsilon = sim
 
-        # expand double epsilon contraction (two terms) with others
+            # If no epsilon simplification performed, then simplify delta
+            if not perf:
+                sim, perf = simplify_delta(tp)
+
+            new_simplified.append(sim)
+            performed.append(perf)
+
+        # Double epsilon contraction will return a LinearCombination of sum of two
+        # tensor products. We need to expand it to be produced with other components
+        # in the input tp.
         if double_epsilon is not None:
             linear_comb = []
             for de in double_epsilon:
