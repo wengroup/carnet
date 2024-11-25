@@ -760,15 +760,12 @@ def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Ten
     """
     Evaluate S(n) = G(n|j) \odot^n X(j).
 
-    We create an arbitrary tensor X(j) and contract with G(n|j).
-
     Recall, in G, lower case indices are for r1, r2, ..., rj, and upper case indices
     are for s1, s2, ..., sn.
 
     Args:
         G: the contraction rule.
-        X: the natural tensor X(j) to contract with G. If None, create a random natural
-           tensor.
+        X: the natural tensor X(j) to contract with G. If None, a random one is created.
 
     Return:
         S(n) in the space n.
@@ -1034,6 +1031,10 @@ if __name__ == "__main__":
 
         # Get linearly independent G tensors
         _, independent_indices = find_independent_tensors(all_S)
+
+        # TODO, for tensors will partial symmetry, we can implement additional rules
+        #  to filter out some of all_G by considering the symmetry of the tensor T.
+
         independent_G = [all_G[i] for i in independent_indices]
         print("Number of independent G:", len(independent_G))
         print("Selected independent indices:", independent_indices)
