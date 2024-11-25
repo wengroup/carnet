@@ -3,7 +3,7 @@ Same as qr_delta_double_epsilon-2.py, but using no epsilon contraction.
 """
 
 import torch
-from example.utils2 import tp_with_delta_epsilon
+from example.utils import tp_with_delta_epsilon
 
 from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
 from carten.utils import (
