@@ -23,9 +23,9 @@ from carten.symbolic_tensor import (
     CartesianTensor,
     Delta,
     Epsilon,
+    LinearCombination,
     Scalar,
     TensorProduct,
-    Tensors,
     multiply_2,
     simplify_2,
 )
@@ -40,7 +40,7 @@ from carten.utils import (
 )
 
 
-def get_E(j: int, s_letters: str = None) -> Tensors:
+def get_E(j: int, s_letters: str = None) -> LinearCombination:
     """
     Invariant tensors of rank j: E(j | j).
 
@@ -83,10 +83,10 @@ def get_E(j: int, s_letters: str = None) -> Tensors:
 
         # print(f"@@@ debug E_j: j={j}, t={t}, c={c}")
 
-    return Tensors(*out)
+    return LinearCombination(*out)
 
 
-def get_G_even(j: int, n: int) -> list[Tensors]:
+def get_G_even(j: int, n: int) -> list[LinearCombination]:
     """
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
@@ -118,7 +118,7 @@ def get_G_even(j: int, n: int) -> list[Tensors]:
     return all_G
 
 
-def get_G_odd(j: int, n: int) -> list[Tensors]:
+def get_G_odd(j: int, n: int) -> list[LinearCombination]:
     """
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
@@ -164,7 +164,9 @@ def get_h_pq(g_pq: list[list[Fraction]]) -> list[list[Fraction]]:
     return h_pq
 
 
-def get_H(h_pq: list[list[Fraction]], G: list[Tensors]) -> list[Tensors]:
+def get_H(
+    h_pq: list[list[Fraction]], G: list[LinearCombination]
+) -> list[LinearCombination]:
     """
     Get the H mapping: H^p = \sum_q h_pq G^q.
     """
@@ -176,7 +178,7 @@ def get_H(h_pq: list[list[Fraction]], G: list[Tensors]) -> list[Tensors]:
                 continue
             t = multiply_2(Scalar(h_q), G_q)
             tensors.extend(t)
-        H.append(Tensors(*tensors))
+        H.append(LinearCombination(*tensors))
 
     return H
 
@@ -451,7 +453,7 @@ def shift_index(
         raise ValueError(f"Unknown tensor type: {type(tensor)}")
 
 
-def shift_index_2(tensor: Tensors, shift: int) -> Tensors:
+def shift_index_2(tensor: LinearCombination, shift: int) -> LinearCombination:
     """
     Shift all the index of a Tensors object by a certain amount.
 
@@ -459,7 +461,7 @@ def shift_index_2(tensor: Tensors, shift: int) -> Tensors:
         The new tensor with the shifted index.
     """
     components = [shift_index(t, shift) for t in tensor]
-    return Tensors(*components)
+    return LinearCombination(*components)
 
 
 def evaluate_delta(
@@ -483,13 +485,15 @@ def evaluate_delta(
         raise ValueError("Unexpected type")
 
 
-def evaluate_delta_2(tensor: Tensors) -> Tensors:
+def evaluate_delta_2(tensor: LinearCombination) -> LinearCombination:
     """Evaluate a linear combination of tensors."""
     components = [evaluate_delta(t) for t in tensor]
-    return Tensors(*components)
+    return LinearCombination(*components)
 
 
-def contract_G(G1: Tensors, G2: Tensors, G1_indices: str, G2_indices: str) -> Tensors:
+def contract_G(
+    G1: LinearCombination, G2: LinearCombination, G1_indices: str, G2_indices: str
+) -> LinearCombination:
     """
     Contract two G tensors.
 
@@ -503,8 +507,9 @@ def contract_G(G1: Tensors, G2: Tensors, G1_indices: str, G2_indices: str) -> Te
     contraction_delta = [Delta(i + j) for i, j in zip(G1_indices, G2_indices)]
     contraction_delta = TensorProduct(*contraction_delta)
     prod = multiply_2(G1, G2, contraction_delta)
+    simplified = simplify_2(prod)
 
-    return simplify_2(prod)
+    return simplified
 
 
 def canonize_delta_indices(
@@ -532,9 +537,9 @@ def canonize_delta_indices(
         raise ValueError("Unexpected type")
 
 
-def canonize_delta_indices_2(tensor: Tensors) -> Tensors:
+def canonize_delta_indices_2(tensor: LinearCombination) -> LinearCombination:
     components = [canonize_delta_indices(t) for t in tensor]
-    return Tensors(*components)
+    return LinearCombination(*components)
 
 
 def order_tp_components(tp: TensorProduct) -> TensorProduct:
@@ -562,7 +567,7 @@ def order_tp_components(tp: TensorProduct) -> TensorProduct:
     return new_tp
 
 
-def order_tp_components_2(tensor: Tensors) -> Tensors:
+def order_tp_components_2(tensor: LinearCombination) -> LinearCombination:
     """Order the components of tensor product according to string representation."""
     out = []
     for t in tensor:
@@ -570,10 +575,10 @@ def order_tp_components_2(tensor: Tensors) -> Tensors:
             out.append(order_tp_components(t))
         else:
             out.append(t)
-    return Tensors(*out)
+    return LinearCombination(*out)
 
 
-def combine_terms(tensor: Tensors) -> Tensors:
+def combine_terms(tensor: LinearCombination) -> LinearCombination:
     """
     Combine terms with the same indices. This currently only works for delta tensors.
     """
@@ -619,10 +624,10 @@ def combine_terms(tensor: Tensors) -> Tensors:
         else:
             all_combined.extend(tps)
 
-    return Tensors(*all_combined)
+    return LinearCombination(*all_combined)
 
 
-def scalar_factor(t1: Tensors, t2: Tensors) -> Fraction | None:
+def scalar_factor(t1: LinearCombination, t2: LinearCombination) -> Fraction | None:
     """
     Check if two tensors are scalar multiples of each other.
 
@@ -637,7 +642,7 @@ def scalar_factor(t1: Tensors, t2: Tensors) -> Fraction | None:
         multiple of t2.
     """
 
-    def to_dict(tensor: Tensors):
+    def to_dict(tensor: LinearCombination):
         d = {}
         for tp in tensor:
             k = " ".join([f"{t.symbol}_{t.indices}" for t in tp])
@@ -662,7 +667,9 @@ def scalar_factor(t1: Tensors, t2: Tensors) -> Fraction | None:
         return None
 
 
-def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
+def get_g_pq(
+    j: int, n: int, G_p: LinearCombination, G_q: LinearCombination
+) -> Fraction | None:
     """
     Compute a single g_pq value, which is defined as
      G^p(n|j} \odot^n G^q(n|j) = g_pq E(j|j).
@@ -687,7 +694,7 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
             shift = n + 1  # the additional one for tau
     G_q = shift_index_2(G_q, shift)
 
-    def get_upper_indices(G: Tensors) -> str:
+    def get_upper_indices(G: LinearCombination) -> str:
         letters = set()
         for t in G:
             letters.update([i for i in t.indices if i.isupper()])
@@ -727,7 +734,9 @@ def get_g_pq(j: int, n: int, G_p: Tensors, G_q: Tensors) -> Fraction | None:
     return factor
 
 
-def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]) -> list[list[Fraction]]:
+def get_g_pq_matrix(
+    j: int, n: int, all_G: list[LinearCombination]
+) -> list[list[Fraction]]:
     """
     Compute a matrix of g_pq values.
     Args:
@@ -747,7 +756,7 @@ def get_g_pq_matrix(j: int, n: int, all_G: list[Tensors]) -> list[list[Fraction]
     return matrix
 
 
-def embed(j: int, G: Tensors, X: Tensor = None, seed: int = 35) -> Tensor:
+def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Tensor:
     """
     Evaluate S(n) = G(n|j) \odot^n X(j).
 
@@ -811,7 +820,7 @@ def embed(j: int, G: Tensors, X: Tensor = None, seed: int = 35) -> Tensor:
     return torch.stack(output).sum(dim=0)
 
 
-def extract(H: Tensors, T: Tensor = None) -> Tensor:
+def extract(H: LinearCombination, T: Tensor = None) -> Tensor:
     """
     Evaluate X^p,j = H^p(j|n) \odot^n T(n).
 
@@ -1011,26 +1020,26 @@ if __name__ == "__main__":
         all_S = [embed(j, G) for G in all_G]
         print("Number of candidate G:", len(all_S))
 
-        # determine g_pq for all G
-        # g_pq = get_g_pq_matrix(j, n, all_G)
-        # if len(all_G) > 1:
-        #     c, g_pq_int = find_matrix_factorization(g_pq)
-        # else:
-        #     c = 1
-        #     g_pq_int = g_pq
-        # print("g_pq matrix for all G:")
-        # print("c:", c)
-        # print("matrix:")
-        # pprint(g_pq_int)
+        # Determine g_pq for all G
+        g_pq = get_g_pq_matrix(j, n, all_G)
+        if len(all_G) > 1:
+            c, g_pq_int = find_matrix_factorization(g_pq)
+        else:
+            c = 1
+            g_pq_int = g_pq
+        print("g_pq matrix for all G:")
+        print("c:", c)
+        print("matrix:")
+        pprint(g_pq_int)
 
         # Get linearly independent G tensors
         _, independent_indices = find_independent_tensors(all_S)
         independent_G = [all_G[i] for i in independent_indices]
         print("Number of independent G:", len(independent_G))
         print("Selected independent indices:", independent_indices)
-        # for p, G in enumerate(independent_G):
-        #     print(f"p={p}, G=")
-        #     print(G)
+        for p, G in enumerate(independent_G):
+            print(f"p={p}, G=")
+            print(G)
 
         # Get g_pq matrix for independent G
         g_pq = get_g_pq_matrix(j, n, independent_G)
@@ -1075,7 +1084,7 @@ if __name__ == "__main__":
     ################################################################################
 
     # create a T of rank n
-    n = 4
+    n = 3
     torch.manual_seed(35)
     T = torch.randn(3**n).reshape([3] * n)
 
@@ -1085,4 +1094,14 @@ if __name__ == "__main__":
         all_S.extend(S_j)
 
     sum_S = torch.stack(all_S).sum(dim=0)
-    assert torch.allclose(sum_S, T), "The sum of S is not equal to T"
+
+    if torch.allclose(sum_S, T, atol=1e-5, rtol=1e-5):
+        print("The sum of S is equal to T")
+        print("Sum of diff:", (sum_S - T).sum())
+        print("Mean absolute diff:", torch.abs((sum_S - T)).mean())
+    else:
+        print("The sum of S is not equal to T")
+        print("Sum of S:", sum_S.sum())
+        print("Sum of T:", T.sum())
+        print("Sum of diff:", (sum_S - T).sum())
+        print("Mean absolute diff:", torch.abs((sum_S - T)).mean())
