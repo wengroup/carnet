@@ -3,13 +3,13 @@ from fractions import Fraction
 
 from pytest import fixture
 
-from carten.symbolic_tensor import (
+from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,
     Epsilon,
+    LinearCombination,
     Scalar,
     TensorProduct,
-    LinearCombination,
     Zero,
     contract_epsilon_delta,
     contract_two_epsilon,
@@ -138,7 +138,7 @@ def test_simplify():
 
     tp = TensorProduct(d1, e1)
     tp_s = simplify(tp)
-    assert tp_s[0] == TensorProduct(Zero())
+    assert len(tp_s) == 0
 
     tp = TensorProduct(d1, e2)
     tp_s = simplify(tp)
@@ -158,7 +158,7 @@ def test_simplify():
 
     tp = TensorProduct(d1, e1, e3)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(18) δ_il δ_km", "(-18) δ_im δ_kl"]
+    assert tp_s.to_str_list() == ["(18) δ_km δ_il", "(-18) δ_kl δ_im"]
 
     tp = TensorProduct(d1, T1)
     tp_s = simplify(tp)

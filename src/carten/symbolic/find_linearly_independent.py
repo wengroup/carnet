@@ -19,7 +19,7 @@ import torch
 from torch import Tensor
 
 from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
-from carten.symbolic_tensor import (
+from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,
     Epsilon,
