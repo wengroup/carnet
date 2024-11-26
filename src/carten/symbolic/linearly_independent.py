@@ -1,5 +1,5 @@
 """
-Find linearly independent natural tensors.
+Find linearly independent natural tensors from general tensors.
 
 Reference:
 
@@ -1018,6 +1018,7 @@ if __name__ == "__main__":
         print("Number of candidate G:", len(all_S))
 
         # Determine g_pq for all G
+        # TODO, this block can be removed
         g_pq = get_g_pq_matrix(j, n, all_G)
         if len(all_G) > 1:
             c, g_pq_int = find_matrix_factorization(g_pq)

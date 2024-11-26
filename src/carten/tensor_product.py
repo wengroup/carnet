@@ -248,3 +248,13 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     )
 
     return rule, symmetry
+
+
+if __name__ == "__main__":
+    from carten.reduce import get_permutations
+
+    rules, symmetry = tp_rule_even(3, 3, 1, 2)
+    print("rules", rules)
+    print("symmetry", symmetry)
+    perms = get_permutations(symmetry)
+    print("perms", perms)

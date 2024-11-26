@@ -1,4 +1,4 @@
-from carten.symbolic.find_linearly_independent import get_E, get_G_even, get_G_odd, get_E_rules
+from carten.symbolic.linearly_independent import get_E, get_G_even, get_G_odd, get_E_rules
 
 
 def test_get_E_rules():
