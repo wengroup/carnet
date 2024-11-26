@@ -20,23 +20,23 @@ from carten.utils import (
 )
 
 
-def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
+def tp_even(X: Tensor, Y: Tensor, out_rank: int) -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is even.
 
     Args:
-        S: A natural tensor of rank l1
-        T: A natural tensor of rank l2
+        X: A natural tensor of rank l1
+        Y: A natural tensor of rank l2
         out_rank: The rank of the output tensor l3
 
     Returns:
         A natural tensor of rank l3
     """
-    l1 = S.ndim
-    l2 = T.ndim
+    l1 = X.ndim
+    l2 = Y.ndim
     l3 = out_rank
-    dtype = S.dtype
-    device = S.device
+    dtype = X.dtype
+    device = X.device
 
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
 
@@ -45,13 +45,15 @@ def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
 
     out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
-    for m in range(min(l1, l2) - k + 1):
-        coeff = (-2) ** m / double_factorial(
-            2 * l3 - 1, 2 * l3 - 2 * m - 1 + 2, device=device
+    for t in range(min(l1, l2) - k + 1):
+        # TODO, since in symmetrize() we already considers average over all possible
+        #  permutations, it seems the **m is not needed here.
+        coeff = (-2) ** t / double_factorial(
+            2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry = tp_rule_even(l1, l2, k, m)
-        prod = torch.einsum(rule, S, T, *([d] * m))
+        rule, symmetry = tp_rule_even(l1, l2, k, t)
+        prod = torch.einsum(rule, X, Y, *([d] * t))
         prod = symmetrize(prod, symmetry=symmetry)
 
         out = out + coeff * prod
@@ -61,23 +63,23 @@ def tp_even(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     return out
 
 
-def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
+def tp_odd(X: Tensor, Y: Tensor, out_rank: int) -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
 
     Args:
-        S: A natural tensor of rank l1
-        T: A natural tensor of rank l2
+        X: A natural tensor of rank l1
+        Y: A natural tensor of rank l2
         out_rank: The rank of the output tensor l3
 
     Returns:
         A natural tensor of rank l3
     """
-    l1 = S.ndim
-    l2 = T.ndim
+    l1 = X.ndim
+    l2 = Y.ndim
     l3 = out_rank
-    dtype = S.dtype
-    device = S.device
+    dtype = X.dtype
+    device = X.device
 
     assert (l1 + l2 - l3) % 2 == 1, "l1 + l2 - l3 must be odd"
 
@@ -87,13 +89,15 @@ def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     d = dij(device)
     epsilon = eijk(device)
 
-    for m in range(min(l1, l2) - k):
-        coeff = (-2) ** m / double_factorial(
-            2 * l3 - 1, 2 * l3 - 2 * m - 1 + 2, device=device
+    for t in range(min(l1, l2) - k):
+        # TODO, since in symmetrize() we already considers average over all possible
+        #  permutations, it seems the **m is not needed here.
+        coeff = (-2) ** t / double_factorial(
+            2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry = tp_rule_odd(l1, l2, k, m)
-        prod = torch.einsum(rule, epsilon, S, T, *([d] * m))
+        rule, symmetry = tp_rule_odd(l1, l2, k, t)
+        prod = torch.einsum(rule, epsilon, X, Y, *([d] * t))
         prod = symmetrize(prod, symmetry=symmetry)
 
         out = out + coeff * prod
@@ -101,6 +105,17 @@ def tp_odd(S: Tensor, T: Tensor, out_rank: int) -> Tensor:
     out = coeff_D(l1, l2, l3) * out
 
     return out
+
+
+def embed_even():
+    """
+    Embed a natural tensor of rank l3 into the space of rank l1 + l2.
+
+    In some sense, this is the reverse operation of tp_even().
+
+    Returns:
+
+    """
 
 
 def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
@@ -148,7 +163,7 @@ def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
 
 # TODO, the symmetry can be simplified to retain fewer terms, if we consider the
 #  major symmetry of different deltas
-def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
+def tp_rule_even(l1: int, l2: int, k: int, t: int) -> tuple[str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is even.
 
@@ -168,13 +183,13 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
             next three indices are symmetric, and the last two indices are symmetric.
     """
 
-    xy_contracted = letter_index(k + m)
-    x_remain = letter_index(l1 - k - m, k + m)
-    y_remain = letter_index(l2 - k - m, l1)
+    xy_contracted = letter_index(k + t)
+    x_remain = letter_index(l1 - k - t, k + t)
+    y_remain = letter_index(l2 - k - t, l1)
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = double_index(m, l1 + l2 - k - m)
+    delta = double_index(t, l1 + l2 - k - t)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
@@ -187,7 +202,7 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
     # l2-k-m remaining symmetric indices from y
     # 2m indices from all deltas. Each delta has 2 symmetric indices.
     symmetry = (
-        "x" * len(x_remain) + "y" * len(y_remain) + "".join(repeat_double_index(m))
+        "x" * len(x_remain) + "y" * len(y_remain) + "".join(repeat_double_index(t))
     )
 
     return rule, symmetry
@@ -195,7 +210,7 @@ def tp_rule_even(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
 # TODO, the symmetry can be simplified to retain fewer terms, if we consider the
 #  major symmetry of different deltas
-def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
+def tp_rule_odd(l1: int, l2: int, k: int, t: int) -> tuple[str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is odd.
 
@@ -221,13 +236,13 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
 
     # epsilon_remain = "a"
     # epsilon_contracted = "bc"
-    xy_contracted = letter_index(k + m, 3)
-    x_remain = letter_index(l1 - 1 - k - m, k + m + 3)
-    y_remain = letter_index(l2 - 1 - k - m, l1 + 2)
+    xy_contracted = letter_index(k + t, 3)
+    x_remain = letter_index(l1 - 1 - k - t, k + t + 3)
+    y_remain = letter_index(l2 - 1 - k - t, l1 + 2)
 
     # indices for contracting m I
     # x and y uses l1 + l2 - k - m indices
-    delta = double_index(m, l1 + l2 - k - m + 1)
+    delta = double_index(t, l1 + l2 - k - t + 1)
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
@@ -244,7 +259,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, m: int) -> tuple[str, str]:
         "x"
         + "y" * len(x_remain)
         + "z" * len(y_remain)
-        + "".join(repeat_double_index(m))
+        + "".join(repeat_double_index(t))
     )
 
     return rule, symmetry
