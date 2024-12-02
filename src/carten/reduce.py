@@ -373,7 +373,7 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
     This function find the permutations of the indices in V.
     There are two types of symmetry to consider in the permutations:
     a. Minor symmetry: the symmetry of the two indices in each delta tensor.
-       For example, V_ijkl = V_jikl = V_ijlk
+       For example, V_ijkl = V_ijlk = V_jikl = V_jilk
     b. Major symmetry: the symmetry of indices between the deltas. For example,
        V_ijkl = V_klij
 

@@ -11,7 +11,7 @@ from carten.reduce import (
     remove_trace_rule,
     symmetrize,
 )
-from carten.utils import check_symmetric, check_traceless, letter_index
+from carten.utils import is_symmetric, is_traceless, letter_index
 
 
 def test_reduce_symmetric_tensor(T3, T4):
@@ -22,15 +22,15 @@ def test_reduce_symmetric_tensor(T3, T4):
     assert isinstance(t3_out, NaturalTensors)
     assert t3_out.signature == [(1, 3), (1, 1)]
     for t in t3_out:
-        assert check_symmetric(t, atol=1e-4)
-        assert check_traceless(t, atol=1e-4)
+        assert is_symmetric(t, atol=1e-4)
+        assert is_traceless(t, atol=1e-4)
 
     t4_out = reduce_symmetric_tensor(t4)
     assert isinstance(t4_out, NaturalTensors)
     assert t4_out.signature == [(1, 4), (1, 2), (1, 0)]
     for t in t4_out:
-        assert check_symmetric(t, atol=1e-4)
-        assert check_traceless(t, atol=1e-4)
+        assert is_symmetric(t, atol=1e-4)
+        assert is_traceless(t, atol=1e-4)
 
     # batched
     t3_b = torch.vstack([t3, t3]).reshape(2, *t3.shape)
@@ -38,8 +38,8 @@ def test_reduce_symmetric_tensor(T3, T4):
     assert isinstance(t3_b_out, NaturalTensors)
     assert t3_b_out.signature == [(1, 3), (1, 1)]
     for t in t3_b_out:
-        assert check_symmetric(t, atol=1e-4, start_dim=1)
-        assert check_traceless(t, atol=1e-4, start_dim=1)
+        assert is_symmetric(t, atol=1e-4, start_dim=1)
+        assert is_traceless(t, atol=1e-4, start_dim=1)
 
 
 def test_get_dyadic_tensor():
@@ -93,7 +93,7 @@ def test_symmetrize(T2, T3, T4):
     for t in [T2, T3, T4]:
         for start_dim in range(2):
             sym = symmetrize(t, start_dim)
-            check_symmetric(sym, start_dim)
+            is_symmetric(sym, start_dim)
 
 
 def test_remove_trace_rule():

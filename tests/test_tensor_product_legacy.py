@@ -10,7 +10,7 @@ from carten.tensor_product_legacy import (
     get_sym_rules_3,
     tp,
 )
-from carten.utils import check_symmetric, check_traceless, eijk
+from carten.utils import is_symmetric, is_traceless, eijk
 
 
 def test_get_delta_contraction_rule():
@@ -115,15 +115,15 @@ def test_get_sym_part(T3, T4):
 
     U = get_sym_part(S, T, num_delta=0)
     assert U.ndim == S.ndim + T.ndim
-    assert check_symmetric(U)
+    assert is_symmetric(U)
 
     U = get_sym_part(S, T, num_delta=1)
     assert U.ndim == S.ndim + T.ndim - 2
-    assert check_symmetric(U)
+    assert is_symmetric(U)
 
     U = get_sym_part(S, T, num_delta=2)
     assert U.ndim == S.ndim + T.ndim - 4
-    assert check_symmetric(U)
+    assert is_symmetric(U)
 
 
 def test_get_asym_part(T3, T4):
@@ -132,15 +132,15 @@ def test_get_asym_part(T3, T4):
 
     U = get_asym_part(S, T, num_delta=0)
     assert U.ndim == S.ndim + T.ndim - 1
-    assert check_symmetric(U, atol=1e-4)
+    assert is_symmetric(U, atol=1e-4)
 
     U = get_asym_part(S, T, num_delta=1)
     assert U.ndim == S.ndim + T.ndim - 3
-    assert check_symmetric(U, atol=1e-4)
+    assert is_symmetric(U, atol=1e-4)
 
     U = get_asym_part(S, T, num_delta=2)
     assert U.ndim == S.ndim + T.ndim - 5
-    assert check_symmetric(U, atol=1e-4)
+    assert is_symmetric(U, atol=1e-4)
 
 
 def test_tp(T2, T4):
@@ -154,15 +154,15 @@ def test_tp(T2, T4):
 
     for i, t in enumerate(irreps):
         assert t.ndim == abs(S.ndim - T.ndim) + i
-        assert check_symmetric(t, atol=1e-4)
-        assert check_traceless(t, atol=1e-4)
+        assert is_symmetric(t, atol=1e-4)
+        assert is_traceless(t, atol=1e-4)
 
     irreps = tp(S, T, min_rank=3, max_rank=5)
     assert len(irreps) == 3
     for i, t in enumerate(irreps):
         assert t.ndim == 3 + i
-        assert check_symmetric(t, atol=1e-4)
-        assert check_traceless(t, atol=1e-4)
+        assert is_symmetric(t, atol=1e-4)
+        assert is_traceless(t, atol=1e-4)
 
 
 def test_tp_2():

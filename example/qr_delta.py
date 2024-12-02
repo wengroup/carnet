@@ -7,7 +7,7 @@ from example.utils import tp_with_delta_epsilon
 
 from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
 from carten.utils import (
-    check_symmetric_traceless,
+    is_symmetric_traceless,
     find_independent_tensors,
     letter_index,
 )
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     ]
     natural_tensors = [symmetrize_and_remove_trace(c) for c in candidates]
     for t in natural_tensors:
-        check_symmetric_traceless(t)
+        assert is_symmetric_traceless(t)
 
     # NOTE, we just choose the first as S_apq
     nt = natural_tensors[0]

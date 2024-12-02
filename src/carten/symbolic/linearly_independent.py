@@ -30,8 +30,8 @@ from carten.symbolic.symbolic_tensor import (
     simplify_2,
 )
 from carten.utils import (
-    check_symmetric,
-    check_traceless,
+    is_symmetric,
+    is_traceless,
     dij,
     eijk,
     find_independent_tensors,
@@ -1072,8 +1072,8 @@ if __name__ == "__main__":
         all_X = [extract(H, T) for H in all_H]
 
         for X in all_X:
-            assert check_symmetric(X), f"X={X} is not symmetric"
-            assert check_traceless(X), f"X={X} is not traceless"
+            assert is_symmetric(X), f"X={X} is not symmetric"
+            assert is_traceless(X), f"X={X} is not traceless"
 
         # Embed X back to space n
         all_S = [embed(j, G, X) for G, X in zip(independent_G, all_X)]

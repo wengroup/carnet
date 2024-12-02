@@ -4,7 +4,7 @@ from torch import Tensor
 
 from carten import SETTINGS
 from carten.signature import Signature
-from carten.utils import check_shape, check_symmetric_traceless
+from carten.utils import check_shape, is_symmetric_traceless
 
 
 class NaturalTensors:
@@ -186,7 +186,7 @@ class NaturalTensors:
             for i, t in enumerate(data):
                 if not check_shape(t):
                     raise ValueError(f"Input tensor {i} is not a 3D tensor.")
-                if not check_symmetric_traceless(t, atol=1e-5):
+                if not is_symmetric_traceless(t, atol=1e-5):
                     raise ValueError(f"Input tensor {i} is not a natural tensor.")
 
         if len(set(tuple(t.shape[:start_dim] for t in data))) != 1:

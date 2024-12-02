@@ -12,7 +12,7 @@ from carten.tensor_product1 import (
     get_sym_rules_3,
     tp,
 )
-from carten.utils import check_symmetric, check_traceless, eijk
+from carten.utils import is_symmetric, is_traceless, eijk
 
 
 def test_get_delta_contraction_rule():
@@ -121,19 +121,19 @@ def test_get_sym_part(T3, T4):
 
     U = get_sym_part(S, T, rank_S, rank_T, num_delta=0)
     assert U.ndim == rank_S + rank_T + added_dim
-    assert check_symmetric(U, start_dim=added_dim)
+    assert is_symmetric(U, start_dim=added_dim)
 
     U = get_sym_part(S, T, rank_S, rank_T, num_delta=1)
     assert U.ndim == rank_S + rank_T + added_dim - 2
-    assert check_symmetric(U, start_dim=added_dim)
+    assert is_symmetric(U, start_dim=added_dim)
 
     U = get_sym_part(S, T, rank_S, rank_T, num_delta=2)
     assert U.ndim == rank_S + rank_T + added_dim - 4
-    assert check_symmetric(U, start_dim=added_dim)
+    assert is_symmetric(U, start_dim=added_dim)
 
     U = get_sym_part(S, T, rank_S, rank_T, num_delta=3)
     assert U.ndim == rank_S + rank_T + added_dim - 6
-    assert check_symmetric(U, start_dim=added_dim)
+    assert is_symmetric(U, start_dim=added_dim)
 
 
 def test_get_asym_part(T3, T4):
@@ -152,15 +152,15 @@ def test_get_asym_part(T3, T4):
 
     U = get_asym_part(S, T, rank_S, rank_T, num_delta=0)
     assert U.ndim == rank_S + rank_T + added_dim - 1
-    assert check_symmetric(U, start_dim=added_dim, atol=1e-4)
+    assert is_symmetric(U, start_dim=added_dim, atol=1e-4)
 
     U = get_asym_part(S, T, rank_S, rank_T, num_delta=1)
     assert U.ndim == rank_S + rank_T + added_dim - 3
-    assert check_symmetric(U, start_dim=added_dim, atol=1e-4)
+    assert is_symmetric(U, start_dim=added_dim, atol=1e-4)
 
     U = get_asym_part(S, T, rank_S, rank_T, num_delta=2)
     assert U.ndim == rank_S + rank_T + added_dim - 5
-    assert check_symmetric(U, start_dim=added_dim, atol=1e-4)
+    assert is_symmetric(U, start_dim=added_dim, atol=1e-4)
 
 
 def test_tp(T2, T4):
@@ -183,15 +183,15 @@ def test_tp(T2, T4):
 
     for i, t in enumerate(irreps):
         assert t.ndim == added_dim + rank_S - rank_T + i
-        assert check_symmetric(t, start_dim=added_dim, atol=1e-4)
-        assert check_traceless(t, start_dim=added_dim, atol=1e-4)
+        assert is_symmetric(t, start_dim=added_dim, atol=1e-4)
+        assert is_traceless(t, start_dim=added_dim, atol=1e-4)
 
     irreps = tp(S, T, rank_S=4, rank_T=2, out_ranks=[3, 4, 5])
     assert len(irreps) == 3
     for i, t in enumerate(irreps):
         assert t.ndim == added_dim + 3 + i
-        assert check_symmetric(t, start_dim=added_dim, atol=1e-4)
-        assert check_traceless(t, start_dim=added_dim, atol=1e-4)
+        assert is_symmetric(t, start_dim=added_dim, atol=1e-4)
+        assert is_traceless(t, start_dim=added_dim, atol=1e-4)
 
 
 def test_tp_2():
