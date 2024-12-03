@@ -8,6 +8,7 @@ from carten.core.utils import (
     dij,
     double_factorial,
     double_index,
+    factorial,
     letter_index,
     repeat_double_index,
 )
@@ -19,14 +20,19 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
 
     X = C \sum_{d=0}^D (-1)^d \frac{(2n-2d-1)!!}{(2n-1)!!}
     \{ \hat{\bm a}^{\otimes^{n-2d}}\otimes \bm I^{\otimes d} \},
+
     where $D = n/2$ for even $n$ and $D = (n-1)/2$ for odd $n$.
-    The constant $C = \frac{(2n-1)!!}{l!!}$ is a normalization factor.
+
+    The constant $C$ is a normalization factor.
 
     Args:
         a: The unit vector.
         n: Rank of the natural tensor to create.
         normalize: Normalization type.
-            If `unity`, $C = \frac{(2n-1)!!}{l!!}$ is used for normalization.
+            If `unity`, $C = \frac{(2n-1)!!}{l!}$ is used for normalization.
+            In this case, an n-contraction between the output natural tensor and an
+            arbitrary unit vector `b` is equal to the Legendre polynomial of the angle
+            between `a` and `b`. Namely: $out \odot^n b^{\otimes^n} = P_n(a \codt b)$.
             If `none`, no normalization is applied, i.e. $C = 1$.
 
     Returns:
@@ -63,7 +69,7 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
         coeff = -coeff / (2 * n - 2 * d - 1)
 
     if normalize == "unity":
-        out = double_factorial(2 * n - 1) / double_factorial(n) * out
+        out = double_factorial(2 * n - 1) / factorial(n) * out
     elif normalize == "none":
         pass
     else:
