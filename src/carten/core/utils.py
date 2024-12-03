@@ -165,25 +165,6 @@ def check_shape(T: Tensor, n: int = 3) -> bool:
         return True
 
 
-def time_it(func, *args, **kwargs):
-    """Time a function."""
-    import time
-
-    num_runs = 1
-
-    times = []
-    for _ in range(num_runs):
-        start = time.time()
-        out = func(*args, **kwargs)
-        end = time.time()
-        times.append(end - start)
-
-    avg = sum(times) / num_runs
-    print(f"Running {func.__name__} for {num_runs} times. Average time: {avg:.6e} s")
-
-    return out
-
-
 def factorial(n: int, device: torch.device = None):
     """
     Get the factorial of a number.
@@ -218,5 +199,3 @@ def double_factorial(
         else:
             assert lower_bound % 2 == 1, "lower_bound must be odd"
         return torch.prod(torch.arange(lower_bound, n + 2, step=2, device=device))
-
-
