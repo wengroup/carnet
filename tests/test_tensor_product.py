@@ -1,43 +1,43 @@
-from carten.tensor_product import tp_even, tp_odd, tp_rule_even, tp_rule_odd
+from carten.tensor_product import tp_even, tp_odd, get_tp_even_rule, get_tp_odd_rule
 from carten.utils import is_symmetric, is_symmetric_traceless, is_traceless
 
 
 def test_tp_rule_even():
-    rule, symmetry, _ = tp_rule_even(4, 4, 4, 0)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 4, 0)
     assert rule == "abcd,abcd->"
     assert symmetry == ""
 
-    rule, symmetry, _ = tp_rule_even(4, 4, 3, 0)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 3, 0)
     assert rule == "abcd,abce->de"
     assert symmetry == "xy"
 
-    rule, symmetry, _ = tp_rule_even(4, 4, 3, 1)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 3, 1)
     assert rule == "abcd,abcd,ef->ef"
     assert symmetry == "aa"
 
-    rule, symmetry, _ = tp_rule_even(4, 4, 2, 0)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 2, 0)
     assert rule == "abcd,abef->cdef"
     assert symmetry == "xxyy"
 
-    rule, symmetry, _ = tp_rule_even(4, 4, 2, 1)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 2, 1)
     assert rule == "abcd,abce,fg->defg"
     assert symmetry == "xyaa"
 
-    rule, symmetry, _ = tp_rule_even(4, 4, 2, 2)
+    rule, symmetry, _ = get_tp_even_rule(4, 4, 2, 2)
     assert rule == "abcd,abcd,ef,gh->efgh"
     assert symmetry == "aabb"
 
 
 def test_tp_rule_odd():
-    rule, symmetry, _ = tp_rule_odd(4, 4, 3, 0)
+    rule, symmetry, _ = get_tp_odd_rule(4, 4, 3, 0)
     assert rule == "abc,bdef,cdef->a"
     assert symmetry == "x"
 
-    rule, symmetry, _ = tp_rule_odd(4, 4, 2, 0)
+    rule, symmetry, _ = get_tp_odd_rule(4, 4, 2, 0)
     assert rule == "abc,bdef,cdeg->afg"
     assert symmetry == "xyz"
 
-    rule, symmetry, _ = tp_rule_odd(4, 4, 2, 1)
+    rule, symmetry, _ = get_tp_odd_rule(4, 4, 2, 1)
     assert rule == "abc,bdef,cdef,gh->agh"
     assert symmetry == "xaa"
 

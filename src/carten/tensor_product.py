@@ -54,7 +54,7 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tenso
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry, delta_indices = tp_rule_even(l1, l2, k, t)
+        rule, symmetry, delta_indices = get_tp_even_rule(l1, l2, k, t)
 
         # get one tensor product
         prod = torch.einsum(rule, X, Y, *([d] * t))
@@ -110,7 +110,7 @@ def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry, delta_indices = tp_rule_odd(l1, l2, k, t)
+        rule, symmetry, delta_indices = get_tp_odd_rule(l1, l2, k, t)
 
         # get one tensor product
         prod = torch.einsum(rule, epsilon, X, Y, *([d] * t))
@@ -129,17 +129,6 @@ def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor
         raise ValueError(f"Unknown normalization method: {normalize}")
 
     return out
-
-
-def embed_even():
-    """
-    Embed a natural tensor of rank l3 into the space of rank l1 + l2.
-
-    In some sense, this is the reverse operation of tp_even().
-
-    Returns:
-
-    """
 
 
 def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
@@ -197,7 +186,7 @@ def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
     )
 
 
-def tp_rule_even(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
+def get_tp_even_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is even.
 
@@ -245,7 +234,7 @@ def tp_rule_even(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     return rule, symmetry, delta_indices
 
 
-def tp_rule_odd(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
+def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     """
     Get the einsum rule when l1 + l2 - l3 is odd.
 
@@ -306,7 +295,7 @@ def tp_rule_odd(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
 if __name__ == "__main__":
     # from carten.reduce import get_permutations
     #
-    # rules, symmetry = tp_rule_even(3, 3, 1, 2)
+    # rules, symmetry = get_tp_even_rule(3, 3, 1, 2)
     # print("rules", rules)
     # print("symmetry", symmetry)
     # perms = get_permutations(symmetry)
