@@ -1,4 +1,6 @@
-from carten.tensor_product import tp_even, tp_odd, get_tp_even_rule, get_tp_odd_rule
+import torch
+
+from carten.tensor_product import get_tp_even_rule, get_tp_odd_rule, tp_even, tp_odd
 from carten.utils import is_symmetric, is_symmetric_traceless, is_traceless
 
 
@@ -43,26 +45,36 @@ def test_tp_rule_odd():
 
 
 def test_tp_even(NT3, NT4):
+    v = torch.tensor([1.0, 2.0, 3.0])
+    unit_vector = v / v.norm()
+
     for i in [1, 3, 5, 7]:
-        out = tp_even(NT3, NT4, out_rank=i)
+        out = tp_even(NT3, NT4, out_rank=i, normalize="unity")
         assert out.ndim == i
-        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
+        assert is_symmetric(out, atol=1e-6), f"Not symmetric for {i}"
         assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
 
+        # test unity
+        # contraction with a unit vector should give 1
+        tp = torch.eimsum("i,i", out, unit_vector)
+        assert tp == 1.0, f"Failed unity for {i}"
+
     for i in [0, 2, 4, 6, 8]:
-        out = tp_even(NT4, NT4, out_rank=i)
+        out = tp_even(NT4, NT4, out_rank=i, normalize="unity")
         assert out.ndim == i
-        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
-        assert is_traceless(out, atol=1e-4), f"Not traceless for {i}"
+        assert is_symmetric(out, atol=1e-6), f"Not symmetric for {i}"
+        assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
 
 
 def test_tp_odd(NT3, NT4):
     for i in [2, 4, 6]:
-        out = tp_odd(NT3, NT4, out_rank=i)
+        out = tp_odd(NT3, NT4, out_rank=i, normalize="unity")
         assert out.ndim == i
-        assert is_symmetric_traceless(out, atol=1e-4), f"Failed for {i}"
+        assert is_symmetric(out, atol=1e-6), f"Failed symmetry for {i}"
+        assert is_traceless(out, atol=1e-5), f"Failed traceless for {i}"
 
     for i in [1, 3, 5, 7]:
-        out = tp_odd(NT4, NT4, out_rank=i)
+        out = tp_odd(NT4, NT4, out_rank=i, normalize="unity")
         assert out.ndim == i
-        assert is_symmetric_traceless(out, atol=1e-4), f"Failed for {i}"
+        assert is_symmetric(out, atol=1e-6), f"Failed symmetry for {i}"
+        assert is_traceless(out, atol=1e-5), f"Failed traceless for {i}"

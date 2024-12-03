@@ -14,13 +14,12 @@ from carten.utils import (
     double_index,
     eijk,
     factorial,
-    get_trace,
     letter_index,
-    repeat_double_index,
+    repeat_double_index
 )
 
 
-def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor:
+def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is even.
 
@@ -31,7 +30,7 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tenso
         normalize: The normalization method.
             If `unity`, the output is normalized such that the l3 fold contraction of
             the output tensor with a unit vector yields 1.
-            If None, no normalization is applied.
+            If `none`, no normalization is applied.
 
     Returns:
         A natural tensor of rank l3
@@ -65,17 +64,17 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tenso
 
         out = out + coeff * prod
 
-    if normalize is None:
-        pass
-    elif normalize.lower() == "unity":
+    if normalize == "unity":
         out = coeff_C(l1, l2, l3) * out
+    elif normalize == "none":
+        pass
     else:
         raise ValueError(f"Unknown normalization method: {normalize}")
 
     return out
 
 
-def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor:
+def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
 
@@ -86,7 +85,7 @@ def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor
         normalize: The normalization method.
             If `unity`, the output is normalized such that the l3 fold contraction of
             the output tensor with a unit vector yields 1.
-            If None, no normalization is applied.
+            If `none`, no normalization is applied.
 
     Returns:
         A natural tensor of rank l3
@@ -121,10 +120,10 @@ def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = None) -> Tensor
 
         out = out + coeff * prod
 
-    if normalize is None:
-        pass
-    elif normalize.lower() == "unity":
+    if normalize == "unity":
         out = coeff_D(l1, l2, l3) * out
+    elif normalize == "none":
+        pass
     else:
         raise ValueError(f"Unknown normalization method: {normalize}")
 
@@ -293,15 +292,8 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
 
 
 if __name__ == "__main__":
-    # from carten.reduce import get_permutations
-    #
-    # rules, symmetry = get_tp_even_rule(3, 3, 1, 2)
-    # print("rules", rules)
-    # print("symmetry", symmetry)
-    # perms = get_permutations(symmetry)
-    # print("perms", perms)
     from carten.reduce import symmetrize_and_remove_trace
-    from carten.utils import is_symmetric, is_symmetric_traceless, is_traceless
+    from carten.utils import is_symmetric_traceless
 
     torch.manual_seed(0)
     T2 = torch.randn(3, 3)
@@ -312,13 +304,8 @@ if __name__ == "__main__":
     assert is_symmetric_traceless(NT2), "NT2 is not symmetric traceless"
     assert is_symmetric_traceless(NT3), "NT3 is not symmetric traceless"
 
-    out = tp_even(NT2, NT2, 4)
-    # out = tp_odd(NT2, NT3, 4)
-    print(out)
-    print("trace 0, 1", get_trace(out, 0, 1))
-    assert is_symmetric(out), "out is not symmetric"
-    assert is_traceless(out, atol=1e-5), "out is not traceless"
+    out = tp_even(NT2, NT2, 4, normalize="unity")
+    assert is_symmetric_traceless(out, atol=1e-5), "out is not symmetric traceless"
 
-    # out2 = symmetrize_and_remove_trace(torch.einsum("ab,cd", T2, T2))
-    # assert is_symmetric(out2), "out2 is not symmetric"
-    # assert is_traceless(out2, atol=1e-5), "out2 is not traceless"
+    out = tp_odd(NT2, NT3, 4, normalize="unity")
+    assert is_symmetric_traceless(out, atol=1e-5), "out is not symmetric traceless"
