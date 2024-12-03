@@ -6,9 +6,9 @@ import warnings
 import torch
 from torch import Tensor
 
-from carten.natural_tensor import NaturalTensors
 from carten.core.permute import get_permutations, get_permutations_2
 from carten.core.utils import dij, double_index, eijk, letter_index, repeat_double_index
+from carten.natural_tensor import NaturalTensors
 
 
 def reduce_tensor(
@@ -71,6 +71,7 @@ def reduce_symmetric_tensor(u: Tensor, start_dim: int = 0) -> NaturalTensors:
     return NaturalTensors.from_sequence(output, start_dim=start_dim)
 
 
+# TODO, this is obsolete, replaced by unit_vector.py
 def get_dyadic_tensor(r: Tensor, rank: int = 2, normalize: bool = True) -> Tensor:
     r"""
     Create a generalized dyadic tensor.
@@ -113,6 +114,7 @@ def get_dyadic_tensor(r: Tensor, rank: int = 2, normalize: bool = True) -> Tenso
         return t
 
 
+# TODO, this is obsolete, replaced by unit_vector.py
 def reduce_dyadic_tensor(
     r: Tensor, rank: int = 2, normalize: bool = True
 ) -> NaturalTensors:
@@ -233,6 +235,7 @@ def symmetrize_2(t: Tensor, num_delta: int, start_dim: int = 0) -> Tensor:
     return u
 
 
+# TODO, this can be refactored to be similar as unit_vector.py
 def remove_trace(u: Tensor, start_dim: int = 0) -> Tensor:
     """
     Remove the trace of a symmetric tensors to get a natural tensor of the same rank.

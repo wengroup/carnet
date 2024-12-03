@@ -49,16 +49,17 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Ten
     out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
     for t in range(min(l1, l2) - k + 1):
+        # TODO, coeff might be simplified by recursion, see unit_vector.py
         coeff = (-2) ** t / double_factorial(
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
         rule, symmetry, delta_indices = get_tp_even_rule(l1, l2, k, t)
 
-        # get one tensor product
+        # Get one tensor product
         prod = torch.einsum(rule, X, Y, *([d] * t))
 
-        # get all tensor products by symmetrizing the one tensor product
+        # Symmetrize by summing over all unique permutations
         perms = get_permutations_delta(symmetry, delta_indices)
         prod = torch.sum(torch.stack([prod.permute(p) for p in perms]), dim=0)
 
