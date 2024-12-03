@@ -4,7 +4,8 @@ Same as qr_delta_double_epsilon-2.py, but using no epsilon contraction.
 import torch
 from example.utils import tp_with_delta_epsilon
 
-from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
+from carten.reduce import symmetrize_and_remove_trace
+from carten.permute import get_permutations_2
 from carten.symbolic.utils import find_independent_tensors
 from carten.utils import is_symmetric_traceless, letter_index
 

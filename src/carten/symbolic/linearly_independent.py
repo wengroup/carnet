@@ -19,7 +19,8 @@ from pprint import pprint
 import torch
 from torch import Tensor
 
-from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
+from carten.reduce import symmetrize_and_remove_trace
+from carten.permute import get_permutations_2
 from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,

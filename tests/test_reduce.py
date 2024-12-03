@@ -3,14 +3,12 @@ import torch
 from carten.natural_tensor import NaturalTensors
 from carten.reduce import (
     get_contraction_with_delta_rules,
-    get_dyadic_tensor,
-    get_permutations,
-    get_permutations_2,
-    reduce_symmetric_tensor,
+    get_dyadic_tensor, reduce_symmetric_tensor,
     remove_trace,
     remove_trace_rule,
     symmetrize,
 )
+from carten.permute import get_permutations, get_permutations_2
 from carten.utils import is_symmetric, is_traceless, letter_index
 
 
