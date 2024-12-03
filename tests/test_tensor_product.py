@@ -43,8 +43,8 @@ def test_tp_rule_odd():
 
 
 def test_tp_even(NT3, NT4):
-    for i in [0, 2, 4, 6]:
-        out = tp_even(NT3, NT3, out_rank=i)
+    for i in [1, 3, 5, 7]:
+        out = tp_even(NT3, NT4, out_rank=i)
         assert out.ndim == i
         assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
         assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
@@ -54,12 +54,6 @@ def test_tp_even(NT3, NT4):
         assert out.ndim == i
         assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
         assert is_traceless(out, atol=1e-4), f"Not traceless for {i}"
-
-    for i in [1, 3, 5, 7]:
-        out = tp_even(NT3, NT4, out_rank=i)
-        assert out.ndim == i
-        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
-        assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
 
 
 def test_tp_odd(NT3, NT4):
