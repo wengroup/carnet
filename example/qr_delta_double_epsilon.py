@@ -76,7 +76,8 @@ import torch
 from example.utils import tp_with_delta_epsilon
 
 from carten.reduce import get_permutations_2, symmetrize_and_remove_trace
-from carten.utils import find_independent_tensors, is_symmetric_traceless, letter_index
+from carten.utils import is_symmetric_traceless, letter_index
+from carten.symbolic.utils import find_independent_tensors
 
 
 def get_rules(rank: int, num_delta: int) -> list[tuple[str, str]]:

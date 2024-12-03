@@ -6,8 +6,9 @@ Reference:
 References:
 1. [CS70] Irreducible Cartesian Tensors. II. General Formulation, http://dx.doi.org/10.1063/1.1665190
 2. [AG82] Irreducible fourth-rank Cartesian tensors, https://doi.org/10.1103/PhysRevA.25.2647
-
 """
+
+
 import itertools
 from collections import Counter, defaultdict
 from fractions import Fraction
@@ -29,12 +30,12 @@ from carten.symbolic.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
+from carten.symbolic.utils import find_independent_tensors
 from carten.utils import (
-    is_symmetric,
-    is_traceless,
     dij,
     eijk,
-    find_independent_tensors,
+    is_symmetric,
+    is_traceless,
     letter_index,
     matrix_inverse,
 )
