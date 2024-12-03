@@ -181,7 +181,7 @@ class NaturalTensors:
         """
 
         if check:
-            # TODO, fix: this below checking does not work. We should check each
+            # TODO fix: this below checking does not work. We should check each
             #  individual natural tensor in t.
             for i, t in enumerate(data):
                 if not check_shape(t):

@@ -2,7 +2,7 @@ from math import factorial as factorial_math
 
 import torch
 
-from carten.utils import double_index, factorial, double_factorial, get_trace
+from carten.utils import double_factorial, double_index, factorial, get_trace
 
 
 def test_multi_double_index():
@@ -35,7 +35,10 @@ def test_double_factorial():
         )
 
 
-def test_get_trace(T2, T3):
+def test_get_trace():
+    T2 = torch.arange(9).reshape(3, 3).to(torch.float)
+    T3 = torch.arange(27).reshape(3, 3, 3).to(torch.float)
+
     trace = get_trace(T2, i=0, j=1)
     assert torch.allclose(trace, torch.tensor([12.0]))
 

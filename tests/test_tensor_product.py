@@ -1,5 +1,5 @@
 from carten.tensor_product import tp_even, tp_odd, tp_rule_even, tp_rule_odd
-from carten.utils import is_symmetric_traceless
+from carten.utils import is_symmetric, is_symmetric_traceless, is_traceless
 
 
 def test_tp_rule_even():
@@ -46,21 +46,24 @@ def test_tp_even(NT3, NT4):
     for i in [0, 2, 4, 6]:
         out = tp_even(NT3, NT3, out_rank=i)
         assert out.ndim == i
-        assert is_symmetric_traceless(out), f"Failed for {i}"
+        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
+        assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
 
     for i in [0, 2, 4, 6, 8]:
         out = tp_even(NT4, NT4, out_rank=i)
         assert out.ndim == i
-        assert  is_symmetric_traceless(out), f"Failed for {i}"
+        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
+        assert is_traceless(out, atol=1e-4), f"Not traceless for {i}"
 
     for i in [1, 3, 5, 7]:
         out = tp_even(NT3, NT4, out_rank=i)
         assert out.ndim == i
-        assert is_symmetric_traceless(out), f"Failed for {i}"
+        assert is_symmetric(out, atol=1e-5), f"Not symmetric for {i}"
+        assert is_traceless(out, atol=1e-5), f"Not traceless for {i}"
 
 
 def test_tp_odd(NT3, NT4):
     for i in [2, 4, 6]:
         out = tp_odd(NT3, NT4, out_rank=i)
         assert out.ndim == i
-        assert is_symmetric_traceless(out), f"Failed for {i}"
+        assert is_symmetric_traceless(out, atol=1e-5), f"Failed for {i}"

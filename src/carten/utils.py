@@ -122,9 +122,7 @@ def is_symmetric(
     return True
 
 
-def is_traceless(
-    T, start_dim: int = 0, atol: float = 1e-6, rtol: float = 1e-5
-) -> bool:
+def is_traceless(T, start_dim: int = 0, atol: float = 1e-6, rtol: float = 1e-5) -> bool:
     """Check if a tensor is traceless.
 
     Args:
@@ -145,14 +143,13 @@ def is_traceless(
     for i, j in itertools.combinations(range(start_dim, T.ndim), 2):
         trace = get_trace(T, i, j)
         if not torch.allclose(trace, zeros, atol=atol, rtol=rtol):
+            sum_trance = torch.sum(torch.abs(trace))
             return False
 
     return True
 
 
-def is_symmetric_traceless(
-    T: Tensor, atol: float = 1e-6, rtol: float = 1e-5
-) -> bool:
+def is_symmetric_traceless(T: Tensor, atol: float = 1e-6, rtol: float = 1e-5) -> bool:
     """Check if a tensor is symmetric and traceless."""
     return is_symmetric(T, atol=atol, rtol=rtol) and is_traceless(
         T, atol=atol, rtol=rtol

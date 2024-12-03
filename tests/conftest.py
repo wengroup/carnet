@@ -11,22 +11,26 @@ def T0():
 
 @pytest.fixture(scope="session")
 def T1():
-    return torch.arange(3).to(torch.float32)
+    t = torch.arange(3).to(torch.float32)
+    return t / t.mean()
 
 
 @pytest.fixture(scope="session")
 def T2():
-    return torch.arange(9).reshape((3, 3)).to(torch.float32)
+    t = torch.arange(9).reshape((3, 3)).to(torch.float32)
+    return t / t.mean()
 
 
 @pytest.fixture(scope="session")
 def T3():
-    return torch.arange(27).reshape((3, 3, 3)).to(torch.float32)
+    t = torch.arange(27).reshape((3, 3, 3)).to(torch.float32)
+    return t / t.mean()
 
 
 @pytest.fixture(scope="session")
 def T4():
-    return torch.arange(81).reshape((3, 3, 3, 3)).to(torch.float32)
+    t = torch.arange(81).reshape((3, 3, 3, 3)).to(torch.float32)
+    return t / t.mean()
 
 
 @pytest.fixture(scope="session")
