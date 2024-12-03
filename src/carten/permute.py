@@ -1,6 +1,6 @@
 import itertools
 
-from carten.utils import repeat_double_index
+from carten.utils import letter_index, repeat_double_index
 
 
 # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py
@@ -186,54 +186,16 @@ def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[
         Each inner list contains the permutation indices for symmetrization.
     """
 
-    def get_canonical_form(ps: str, exclude: str) -> str:
-        """
-        Convert a permutation string to its canonical form, such that equivalent
-        permutation strings have the same representation.
-
-        This is based on first occurrence positions of each letter in the string.
-        For example, `baba` and `fefe` are equivalent permutation strings, and
-        both will be converted to `0101`.
-
-        Args:
-            ps: The permutation string to convert
-            exclude: The letter to exclude from being changed, but keep its
-                original value in the canonical form
-
-        Returns:
-            The canonical form of the permutation string
-        """
-        return "".join(c if c == exclude else str(ps.index(c)) for c in ps)
-
     num_remain = m - 2 * num_delta
     assert num_remain >= 0, "The number of remaining indices must be non-negative."
 
-    # Construct the symmetry pattern
-    # e.g., zzzzaabb, meaning we have 4 symmetric indices from the tensor and 2 pairs
-    # of symmetric indices from two deltas.
+    # Construct the symmetry pattern, e.g., zzaabb
     u_remain = "z" * num_remain
     delta = "".join(repeat_double_index(num_delta))
     symmetry = f"{u_remain}{delta}"
 
-    all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
+    delta_indices = letter_index(num_delta)
 
-    prefix = list(range(start_dim))
-    unique_perms = []
-    unique_canonical_forms = set()
+    perms = get_permutations_delta(symmetry, delta_indices, start_dim)
 
-    # Filter permutations based on contraction pattern
-    for perm in all_perms:
-        perm_string = "".join(symmetry[i - start_dim] for i in perm)
-
-        # Use canonical form to identify equivalent patterns, dealing with both minor
-        # symmetry and major symmetry.
-        # The index 'z' is excluded to be changed, but keep its original value, because
-        # it represents the remaining indices of the tensor, not associated with the
-        # deltas.
-        canonical_form = get_canonical_form(perm_string, exclude="z")
-
-        if canonical_form not in unique_canonical_forms:
-            unique_perms.append(prefix + list(perm))
-            unique_canonical_forms.add(canonical_form)
-
-    return unique_perms
+    return perms

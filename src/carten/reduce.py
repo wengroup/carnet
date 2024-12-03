@@ -157,14 +157,13 @@ def symmetrize_and_remove_trace(
     return remove_trace(symmetrize(t, start_dim, symmetry), start_dim)
 
 
-# TODO, should we use averaging or sum, be clear, currently, it is inconsistent
 def symmetrize(
     t: Tensor, start_dim: int = 0, symmetry: str = None, mode: str = "mean"
 ) -> Tensor:
     """
     Symmetrize a tensor.
 
-    The symmetrization is done by averaging over unique permutations of the indices,
+    The symmetrization is done by averaging/sum over unique permutations of the indices,
     considering the symmetry of the indices.
 
     Args:
@@ -195,11 +194,6 @@ def symmetrize(
             start_dim + len(symmetry) == t.ndim
         ), "The length of the symmetry string must match the tensor shape."
         permutations = get_permutations(symmetry, start_dim)
-
-    # TODO, delete
-    permutations = list(permutations)
-    if symmetry == "aabb":
-        permutations = permutations[:3]
 
     if mode == "mean":
         u = torch.mean(torch.stack([t.permute(p) for p in permutations]), dim=0)
