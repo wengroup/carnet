@@ -19,8 +19,8 @@ from pprint import pprint
 import torch
 from torch import Tensor
 
-from carten.reduce import symmetrize_and_remove_trace
-from carten.permute import get_permutations_2
+from carten.core.reduce import symmetrize_and_remove_trace
+from carten.core.permute import get_permutations_2
 from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,
@@ -31,15 +31,13 @@ from carten.symbolic.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
-from carten.symbolic.utils import find_independent_tensors
-from carten.utils import (
+from carten.symbolic.utils import find_independent_tensors, matrix_inverse
+from carten.core.utils import (
     dij,
     eijk,
     is_symmetric,
     is_traceless,
-    letter_index,
-    matrix_inverse,
-)
+    letter_index, )
 
 
 def get_E(j: int, s_letters: str = None) -> LinearCombination:

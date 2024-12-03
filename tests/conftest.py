@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from carten.reduce import symmetrize_and_remove_trace
+from carten.core.reduce import symmetrize_and_remove_trace
 
 
 @pytest.fixture(scope="session")

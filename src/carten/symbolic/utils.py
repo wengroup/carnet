@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import torch
 from torch import Tensor
 
@@ -62,3 +64,54 @@ def find_independent_tensors_2(tensors: list[Tensor], tolerance=1e-4):
     print(f"\nFound {len(independent_indices)} independent tensors")
 
     return independent_tensors, independent_indices
+
+
+def matrix_inverse(matrix: list[list[Fraction]]) -> list[list[Fraction]]:
+    """
+    Calculate the inverse of a matrix containing Fraction objects.
+    Returns the inverse matrix with Fraction elements.
+
+    Args:
+        matrix: List of lists containing Fraction objects
+
+    Returns:
+        Inverse matrix as list of lists with Fraction objects
+    """
+    n = len(matrix)
+
+    # Create augmented matrix [A|I]
+    augmented = []
+    for i in range(n):
+        row = []
+        for j in range(n):
+            row.append(matrix[i][j])
+        for j in range(n):
+            row.append(Fraction(1) if i == j else Fraction(0))
+        augmented.append(row)
+
+    # Gaussian elimination
+    for i in range(n):
+        # Find pivot
+        pivot = augmented[i][i]
+        if pivot == 0:
+            raise ValueError("Matrix is not invertible")
+
+        # Scale row to make pivot 1
+        for j in range(2 * n):
+            augmented[i][j] = augmented[i][j] / pivot
+
+        # Eliminate column
+        for k in range(n):
+            if k != i:
+                factor = augmented[k][i]
+                for j in range(2 * n):
+                    augmented[k][j] -= factor * augmented[i][j]
+
+    # Extract inverse matrix
+    inverse = []
+    for i in range(n):
+        inverse.append([])
+        for j in range(n):
+            inverse[i].append(augmented[i][j + n])
+
+    return inverse

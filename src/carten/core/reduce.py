@@ -7,8 +7,8 @@ import torch
 from torch import Tensor
 
 from carten.natural_tensor import NaturalTensors
-from carten.permute import get_permutations, get_permutations_2
-from carten.utils import dij, double_index, eijk, letter_index, repeat_double_index
+from carten.core.permute import get_permutations, get_permutations_2
+from carten.core.utils import dij, double_index, eijk, letter_index, repeat_double_index
 
 
 def reduce_tensor(

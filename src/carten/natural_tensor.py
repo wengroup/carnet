@@ -3,7 +3,7 @@ from torch import Tensor
 
 from carten import SETTINGS
 from carten.signature import Signature
-from carten.utils import check_shape, is_symmetric_traceless
+from carten.core.utils import check_shape, is_symmetric_traceless
 
 
 class NaturalTensors:

@@ -1,4 +1,4 @@
-from carten.embed import embed
+from carten.core.embed import embed
 
 
 def test_embed(NT4):

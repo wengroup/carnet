@@ -7,8 +7,8 @@ http://dx.doi.org/10.1063/1.528515
 import torch
 from torch import Tensor
 
-from carten.permute import get_permutations_delta
-from carten.utils import (
+from carten.core.permute import get_permutations_delta
+from carten.core.utils import (
     dij,
     double_factorial,
     double_index,
@@ -292,8 +292,8 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
 
 
 if __name__ == "__main__":
-    from carten.reduce import symmetrize_and_remove_trace
-    from carten.utils import is_symmetric_traceless
+    from carten.core.reduce import symmetrize_and_remove_trace
+    from carten.core.utils import is_symmetric_traceless
 
     torch.manual_seed(0)
     T2 = torch.randn(3, 3)

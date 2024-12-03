@@ -4,10 +4,10 @@ Same as qr_delta_double_epsilon-2.py, but using no epsilon contraction.
 import torch
 from example.utils import tp_with_delta_epsilon
 
-from carten.reduce import symmetrize_and_remove_trace
-from carten.permute import get_permutations_2
+from carten.core.reduce import symmetrize_and_remove_trace
+from carten.core.permute import get_permutations_2
 from carten.symbolic.utils import find_independent_tensors
-from carten.utils import is_symmetric_traceless, letter_index
+from carten.core.utils import is_symmetric_traceless, letter_index
 
 
 def get_rules(rank: int, num_delta: int) -> list[tuple[str, str]]:

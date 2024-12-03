@@ -1,6 +1,6 @@
 import itertools
 
-from carten.utils import letter_index, repeat_double_index
+from carten.core.utils import letter_index, repeat_double_index
 
 
 # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py

@@ -1,15 +1,15 @@
 import torch
 
 from carten.natural_tensor import NaturalTensors
-from carten.reduce import (
+from carten.core.reduce import (
     get_contraction_with_delta_rules,
     get_dyadic_tensor, reduce_symmetric_tensor,
     remove_trace,
     remove_trace_rule,
     symmetrize,
 )
-from carten.permute import get_permutations, get_permutations_2
-from carten.utils import is_symmetric, is_traceless, letter_index
+from carten.core.permute import get_permutations, get_permutations_2
+from carten.core.utils import is_symmetric, is_traceless
 
 
 def test_reduce_symmetric_tensor(T3, T4):

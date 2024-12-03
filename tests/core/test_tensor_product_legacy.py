@@ -1,7 +1,7 @@
 import torch
 
-from carten.reduce import symmetrize, symmetrize_and_remove_trace
-from carten.tensor_product_legacy import (
+from carten.core.reduce import symmetrize, symmetrize_and_remove_trace
+from carten.core.tensor_product_legacy import (
     get_asym_part,
     get_delta_contraction_rule,
     get_epsilon_delta_contraction_rule,
@@ -10,7 +10,7 @@ from carten.tensor_product_legacy import (
     get_sym_rules_3,
     tp,
 )
-from carten.utils import is_symmetric, is_traceless, eijk
+from carten.core.utils import is_symmetric, is_traceless, eijk
 
 
 def test_get_delta_contraction_rule():
