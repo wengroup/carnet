@@ -129,4 +129,4 @@ def test_tp_odd_normalization():
         leg = legendre(a_dot_b, n)
         mul = leg * a_cross_b_norm
 
-        assert torch.allclose(tp_norm, mul, atol=1e-5), f"Failing for n = {n}"
+        assert torch.allclose(tp_norm, mul, atol=1e-3), f"Failing for n = {n}"

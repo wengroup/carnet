@@ -7,7 +7,7 @@ http://dx.doi.org/10.1063/1.528515
 import torch
 from torch import Tensor
 
-from carten.core.symmetrize import get_permutations_delta
+from carten.core.symmetrize import get_permutations_delta, symmetrize_via_permutation
 from carten.core.utils import (
     dij,
     double_factorial,
@@ -49,7 +49,6 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Te
     out = torch.zeros([3] * l3, dtype=dtype, device=device)
 
     for t in range(min(l1, l2) - k + 1):
-        # TODO, coeff might be simplified by recursion, see unit_vector.py
         coeff = (-2) ** t / double_factorial(
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
@@ -61,7 +60,7 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Te
 
         # Symmetrize by summing over all unique permutations
         perms = get_permutations_delta(symmetry, delta_indices)
-        prod = torch.sum(torch.stack([prod.permute(p) for p in perms]), dim=0)
+        prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         out = out + coeff * prod
 
@@ -117,7 +116,7 @@ def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Ten
 
         # get all tensor products by symmetrizing the one tensor product
         perms = get_permutations_delta(symmetry, delta_indices)
-        prod = torch.sum(torch.stack([prod.permute(p) for p in perms]), dim=0)
+        prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         out = out + coeff * prod
 

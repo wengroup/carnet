@@ -1,15 +1,14 @@
 import torch
 
-from carten.natural_tensor import NaturalTensors
 from carten.core.reduce import (
     get_contraction_with_delta_rules,
-    get_dyadic_tensor, reduce_symmetric_tensor,
+    reduce_symmetric_tensor,
     remove_trace,
     remove_trace_rule,
     symmetrize,
 )
-from carten.core.symmetrize import get_permutations, get_permutations_2
 from carten.core.utils import is_symmetric, is_traceless
+from carten.natural_tensor import NaturalTensors
 
 
 def test_reduce_symmetric_tensor(T3, T4):
@@ -38,53 +37,6 @@ def test_reduce_symmetric_tensor(T3, T4):
     for t in t3_b_out:
         assert is_symmetric(t, atol=1e-4, start_dim=1)
         assert is_traceless(t, atol=1e-4, start_dim=1)
-
-
-def test_get_dyadic_tensor():
-    r = torch.tensor([1.0, 2.0, 3.0])
-
-    t = get_dyadic_tensor(r, rank=3, normalize=False)
-    ref = torch.einsum("i,j,k->ijk", r, r, r)
-    assert torch.allclose(t, ref)
-
-    # batched
-    r2 = torch.vstack([r, r])
-    t2 = get_dyadic_tensor(r2, rank=3, normalize=False)
-    ref2 = torch.cat([ref, ref]).reshape(2, *ref.shape)
-    assert torch.allclose(t2, ref2)
-
-    t = get_dyadic_tensor(r, rank=3, normalize=True)
-    nr = r / torch.norm(r)
-    ref = torch.einsum("i,j,k->ijk", nr, nr, nr)
-    assert torch.allclose(t, ref)
-
-
-def test_get_permutations():
-    assert get_permutations("aaaa") == [[0, 1, 2, 3]]
-    assert get_permutations("aaaa", start_dim=2) == [[0, 1, 2, 3, 4, 5]]
-
-    ref = [
-        [0, 1, 2, 3, 4],
-        [0, 1, 3, 2, 4],
-        [0, 1, 3, 4, 2],
-        [0, 3, 1, 2, 4],
-        [0, 3, 1, 4, 2],
-        [0, 3, 4, 1, 2],
-        [3, 0, 1, 2, 4],
-        [3, 0, 1, 4, 2],
-        [3, 0, 4, 1, 2],
-        [3, 4, 0, 1, 2],
-    ]
-    perms = get_permutations("aaabb")
-    assert perms == ref
-
-    perms = get_permutations("aaabb", start_dim=2)
-    assert perms == [[0, 1] + [2 + i for i in sub] for sub in ref]
-
-
-def test_get_permutations_2():
-    perms = get_permutations_2(m=2, num_delta=1)
-    assert perms == [[0, 1]]
 
 
 def test_symmetrize(T2, T3, T4):
