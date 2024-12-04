@@ -7,27 +7,27 @@ from carten.core.utils import is_symmetric_traceless, letter_index
 
 def test_get_nt_from_vector_rule():
     rule, symmetry, delta_indices = get_nt_from_vector_rule(3, 0)
-    assert rule == "a,b,c->abc"
+    assert rule == "...a,...b,...c->...abc"
     assert symmetry == "xxx"
     assert delta_indices == ""
 
     rule, symmetry, delta_indices = get_nt_from_vector_rule(3, 1)
-    assert rule == "a,bc->abc"
+    assert rule == "...a,bc->...abc"
     assert symmetry == "xaa"
     assert delta_indices == "a"
 
     rule, symmetry, delta_indices = get_nt_from_vector_rule(4, 0)
-    assert rule == "a,b,c,d->abcd"
+    assert rule == "...a,...b,...c,...d->...abcd"
     assert symmetry == "xxxx"
     assert delta_indices == ""
 
     rule, symmetry, delta_indices = get_nt_from_vector_rule(4, 1)
-    assert rule == "a,b,cd->abcd"
+    assert rule == "...a,...b,cd->...abcd"
     assert symmetry == "xxaa"
     assert delta_indices == "a"
 
     rule, symmetry, delta_indices = get_nt_from_vector_rule(4, 2)
-    assert rule == "ab,cd->abcd"
+    assert rule == "...,ab,cd->...abcd"
     assert symmetry == "aabb"
     assert delta_indices == "ab"
 
@@ -60,3 +60,15 @@ def test_get_nt_from_vector():
         # check n-contraction between nt and a is equal to 1
         tp = torch.einsum(rule, nt, *([a] * n))
         assert torch.allclose(tp, torch.tensor(1.0)), f"Failing for n = {n}"
+
+
+def test_get_nt_from_vector_batch():
+    a = torch.tensor([1.0, 2.0, 3.0])
+    batch = 4
+    a2 = a.repeat(batch, 1)
+
+    for n in range(5):
+        nt = get_nt_from_vector(a, n)
+        nt_repeat = nt.repeat(batch, *([1] * n))
+        bnt = get_nt_from_vector(a2, n)
+        assert torch.allclose(bnt, nt_repeat), f"Failing for n = {n}"

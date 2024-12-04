@@ -3,7 +3,7 @@
 import torch
 from torch import Tensor
 
-from carten.core.permute import get_permutations_delta
+from carten.core.symmetrize import get_permutations_delta, symmetrize_via_permutation
 from carten.core.utils import (
     dij,
     double_factorial,
@@ -26,7 +26,8 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
     The constant $C$ is a normalization factor.
 
     Args:
-        a: The unit vector.
+        a: The unit vector(s). Shape(..., 3), where the last dimension is the vector,
+            and the rest are batch dimensions.
         n: Rank of the natural tensor to create.
         normalize: Normalization type.
             If `unity`, $C = \frac{(2n-1)!!}{l!}$ is used for normalization.
@@ -43,8 +44,10 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
     # TODO, we can force to normalize `a` as a unit vector
 
     # For rank-0, return scalar 1. For rank-1, return the unit vector itself.
+    batch_dims = a.shape[:-1]
+
     if n == 0:
-        return torch.tensor(1.0, dtype=a.dtype, device=a.device)
+        return torch.ones(batch_dims, dtype=a.dtype, device=a.device)
     elif n == 1:
         return a
 
@@ -57,12 +60,19 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
     for d in range(D + 1):
         rule, symmetry, delta_indices = get_nt_from_vector_rule(n, d)
 
+        # When n == 2*d, we have only deltas, and we create a placeholder of 1 to deal
+        # with the batch dimensions in the vector `a`.
+        if n == 2 * d:
+            all_a = [torch.ones(batch_dims, dtype=a.dtype, device=a.device)]
+        else:
+            all_a = [a] * (n - 2 * d)
+
         # Get one tensor product
-        prod = torch.einsum(rule, *([a] * (n - 2 * d)), *([delta] * d))
+        prod = torch.einsum(rule, *all_a, *([delta] * d))
 
         # Symmetrize by summing over all unique permutations
-        perms = get_permutations_delta(symmetry, delta_indices)
-        prod = torch.sum(torch.stack([prod.permute(p) for p in perms]), dim=0)
+        perms = get_permutations_delta(symmetry, delta_indices, start_dim=a.ndim - 1)
+        prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         out = out + coeff * prod
 
@@ -93,8 +103,9 @@ def get_nt_from_vector_rule(n: int, d: int) -> tuple[str, str, str]:
         symmetry: The symmetry of the rule.
         delta_indices: The delta indices.
     """
-    a_right = letter_index(n - 2 * d)
-    a_left = ",".join(a_right)
+    a = letter_index(n - 2 * d)
+    a_left = "..." + ",...".join(a)  # the first `...` is for batch dimensions
+    a_right = "..." + a  # the first `...` is for batch dimensions
 
     delta = double_index(d, start=n - 2 * d)
     delta_right = "".join(delta)
