@@ -15,11 +15,11 @@ from carten.core.utils import (
     eijk,
     factorial,
     letter_index,
-    repeat_double_index
+    repeat_double_index,
 )
 
 
-def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Tensor:
+def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is even.
 
@@ -75,7 +75,7 @@ def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Ten
     return out
 
 
-def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "none") -> Tensor:
+def tp_odd(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Tensor:
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
 
