@@ -1,6 +1,6 @@
 import torch
 
-from carten.core.Legendre import legendre
+from carten.core.legendre import legendre
 from carten.core.unit_vector import get_nt_from_vector, get_nt_from_vector_rule
 from carten.core.utils import is_symmetric_traceless, letter_index
 
