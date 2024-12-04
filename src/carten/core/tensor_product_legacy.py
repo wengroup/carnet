@@ -1,5 +1,6 @@
-"""
-Tensor product between two natural tensors, without considering batching dimensions.
+"""Tensor product between two natural tensors, with batching support.
+
+This is using the symmetrizing and then removing the trace method.
 """
 
 import itertools
@@ -7,76 +8,74 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.natural_tensor import NaturalTensors
 from carten.core.reduce import remove_trace
 from carten.core.utils import dij, eijk, letter_index
+from carten.natural_tensor import NaturalTensors
 
 
 class TensorProduct:
     """
     Tensor product between two set of natural tensors.
 
-    Resulting tensors of the same rank are grouped together.
+    Output tensors of the same rank are grouped together.
+
+
+    Args:
+        out_ranks: ranks of the output tensors to keep. If None, the output tensor of
+            all ranks are kept.
     """
 
-    def __init__(self, min_rank: int = None, max_rank: int = None):
-        self.min_rank = min_rank
-        self.max_rank = max_rank
+    def __init__(self, out_ranks: list[int] = None):
+        self.out_ranks = out_ranks
 
     def __call__(self, nts1: NaturalTensors, nts2: NaturalTensors) -> NaturalTensors:
         """
         Compute the tensor product between two sets of natural tensors.
         """
         products = []
-        for t1, t2 in itertools.product(nts1.chunks, nts2.chunks):
-            p = tp(t1, t2, min_rank=self.min_rank, max_rank=self.max_rank)
-            products.extend(p)
 
-        return NaturalTensors.from_sequence(products)
+        for t1, r1 in zip(nts1.shaped_chunks, nts1.chunk_ranks):
+            for t2, r2 in zip(nts2.shaped_chunks, nts2.chunk_ranks):
+                p = tp(
+                    t1,
+                    t2,
+                    rank_S=r1,
+                    rank_T=r2,
+                    out_ranks=self.out_ranks,
+                )
+                products.extend(p)
+
+        return NaturalTensors.from_sequence(products, start_dim=2)
 
     def __str__(self):
-        return f"TensorProduct(min_rank={self.min_rank}, max_rank={self.max_rank})"
-
-
-def tp_shaped_chunk(
-    S: Tensor, T: Tensor, start_dim: int, min_rank: int = None, max_rank: int = None
-) -> Tensor:
-    """
-    Compute the tensor product between two shaped chunked natural tensors.
-
-    Each chunked tensor should be of shape (*leading_shape, mul, *ending_shape).
-    `leading_shape` can be any shape, such as the batch dimensions. `mul` is the
-    multiplicity. `ending_shape` is the shape of the natural tensor. For scalar, it
-    should be (1,); for a vector, it should be (3,); for a general natural tensor, it
-    should be (3,3,...,3) with the number of 3 equal to the rank of the natural tensor.
-    `mul` and `*ending_shape` are flattened to a single dimension.
-
-    Args:
-        start_dim: the dimension to start the tensor product. This should be the
-            dimension of the multiplicity `mul`.
-    """
+        return f"TensorProduct(out_ranks={self.out_ranks})"
 
 
 def tp(
-    S: Tensor, T: Tensor, min_rank: int = None, max_rank: int = None
+    S: Tensor,
+    T: Tensor,
+    rank_S: int,
+    rank_T: int,
+    out_ranks: list[int] = None,
 ) -> list[Tensor]:
     """
-    Tensor product of two natural tensors S and T.
+    Tensor product of chunked tensors T and S.
 
-    If S is a natural tensor with rank m and T is a natural tensor with rank n, then
-    the tensor product S x T is a natural tensor with rank m + n, and its irreducible
+
+    If S is a natural tensor with rank p and T is a natural tensor with rank q, then
+    the tensor product S x T is a natural tensor with rank p + q, and its irreducible
     representations are a sequence of natural tensors with rank
-    |m-n|, |m-n|+1, ..., 0, ..., m+n-1, m+n. The total number is 2 * min(m, n) + 1.
+    |p-q|, |p-q|+1, ..., 0, ..., p+q-1, p+q. The total number is 2 * min(p, q) + 1.
 
     Args:
-        S: a natural tensor
-        T: a natural tensor
-        min_rank: minimum rank of the natural tensor from the tensor product to keep.
-            Tensors with rank smaller than this are ignored. `min_rank` should be
-            |m-n| <= min_rank <= m+n. If None, set to |m-n|.
-        max_rank: maximum rank of the natural tensor from the tensor product to keep.
-            Tensors with rank larger than this are ignored. `max_rank` should be
-            |m-n| <= max_rank <= m+n. If None, set to m+n.
+        S: a tensor of shape (..., m_S, 3,...,3), where m_S is the multiplicity of the
+            tensor and the number of 3's is equal to the rank of the tensor.
+        T: a tensor of shape (..., m_T, 3,...,3), where m_T is the multiplicity of the
+            tensor and the number of 3's is equal to the rank of the tensor.
+        rank_S: the rank of S.
+        rank_T: the rank of T.
+        out_ranks: ranks of the output tensors to keep. If None, the output tensor of
+            all ranks are kept.
 
     Note:
         the tensor product is not commutative, i.e. S x T is not the same as T x S.
@@ -95,30 +94,28 @@ def tp(
 
     Returns:
         A list of irreducible representations (natural tensors) of the tensor product
-        between S and T. The irreducible representations are ordered by their ranks,
+        between S and T.
+
+
+        The irreducible representations are ordered by their ranks,
         from smallest to largest.
-
     """
+    min_rank = abs(rank_S - rank_T)
+    max_rank = rank_S + rank_T
 
-    if min_rank is None:
-        min_rank = abs(S.ndim - T.ndim)
+    allowed_ranks = list(range(min_rank, max_rank + 1))
+    if out_ranks is None:
+        out_ranks = allowed_ranks
     else:
-        if min_rank < abs(S.ndim - T.ndim) or min_rank > S.ndim + T.ndim:
-            raise ValueError(
-                f"Expect `min_rank` to be between |S.ndim - T.ndim| and "
-                f"S.ndim + T.ndim, but got {min_rank}"
-            )
-    if max_rank is None:
-        max_rank = S.ndim + T.ndim
-    else:
-        if max_rank < abs(S.ndim - T.ndim) or max_rank > S.ndim + T.ndim:
-            raise ValueError(
-                f"Expect `max_rank` to be between |S.ndim - T.ndim| and "
-                f"S.ndim+T.ndim, but got {max_rank}"
-            )
+        for r in out_ranks:
+            if r not in allowed_ranks:
+                raise ValueError(
+                    f"rank {r} for output tensor is not allowed. "
+                    f"Allowed ranks are {allowed_ranks}."
+                )
 
-    total_rank = S.ndim + T.ndim
-    allowed_contraction = min(S.ndim, T.ndim)
+    total_rank = rank_S + rank_T
+    allowed_contraction = min(rank_S, rank_T)
 
     irreps = []
     for i in range(allowed_contraction + 1):
@@ -126,25 +123,45 @@ def tp(
 
         # irrep of the antisymmetric part (after num_delta delta contractions)
         if (
-            min_rank <= total_rank - 2 * num_delta - 1 <= max_rank
+            total_rank - 2 * num_delta - 1 in out_ranks
             and num_delta != allowed_contraction
         ):
-            A = get_asym_part(S, T, num_delta)
-            N2 = remove_trace(A)
+            A = get_asym_part(S, T, rank_S, rank_T, num_delta)
+
+            start_dim = A.ndim - (rank_S + rank_T - num_delta * 2 - 1)
+            N2 = remove_trace(A, start_dim)
+
             irreps.append(N2)
 
         # irrep of the symmetric part (after num_delta delta contractions)
-        if min_rank <= total_rank - 2 * num_delta <= max_rank:
-            U = get_sym_part(S, T, num_delta)
-            N1 = remove_trace(U)
+        if total_rank - 2 * num_delta in out_ranks:
+            U = get_sym_part(S, T, rank_S, rank_T, num_delta)
+
+            start_dim = U.ndim - (rank_S + rank_T - num_delta * 2)
+            N1 = remove_trace(U, start_dim)
+
             irreps.append(N1)
 
     return irreps
 
 
-def get_sym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
+def get_sym_part(
+    S: Tensor,
+    T: Tensor,
+    rank_S: int,
+    rank_T: int,
+    num_delta: int = 0,
+) -> Tensor:
     """
     Fully symmetrize the tensor product of two symmetrical tensors S and T.
+
+    The batching dimensions of S and T should be the same. They are intact and carried
+    over to the result.
+
+    # TODO we can enable other rules for the multiplicity dimensions.
+    The multiplicity dimensions of S and T are treated separately. For example, if S
+    has multiplicity 2 and T has multiplicity 3, then the result will have multiplicity
+    6.
 
     To fully symmetrize two symmetrical tensors S_ijk... and T_pqr..., we do it in a
     two-step process:
@@ -152,29 +169,50 @@ def get_sym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
     - second, symmetrize the resulting tensor.
 
     Args:
-        S: a symmetrical tensor
-        T: a symmetrical tensor
+        S: a symmetrical tensor of shape (..., m_S, 3,...,3), where m_S is the
+            multiplicity of the tensor and the number of 3's is equal to the rank of
+            the tensor.
+        T: a symmetrical tensor of shape (..., m_T, 3,...,3), where m_T is the
+            multiplicity of the tensor and the number of 3's is equal to the rank of
+            the tensor.
+        rank_S: the rank of S.
+        rank_T: the rank of T.
         num_delta: number of times to contract S and T with delta before symmetrizing.
 
     Returns:
         The fully symmetrized part of the tensor product of S and T.
     """
-    if num_delta > min(S.ndim, T.ndim):
+    if num_delta > min(rank_S, rank_T):
         raise ValueError(
-            "Expect `num_delta` to be <= min(S.ndim, T.ndim), but got " f"{num_delta}"
+            "Expect `num_delta` to be <= min(rank_S, rank_T), but got " f"{num_delta}"
         )
 
-    S_indices = letter_index(S.ndim)
-    T_indices = letter_index(T.ndim, start=S.ndim)
+    mul_S = S.shape[-rank_S - 1]
+    mul_T = T.shape[-rank_T - 1]
+
+    batch_shape_S = S.shape[: -rank_S - 1]
+    batch_shape_T = T.shape[: -rank_T - 1]
+    if batch_shape_S != batch_shape_T:
+        raise ValueError(
+            f"Expect the batching dimensions of S and T to be the same, but got "
+            f"{batch_shape_S} and {batch_shape_T}"
+        )
+
+    S_indices = letter_index(rank_S + 1)  # +1 for the multiplicity dimension
+    T_indices = letter_index(rank_T + 1, start=rank_S + 1)
 
     left = get_delta_contraction_rule(S_indices, T_indices, num_delta)
 
-    # indices after contraction
-    S_indices = S_indices[num_delta:]
-    T_indices = T_indices[num_delta:]
+    # +1 to consider the multiplicity dimension
+    S_indices_after = S_indices[num_delta + 1 :]
+    T_indices_after = T_indices[num_delta + 1 :]
 
-    right_indices = get_sym_rules_2(S_indices, T_indices)
-    rules = [f"{left}->{right}" for right in right_indices]
+    right_indices = get_sym_rules_2(S_indices_after, T_indices_after)
+
+    # S_indices[0] and T_indices[0] are the multiplicity dimensions
+    rules = [
+        f"{left}->...{S_indices[0]}{T_indices[0]}{right}" for right in right_indices
+    ]
 
     data = [S, T]
     if num_delta > 0:
@@ -183,16 +221,25 @@ def get_sym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
 
     # TODO, it might be faster to separate it into two steps: 1. contract S and T to
     #  get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
-    # Yes, definitely do it
+    #
+    # TODO, we should do exactly the above to avoid many einsum calls. We just get U,
+    #  and then torch.permute the indices according to the symmetrization rules.
+
+    # TODO, NEED to figure out how to average, not over the batch / multi direction
     symmetrized = torch.mean(
         torch.stack([torch.einsum(r, *data) for r in rules]), dim=0
     )
 
+    # combine the two multiplicity dimensions as one
+    tensor_shape = [3] * (rank_S + rank_T - 2 * num_delta)
+    symmetrized = symmetrized.reshape(*batch_shape_S, mul_S * mul_T, *tensor_shape)
 
     return symmetrized
 
 
-def get_asym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
+def get_asym_part(
+    S: Tensor, T: Tensor, rank_S: int, rank_T: int, num_delta: int = 0
+) -> Tensor:
     """
     Fully symmetrize the asymmetrical part of the tensor product of two natural tensors
     S and T.
@@ -218,8 +265,12 @@ def get_asym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
     the asymmetrical indices, not all the indices.
 
     Args:
-        S: a natural tensor
-        T: a natural tensor
+        S: a natural tensor of shape (..., m_S, 3,...,3), where m_S is the multiplicity
+            of the tensor and the number of 3's is equal to the rank of the tensor.
+        T: a natural tensor of shape (..., m_T, 3,...,3), where m_T is the multiplicity
+            of the tensor and the number of 3's is equal to the rank of the tensor.
+        rank_S: the rank of S.
+        rank_T: the rank of T.
         num_delta: number of times to contract S and T with delta before multiplying
             the antisymmetric tensor epsilon.
 
@@ -227,22 +278,36 @@ def get_asym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
         The fully symmetrized part of the antisymmetrical part of the tensor product of
         S and T. This should be a natural tensor.
     """
-    if num_delta > 1 + min(S.ndim, T.ndim):
+    if num_delta > 1 + min(rank_S, rank_T):
         raise ValueError(
-            f"Expect `num_delta` to be <= 1 + min(S.ndim, T.ndim), but got {num_delta}"
+            f"Expect `num_delta` to be <= 1 + min(rank_S, rank_T), but got {num_delta}"
         )
 
-    S_indices = letter_index(S.ndim)
-    T_indices = letter_index(T.ndim, start=S.ndim)
+    mul_S = S.shape[-rank_S - 1]
+    mul_T = T.shape[-rank_T - 1]
+
+    batch_shape_S = S.shape[: -rank_S - 1]
+    batch_shape_T = T.shape[: -rank_T - 1]
+    if batch_shape_S != batch_shape_T:
+        raise ValueError(
+            f"Expect the batching dimensions of S and T to be the same, but got "
+            f"{batch_shape_S} and {batch_shape_T}"
+        )
+
+    S_indices = letter_index(rank_S + 1)
+    T_indices = letter_index(rank_T + 1, start=rank_S + 1)
 
     left = get_epsilon_delta_contraction_rule(S_indices, T_indices, num_delta)
 
-    # indices after delta contraction
-    S_indices = S_indices[1 + num_delta :]
-    T_indices = T_indices[1 + num_delta :]
+    # +2: 1 for epsilon and 1 for multiplicity dimension
+    S_indices_after = S_indices[num_delta + 2 :]
+    T_indices_after = T_indices[num_delta + 2 :]
 
-    right_indices = get_sym_rules_3("z", S_indices, T_indices)
-    rules = [f"{left}->{right}" for right in right_indices]
+    right_indices = get_sym_rules_3("z", S_indices_after, T_indices_after)
+
+    rules = [
+        f"{left}->...{S_indices[0]}{T_indices[0]}{right}" for right in right_indices
+    ]
 
     if num_delta > 0:
         d = dij()
@@ -252,10 +317,14 @@ def get_asym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
     data = [eijk()] + delta + [S, T]
 
     # TODO, it might be faster to separate it into two steps: 1. contract S and T to
-    #  get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
+    # get U, and 2. symmetrize U. This way, we can use U for all symmetrization rules.
     symmetrized = torch.mean(
         torch.stack([torch.einsum(r, *data) for r in rules]), dim=0
     )
+
+    # combine the two multiplicity dimensions as one
+    tensor_shape = [3] * (rank_S + rank_T - 2 * num_delta - 1)
+    symmetrized = symmetrized.reshape(*batch_shape_S, mul_S * mul_T, *tensor_shape)
 
     return symmetrized
 
@@ -266,28 +335,39 @@ def get_delta_contraction_rule(group_a: str, group_b: str, num_delta: int = 0) -
 
     Example:
         >>> get_delta_contraction_rule("ijk", "pqr", num_delta=0)
-        "ijk,pqr"
+        "...ijk, ...pqr"
         >>> get_delta_contraction_rule("ijk", "pqr", num_delta=1)
-        "ip,ijk,pqr"
+        "jq, ...ijk, ...pqr"
         >>> get_delta_contraction_rule("ijk", "pqr", num_delta=2)
-        "ip,jq,ijk,pqr"
+        "jq, kr, ...ijk, ...pqr"
+
+    The `...` represents whatever dimensions (e.g. batching) to be carried over.
+
+    Warning:
+        This assumes that letters `y` and `z` are not used in the indices. No check is
+        performed.
 
     Args:
-        group_a: a string of indices, e.g. "ijk"
-        group_b: a string of indices, e.g. "pqr"
-        num_delta: number of times to contract with delta
+        group_a: a string of indices, e.g. "ijk". The first index represents the
+            multiplicity dimension (which will not be contracted), and the rest are
+            the indices for contraction.
+        group_b: a string of indices, e.g. "pqr". The first index represents the
+            multiplicity dimension (which will not be contracted), and the rest are
+            the indices for contraction.
+        num_delta: number of times to contract with delta.
 
     Returns:
-        A string of indices, e.g. "ip,jq,ijk,pqr", where the last two set of indices are
-        the original indices, and the two sets of indices before them are the indices
+        A string of indices, e.g. "jq, kr, ...ijk, ...pqr", where the last two set of
+        indices are the original indices, and the indices before them are the indices
         to be contracted with the delta tensors.
-
     """
     if num_delta == 0:
-        return f"{group_a},{group_b}"
+        return f"...{group_a}, ...{group_b}"
     else:
-        delta_indices = ",".join([group_a[i] + group_b[i] for i in range(num_delta)])
-        return f"{delta_indices},{group_a},{group_b}"
+        delta_indices = ", ".join(
+            [group_a[i] + group_b[i] for i in range(1, 1 + num_delta)]
+        )
+        return f"{delta_indices}, ...{group_a}, ...{group_b}"
 
 
 def get_epsilon_delta_contraction_rule(
@@ -298,29 +378,31 @@ def get_epsilon_delta_contraction_rule(
 
     Example:
         >>> get_epsilon_delta_contraction_rule("ijk", "pqr", num_delta=0)
-        "zip,ijk,pqr"
+        "zjq, ...ijk, ...pqr"
         >>> get_epsilon_delta_contraction_rule("ijk", "pqr", num_delta=1)
-        "zjq,ip,ijk,pqr"
-        >>> get_epsilon_delta_contraction_rule("ijk", "pqr", num_delta=2)
-        "zkr,ip,jq,ijk,pqr"
+        "zkr, jq, ...ijk, ...pqr"
 
     Warning:
         This assumes that letter `z` is not used in the indices.
 
     Args:
-        group_a: a string of indices, e.g. "ijk"
-        group_b: a string of indices, e.g. "pqr"
-        num_delta: number of times to contract with delta
+        group_a: a string of indices, e.g. "ijk". The first index represents the
+            multiplicity dimension (which will not be contracted), and the rest are
+            the indices for contraction.
+        group_b: a string of indices, e.g. "pqr". The first index represents the
+            multiplicity dimension (which will not be contracted), and the rest are
+            the indices for contraction.
+        num_delta: number of times to contract with delta.
 
     Returns:
-        A string of indices, e.g. "zkr,ip,jq,ijk,pqr", where the last two set of indices
-        are the original indices; the first set of indices are the indices associated
-        with the epsilon tensor; and the two sets of indices in the middle are the
+        A string of indices, where the last two set of indices are the original indices;
+        the first set of indices are the indices to be contracted with the epsilon
+        tensor; and the rest indices in the middle are the
         indices to be contracted with the delta tensors.
     """
     indices = get_delta_contraction_rule(group_a, group_b, num_delta)
-    epsilon_indices = "z" + group_a[num_delta] + group_b[num_delta]
-    return f"{epsilon_indices},{indices}"
+    epsilon_indices = "z" + group_a[num_delta + 1] + group_b[num_delta + 1]
+    return f"{epsilon_indices}, {indices}"
 
 
 def get_sym_rules_2(group_a: str, group_b: str) -> list[str]:
@@ -338,10 +420,9 @@ def get_sym_rules_2(group_a: str, group_b: str) -> list[str]:
            does not matter.
         4. Average over all possible placements of indices for S and T.
 
-    Example:
-        Given two symmetrical tensors S_ij and T_pq, we have (for each line, first
-        equality switches pq, second equality switches ij, and third equality switches
-        both):
+    For example Given two symmetrical tensors S_ij and T_pq, we have (for each line,
+    first equality switches pq, second equality switches ij, and third equality switches
+    both):
         - S_ij T_pq = S_ij T_qp = S_ji T_pq = S_ji T_qp
         - S_ip T_jq = S_iq T_jp = S_jp T_iq = S_jq T_ip
         - S_ip T_qj = S_iq T_pj = S_jp T_qi = S_jq T_pi
@@ -349,12 +430,16 @@ def get_sym_rules_2(group_a: str, group_b: str) -> list[str]:
         - S_pi T_qj = S_qi T_pj = S_pj T_qi = S_qj T_pi
         - S_pq T_ij = S_qp T_ij = S_pq T_ji = S_qp T_ji
 
-        Then the symmetrized tensor is:
-            (S_ij T_pq + S_ip T_jq + S_ip T_qj + S_pi T_jp + S_pi T_qj + S_pq T_ij) / 6
+    Then the symmetrized tensor is:
+        (S_ij T_pq + S_ip T_jq + S_ip T_qj + S_pi T_jp + S_pi T_qj + S_pq T_ij) / 6
 
     Args:
         group_a: a string of indices, e.g. "ijk"
         group_b: a string of indices, e.g. "pqr"
+
+    Example:
+        >>> get_sym_rules_2('ij', 'pq')
+        ['ijpq', 'ipjq', 'ipqj', 'pijq', 'piqj', 'pqij']
 
     Returns:
         A list of all symmetrizing rules, e.g. ["ijkpqr", "ijpkqr", ...]
@@ -390,8 +475,16 @@ def get_sym_rules_3(group_a: str, group_b: str, group_c: str) -> list[str]:
         group_b: a string of indices, e.g. "pq"
         group_c: a string of indices, e.g. "xy"
 
+    Example:
+        >>> get_sym_rules_3('z', 'pq', 'xy')
+        ['zpqxy', 'zpxqy', 'zpxyq', 'zxpqy', zxpyq', 'zxypq',
+         'pzqxy', 'pzxqy', 'pzxyq', 'xzpqy', 'xzpyq', 'xzypq',
+         ...
+         'pqxyz', 'pzxqyz', 'pxyqz', 'xpqyz', 'xpyqz', 'xypqz',
+        ]
+
     Returns:
-        A list of all symmetrizing rules, e.g. ["ijpxyq", "ipjqxy", ...]
+        A list of all symmetrizing rules, e.g. ["zpqxy", "zpxqy", ...]
     """
 
     possible_pos = set(range(len(group_a) + len(group_b) + len(group_c)))
