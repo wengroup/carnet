@@ -56,3 +56,7 @@ def test_get_nt_from_vector():
         tp = torch.einsum(rule, nt, *([b] * n))
         leg = legendre(a_dot_b, n)
         assert torch.allclose(tp, leg), f"Failing for n = {n}"
+
+        # check n-contraction between nt and a is equal to 1
+        tp = torch.einsum(rule, nt, *([a] * n))
+        assert torch.allclose(tp, torch.tensor(1.0)), f"Failing for n = {n}"

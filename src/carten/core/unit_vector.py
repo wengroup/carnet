@@ -16,7 +16,7 @@ from carten.core.utils import (
 
 def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
     """
-    Create a rank-n natural tensor from a unit vector.
+    Create a natural tensor from a unit vector.
 
     X = C \sum_{d=0}^D (-1)^d \frac{(2n-2d-1)!!}{(2n-1)!!}
     \{ \hat{\bm a}^{\otimes^{n-2d}}\otimes \bm I^{\otimes d} \},
@@ -32,7 +32,9 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
             If `unity`, $C = \frac{(2n-1)!!}{l!}$ is used for normalization.
             In this case, an n-contraction between the output natural tensor and an
             arbitrary unit vector `b` is equal to the Legendre polynomial of the angle
-            between `a` and `b`. Namely: $out \odot^n b^{\otimes^n} = P_n(a \codt b)$.
+            between `a` and `b`. Namely: $out \odot^n b^{\otimes^n} = P_n(a \cdot b)$.
+            If `b` is chosen to be `a`, the n-contraction between the output natural
+            and `a` is equal to 1, i.e. $out \odot^n a^{\otimes^n} = 1$.
             If `none`, no normalization is applied, i.e. $C = 1$.
 
     Returns:
