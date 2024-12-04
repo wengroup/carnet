@@ -7,7 +7,7 @@ http://dx.doi.org/10.1063/1.528515
 import torch
 from torch import Tensor
 
-from carten.core.permute import get_permutations_delta
+from carten.core.symmetrize import get_permutations_delta
 from carten.core.utils import (
     dij,
     double_factorial,

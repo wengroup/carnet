@@ -1,6 +1,32 @@
 import itertools
 
+import torch
+from torch import Tensor
+
 from carten.core.utils import letter_index, repeat_double_index
+
+
+def symmetrize_via_permutation(
+    t: Tensor, perms: list[list[int]], mode: str = "sum"
+) -> Tensor:
+    """
+    Symmetrize a tensor by summing/averaging over all permutations.
+
+    Args:
+        t: The tensor to symmetrize.
+        perms: Permutations of the indices for symmetrization.
+        mode: The mode of symmetrization. For `sum`, summation is performed over all
+            permutations. For `mean`, the average is taken.
+
+    Returns:
+        The symmetrized tensor.
+    """
+    if mode == "sum":
+        return torch.stack([t.permute(p) for p in perms]).sum(dim=0)
+    elif mode == "mean":
+        return torch.stack([t.permute(p) for p in perms]).mean(dim=0)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
 
 
 # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py

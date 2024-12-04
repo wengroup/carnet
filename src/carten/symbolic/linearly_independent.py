@@ -20,7 +20,7 @@ import torch
 from torch import Tensor
 
 from carten.core.reduce import symmetrize_and_remove_trace
-from carten.core.permute import get_permutations_2
+from carten.core.symmetrize import get_permutations_2
 from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,

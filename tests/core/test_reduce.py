@@ -8,7 +8,7 @@ from carten.core.reduce import (
     remove_trace_rule,
     symmetrize,
 )
-from carten.core.permute import get_permutations, get_permutations_2
+from carten.core.symmetrize import get_permutations, get_permutations_2
 from carten.core.utils import is_symmetric, is_traceless
 
 
