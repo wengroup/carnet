@@ -9,6 +9,9 @@ from carten.core.symmetrize import get_permutations, get_permutations_2
 from carten.core.utils import dij, double_index, eijk, letter_index, repeat_double_index
 from carten.natural_tensor import NaturalTensors
 
+# TODO, the functions in this file should be completely reworked.
+# Try not using NaturalTensors
+
 
 def reduce_tensor(
     t: Tensor, symmetry: str = None, start_dim: int = 0

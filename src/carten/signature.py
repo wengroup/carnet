@@ -53,7 +53,7 @@ class Signature(list):
         to_sort = [(i, m, r) for i, (m, r) in enumerate(self)]
         out = sorted(to_sort, key=lambda x: x[2])
 
-        # sorted signature
+        # sorted signature and permutation
         s = Signature([(m, r) for _, m, r in out])
         sig_p = [i for i, _, _ in out]
 
@@ -62,10 +62,7 @@ class Signature(list):
         data_p = [
             j
             for i, _, _ in out
-            for j in range(
-                sum(chunk_dims[:i]),
-                sum(chunk_dims[:i]) + chunk_dims[i],
-            )
+            for j in range(sum(chunk_dims[:i]), sum(chunk_dims[: i + 1]))
         ]
 
         return SortedSignature(s, sig_p, data_p)
@@ -96,6 +93,19 @@ class Signature(list):
     def chunk_dims(self) -> list[int]:
         """The dimension of each chunk."""
         return [mr.mul * 3**mr.rank for mr in self]
+
+    def get_chunk_mul(self, i: int):
+        """The multiplicity of the i-th chunk."""
+        return self[i].mul
+
+    def get_chunk_rank(self, i: int):
+        """The rank of the i-th chunk."""
+        return self[i].rank
+
+    def get_chunk_dim(self, i: int):
+        """The dimension of the i-th chunk."""
+        mul, rank = self[i]
+        return mul * 3**rank
 
     @classmethod
     def from_str(cls, s: str):

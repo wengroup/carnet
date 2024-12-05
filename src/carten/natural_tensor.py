@@ -2,19 +2,14 @@ import torch
 from torch import Tensor
 
 from carten import SETTINGS
-from carten.signature import Signature
 from carten.core.utils import check_shape, is_symmetric_traceless
+from carten.signature import Signature
 
 
 class NaturalTensors:
     """A sequence of natural tensors.
 
-    By definition, a natural tensor is symmetric and traceless.
-
-    For a generic tensor, `symmetrize_and_remove_trace()` can be used to convert it
-    to a natural tensor of the same rank. Note, it will only extract the symmetric part
-    of the tensor at the same rank. The antisymmetric part is ignored, which can be
-    further decomposed into symmetric and traceless tensors of lower ranks.
+    A natural tensor is symmetric and traceless.
     """
 
     def __init__(self, signature: Signature, data: Tensor = None):
@@ -54,22 +49,24 @@ class NaturalTensors:
         shape of the natural tensor. Note, for scalar, the unflattened shape is (1,).
         """
         i = 0
-        for dim, (mul, rank) in zip(self.chunk_dims, self.signature):
+        for mul, rank in self.signature:
+            dim = mul * 3**rank
             yield unflatten_tensor_dims(self._data[..., i : i + dim], mul, rank)
             i += dim
 
     def get_chunk(self, i: int) -> Tensor:
         """Get the i-th chunk of the natural tensors."""
-        start = sum(self.chunk_dims[:i])
-        end = start + self.chunk_dims[i]
+        dims = self._signature.chunk_dims
+        start = sum(dims[:i])
+        end = start + dims[i]
         return self._data[..., start:end]
 
     def get_shaped_chunk(self, i: int) -> Tensor:
         """Get the i-th chunk of the natural tensors with the data reshaped."""
-        start = sum(self.chunk_dims[:i])
-        end = start + self.chunk_dims[i]
         return unflatten_tensor_dims(
-            self._data[..., start:end], self.chunk_muls[i], self.chunk_ranks[i]
+            self.get_chunk(i),
+            self._signature.get_chunk_mul(i),
+            self._signature.get_chunk_rank(i),
         )
 
     def simplify(self):
@@ -324,7 +321,7 @@ def flatten_tensor_dims(
     else:
         leading_shape = t.shape[: -rank - 1]
 
-    return t.reshape(*leading_shape, -1)
+    return t.view(*leading_shape, -1)
 
 
 def unflatten_tensor_dims(
@@ -364,4 +361,4 @@ def unflatten_tensor_dims(
     else:
         ending_shape = [3] * rank
 
-    return t.reshape(*leading_shape, mul, *ending_shape)
+    return t.view(*leading_shape, mul, *ending_shape)
