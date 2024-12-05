@@ -289,23 +289,3 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     delta_indices = letter_index(t)
 
     return rule, symmetry, delta_indices
-
-
-if __name__ == "__main__":
-    from carten.core.reduce import symmetrize_and_remove_trace
-    from carten.core.utils import is_symmetric_traceless
-
-    torch.manual_seed(0)
-    T2 = torch.randn(3, 3)
-    T3 = torch.randn(3, 3, 3)
-
-    NT2 = symmetrize_and_remove_trace(T2)
-    NT3 = symmetrize_and_remove_trace(T3)
-    assert is_symmetric_traceless(NT2), "NT2 is not symmetric traceless"
-    assert is_symmetric_traceless(NT3), "NT3 is not symmetric traceless"
-
-    out = tp_even(NT2, NT2, 4, normalize="unity")
-    assert is_symmetric_traceless(out, atol=1e-5), "out is not symmetric traceless"
-
-    out = tp_odd(NT2, NT3, 4, normalize="unity")
-    assert is_symmetric_traceless(out, atol=1e-5), "out is not symmetric traceless"

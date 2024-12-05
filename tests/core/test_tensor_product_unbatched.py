@@ -1,7 +1,7 @@
 import torch
 
 from carten.core.legendre import legendre
-from carten.core.tensor_product import (
+from carten.core.tensor_product_unbatched import (
     get_tp_even_rule,
     get_tp_odd_rule,
     tp_even,
