@@ -11,8 +11,8 @@ def letter_index(n: int, start: int = 0, upper_case: bool = False) -> str:
 
     Args:
         n: the length of the letters
-        start: the starting index.
-        upper_case: whether to use upper case letters.
+        start: the starting index
+        upper_case: whether to use upper case letters
     """
     if upper_case:
         return string.ascii_uppercase[start : start + n]
@@ -20,13 +20,14 @@ def letter_index(n: int, start: int = 0, upper_case: bool = False) -> str:
         return string.ascii_lowercase[start : start + n]
 
 
-def double_index(n: int, start: int = 0) -> list[str]:
+def double_index(n: int, start: int = 0, upper_case: bool = False) -> list[str]:
     """
     Get multiple double indices, like ['ab', 'cd', 'ef'].
 
     Args:
         n: the number of double indices
         start: the starting index
+        upper_case: whether to use upper case letters
 
     Examples:
         >>> double_index(2)
@@ -34,17 +35,18 @@ def double_index(n: int, start: int = 0) -> list[str]:
         >>> double_index(3, start=1)
         ['bc', 'cd', 'de']
     """
-    indices = letter_index(2 * n, start)
+    indices = letter_index(2 * n, start, upper_case)
     return [indices[i : i + 2] for i in range(0, 2 * n, 2)]
 
 
-def repeat_double_index(n: int, start: int = 0) -> list[str]:
+def repeat_double_index(n: int, start: int = 0, upper_case: bool = False) -> list[str]:
     """
     Get multiple repeated double indices, like ['aa', 'bb', 'cc'].
 
     Args:
         n: the number of double indices
         start: the starting index
+        upper_case: whether to use upper case letters
 
     Examples:
         >>> repeat_double_index(2)
@@ -52,7 +54,7 @@ def repeat_double_index(n: int, start: int = 0) -> list[str]:
         >>> repeat_double_index(3, start=1)
         ['bb', 'cc', 'dd']
     """
-    indices = letter_index(n, start)
+    indices = letter_index(n, start, upper_case)
     return [s * 2 for s in indices]
 
 
@@ -142,7 +144,7 @@ def is_traceless(T, start_dim: int = 0, atol: float = 1e-6, rtol: float = 1e-5) 
     for i, j in itertools.combinations(range(start_dim, T.ndim), 2):
         trace = get_trace(T, i, j)
         if not torch.allclose(trace, zeros, atol=atol, rtol=rtol):
-            sum_trance = torch.sum(torch.abs(trace))
+            sum_trace = torch.sum(torch.abs(trace))
             return False
 
     return True
