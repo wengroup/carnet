@@ -7,7 +7,7 @@ from carten.core.utils import letter_index, repeat_double_index
 
 
 def symmetrize_via_permutation(
-    t: Tensor, perms: list[list[int]], mode: str = "sum"
+    t: Tensor, perms: list[tuple[int, ...]], mode: str = "sum"
 ) -> Tensor:
     """
     Symmetrize a tensor by summing/averaging over all permutations.
@@ -31,7 +31,7 @@ def symmetrize_via_permutation(
 
 # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py
 #  Can we merge them?
-def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
+def get_permutations(symmetry: str, start_dim: int = 0) -> list[tuple[int, ...]]:
     """
     Get the unique permutations of the indices for symmetrizing a tensor.
 
@@ -62,12 +62,12 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
          [0, 1, 3, 4, 2, 5]]  # bbaa
 
     Returns:
-        Each inner list contains the permutation indices for symmetrization.
+        Each tuple contains the permutation indices for symmetrization.
     """
 
     all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
 
-    prefix = list(range(start_dim))
+    prefix = tuple(range(start_dim))
     unique_perms = []
     unique_perm_string = set()
 
@@ -76,7 +76,7 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
         perm_string = "".join(symmetry[i - start_dim] for i in perm)
 
         if perm_string not in unique_perm_string:
-            unique_perms.append(prefix + list(perm))
+            unique_perms.append(prefix + perm)
             unique_perm_string.add(perm_string)
 
     return unique_perms
@@ -84,7 +84,7 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
 
 def get_permutations_delta(
     symmetry: str, delta_indices: str, start_dim: int = 0
-) -> list[list[int]]:
+) -> list[tuple[int, ...]]:
     """
     Get unique permutations of the indices for symmetrizing a tensor, that is obtained
     by tensor product with delta tensors.
@@ -132,7 +132,7 @@ def get_permutations_delta(
             `start_dim` will not be used in the operation.
 
     Returns:
-        Each inner list contains the permutation indices for symmetrization.
+        Each inner tuple contains the permutation indices for symmetrization.
     """
 
     def canonize(ps: str) -> str:
@@ -157,7 +157,7 @@ def get_permutations_delta(
 
     all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
 
-    prefix = list(range(start_dim))
+    prefix = tuple(range(start_dim))
     unique_perms = []
     unique_canonical_forms = set()
 
@@ -167,7 +167,7 @@ def get_permutations_delta(
 
         canonical_form = canonize(perm_string)
         if canonical_form not in unique_canonical_forms:
-            unique_perms.append(prefix + list(perm))
+            unique_perms.append(prefix + perm)
             unique_canonical_forms.add(canonical_form)
 
     return unique_perms
