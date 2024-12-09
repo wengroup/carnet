@@ -1,6 +1,6 @@
 """Tensor product between two natural tensors.
 
-Batching and multiplicity of the tensors are supported.
+Batching and feature dimensions of the tensors are supported.
 
 Ref:
 [LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
@@ -25,24 +25,13 @@ def tp_even(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:
     """
-    Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is even.
-
-    This functions considers batching and multiplicity of the natural tensors.
-    If your input `X` and `Y` are natural tensors without batching and multiplicity,
-    use `tp_even_simple()` instead.
-
-    Note:
-        The multiplicity of the output tensor is the product of the multiplicities of
-        the two input tensors.
+    Calculate the tensor product Z_l3 = X_l1 \otimes Y_l2 where l1 + l2 - l3 is even.
 
     Args:
-        X: A natural tensor of rank l1. Shape: (..., m1, 3, 3, ..., 3), where the first
-            ... indices are the batch dimensions, m1 is the multiplicity of X, and the
-            3, 3, ..., 3 (a total number of l1) are the tensor indices.
-        Y: A natural tensor of rank l2. Shape: (..., m2, 3, 3, ..., 3), where the first
-            ... indices are the batch dimensions, m2 is the multiplicity of Y, and the
-            3, 3, ..., 3 (a total number of l2) are the tensor indices. The batch dims
-            of X and Y must be the same.
+        X: A natural tensor of rank l1. Shape: (..., F, 3^l1), where F is the number of
+            features.
+        Y: A natural tensor of rank l2. Shape: (..., F, 3^l2), where F is the number of
+            features.
         l1: The rank of the first tensor X.
         l2: The rank of the second tensor Y.
         l3: The rank of the output tensor Z.
@@ -52,19 +41,13 @@ def tp_even(
             If `none`, no normalization is applied.
 
     Returns:
-        A natural tensor of rank l3. Shape: (..., m3, 3, 3, ..., 3), where the
-        batching dimensions are the same as the input tensors X and Y, the multiplicity
-        m3 is the product of the multiplicities of X and Y (i.e. m1*m3), and the
-        3, 3, ..., 3 (a total number of l3) are the tensor indices.
+        A natural tensor of rank l3. Shape: (..., F, 3^l3), where F is the number of
+        features.
     """
 
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
 
-    batch_dims = X.shape[: -l1 - 1]
-    m1 = X.shape[-l1 - 1]
-    m2 = Y.shape[-l2 - 1]
-    m3 = m1 * m2
-
+    leading_dims = X.shape[:-1]  # including the feature dimension
     dtype = X.dtype
     device = X.device
 
@@ -72,9 +55,12 @@ def tp_even(
 
     d = dij(device)
 
+    # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
+    X = X.view(leading_dims + (3,) * l1)
+    Y = Y.view(leading_dims + (3,) * l2)
+
     # Create the output tensor
-    out_shape = batch_dims + (m3,) + (3,) * l3
-    Z = torch.zeros(out_shape, dtype=dtype, device=device)
+    Z = torch.zeros(leading_dims + (3,) * l3, dtype=dtype, device=device)
 
     for t in range(min(l1, l2) - k + 1):
         coeff = (-2) ** t / double_factorial(
@@ -86,15 +72,14 @@ def tp_even(
         # Get one tensor product
         prod = torch.einsum(rule, X, Y, *([d] * t))
 
-        # Combine the m1, m2 dimensions into a single m3 dimension
-        prod = prod.reshape(out_shape)
-
         # Symmetrize by summing over all unique permutations
-        start_dim = len(batch_dims) + 1  # +1 for the multiplicity dimension
-        perms = get_permutations_delta(symmetry, delta_indices, start_dim)
+        perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         Z = Z + coeff * prod
+
+    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
+    Z = Z.view(leading_dims + (-1,))
 
     if normalize == "unity":
         Z = coeff_C(l1, l2, l3) * Z
@@ -112,22 +97,11 @@ def tp_odd(
     """
     Calculate the tensor product of two natural tensors, when l1 + l2 - l3 is odd.
 
-    This functions considers batching and multiplicity of the natural tensors.
-    If your input `X` and `Y` are natural tensors without batching and multiplicity,
-    use `tp_odd_simple()` instead.
-
-    Note:
-        The multiplicity of the output tensor is the product of the multiplicities of
-        the two input tensors.
-
     Args:
-        X: A natural tensor of rank l1. Shape: (..., m1, 3, 3, ..., 3), where the first
-            ... indices are the batch dimensions, m1 is the multiplicity of X, and the
-            3, 3, ..., 3 (a total number of l1) are the tensor indices.
-        Y: A natural tensor of rank l2. Shape: (..., m2, 3, 3, ..., 3), where the first
-            ... indices are the batch dimensions, m2 is the multiplicity of Y, and the
-            3, 3, ..., 3 (a total number of l2) are the tensor indices. The batch dims
-            of X and Y must be the same.
+        X: A natural tensor of rank l1. Shape: (..., F, 3^l1), where F is the number of
+            features.
+        Y: A natural tensor of rank l2. Shape: (..., F, 3^l2), where F is the number of
+            features.
         l1: The rank of the first tensor X.
         l2: The rank of the second tensor Y.
         l3: The rank of the output tensor Z.
@@ -137,19 +111,13 @@ def tp_odd(
             If `none`, no normalization is applied.
 
     Returns:
-        A natural tensor of rank l3. Shape: (..., m3, 3, 3, ..., 3), where the
-        batching dimensions are the same as the input tensors X and Y, the multiplicity
-        m3 is the product of the multiplicities of X and Y (i.e. m1*m3), and the
-        3, 3, ..., 3 (a total number of l3) are the tensor indices.
+        A natural tensor of rank l3. Shape: (..., F, 3^l3), where F is the number of
+        features.
     """
 
     assert (l1 + l2 - l3) % 2 == 1, "l1 + l2 - l3 must be odd"
 
-    batch_dims = X.shape[: -l1 - 1]
-    m1 = X.shape[-l1 - 1]
-    m2 = Y.shape[-l2 - 1]
-    m3 = m1 * m2
-
+    leading_dims = X.shape[:-1]
     dtype = X.dtype
     device = X.device
 
@@ -158,9 +126,12 @@ def tp_odd(
     d = dij(device)
     epsilon = eijk(device)
 
+    # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
+    X = X.view(leading_dims + (3,) * l1)
+    Y = Y.view(leading_dims + (3,) * l2)
+
     # Create the output tensor
-    out_shape = batch_dims + (m3,) + (3,) * l3
-    Z = torch.zeros(out_shape, dtype=dtype, device=device)
+    Z = torch.zeros(leading_dims + (3,) * l3, dtype=dtype, device=device)
 
     for t in range(min(l1, l2) - k):
         coeff = (-2) ** t / double_factorial(
@@ -172,15 +143,14 @@ def tp_odd(
         # Get one tensor product
         prod = torch.einsum(rule, epsilon, X, Y, *([d] * t))
 
-        # Combine the m1, m2 dimensions into a single m3 dimension
-        prod = prod.reshape(out_shape)
-
         # Symmetrize by summing over all unique permutations
-        start_dim = len(batch_dims) + 1  # +1 for the multiplicity dimension
-        perms = get_permutations_delta(symmetry, delta_indices, start_dim)
+        perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         Z = Z + coeff * prod
+
+    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
+    Z = Z.view(leading_dims + (-1,))
 
     if normalize == "unity":
         Z = coeff_D(l1, l2, l3) * Z
@@ -188,65 +158,6 @@ def tp_odd(
         pass
     else:
         raise ValueError(f"Unknown normalization method: {normalize}")
-
-    return Z
-
-
-def tp_even_simple(X: Tensor, Y: Tensor, l3: int, normalize: str = "unity") -> Tensor:
-    """
-    The same as `tp_even()`, but without batching and multiplicity.
-
-    Args:
-        X: A natural tensor of rank l1. Shape: (3, 3, ..., 3), a total of l1 3's.
-        Y: A natural tensor of rank l2. Shape: (3, 3, ..., 3), a total of l2 3's.
-        l3: The rank of the output tensor.
-        normalize: The normalization method.
-
-    Returns:
-        A natural tensor of rank l3. Shape: (3, 3, ..., 3), a total of l3 3's.
-    """
-    l1 = X.ndim
-    l2 = Y.ndim
-
-    # Add a single multiplicity dimension
-    X = X.unsqueeze(0)
-    Y = Y.unsqueeze(0)
-
-    Z = tp_even(X, Y, l1, l2, l3, normalize)
-
-    # Remove the multiplicity dimension
-    Z = Z.squeeze(0)
-
-    return Z
-
-
-def tp_odd_simple(X: Tensor, Y: Tensor, l3: int, normalize: str = "unity") -> Tensor:
-    """
-    The same as `tp_odd()`, but without batching and multiplicity.
-
-    Args:
-        X: A natural tensor of rank l1. Shape: (3, 3, ..., 3), a total of l1 3's.
-        Y: A natural tensor of rank l2. Shape: (3, 3, ..., 3), a total of l2 3's.
-        l1: The rank of the first tensor X.
-        l2: The rank of the second tensor Y.
-        l3: The rank of the output tensor.
-        normalize: The normalization method.
-
-    Returns:
-        A natural tensor of rank l3. Shape: (3, 3, ..., 3), a total of l3 3's.
-    """
-
-    l1 = X.ndim
-    l2 = Y.ndim
-
-    # Add a single multiplicity dimension
-    X = X.unsqueeze(0)
-    Y = Y.unsqueeze(0)
-
-    Z = tp_odd(X, Y, l1, l2, l3, normalize)
-
-    # Remove the multiplicity dimension
-    Z = Z.squeeze(0)
 
     return Z
 
@@ -321,7 +232,7 @@ def get_tp_even_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
 
     Returns:
         rule: The einsum rule for the tensor product
-        symmetry: The symmetry information of the resultant tensor after the tensor
+        symmetry: The symmetry information of the resultant tensor after the tensor.
             product. e.g. `xxxyyyaa` means the first three indices are symmetric, the
             next three indices are symmetric, and the last two indices are symmetric.
         delta_indices: The indices for the delta tensors.
@@ -339,16 +250,11 @@ def get_tp_even_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
-    # indices for multiplicity
-    x_m = "x"
-    y_m = "y"
-
-    # The ... are for the batch dimensions
     rule = (
-        f"...{x_m}{xy_contracted}{x_remain},"
-        f"...{y_m}{xy_contracted}{y_remain}"
+        f"...{xy_contracted}{x_remain},"
+        f"...{xy_contracted}{y_remain}"
         f"{delta_left}"
-        f"->...{x_m}{y_m}{x_remain}{y_remain}{delta_right}"
+        f"->...{x_remain}{y_remain}{delta_right}"
     )
 
     # l1-k-t remaining symmetric indices from x
@@ -387,7 +293,7 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
             two indices are symmetric.
         delta_indices: The indices for the delta tensors.
     """
-    # example: epsilon_abc x_bpqr  y_cpqs I_tu -> arstu
+    # example: epsilon_uvw x_vabc  y_wabd I_AB -> ucdAB
 
     xy_contracted = letter_index(k + t)
     x_remain = letter_index(l1 - 1 - k - t, k + t)
@@ -398,17 +304,13 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     delta_left = "," + ",".join(delta) if delta else ""
     delta_right = "".join(delta)
 
-    # indices for multiplicity
-    x_m = "x"
-    y_m = "y"
-
     # The ... are for the batch dimensions
     rule = (
         f"uvw,"  # indices for epsilon
-        f"...{x_m}v{xy_contracted}{x_remain},"
-        f"...{y_m}w{xy_contracted}{y_remain}"
+        f"...v{xy_contracted}{x_remain},"
+        f"...w{xy_contracted}{y_remain}"
         f"{delta_left}"
-        f"->...{x_m}{y_m}u{x_remain}{y_remain}{delta_right}"
+        f"->...u{x_remain}{y_remain}{delta_right}"
     )
 
     # 1 index from epsilon

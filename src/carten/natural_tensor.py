@@ -194,6 +194,7 @@ class NaturalTensors:
         signature = Signature.from_ranks(ranks)
 
         if start_dim == 0:
+            # No batch dimensions, but we create one for it
             leading_shape = [1]
         else:
             leading_shape = data[0].shape[:start_dim]
@@ -297,8 +298,8 @@ def flatten_tensor_dims(
     """
     if check:
         if rank == 0:
-            m = t.shape[-rank - 2]
-            shape = t.shape[-rank - 1 :]
+            m = t.shape[-2]
+            shape = t.shape[-1:]
         else:
             m = t.shape[-rank - 1]
             shape = t.shape[-rank:]
@@ -317,7 +318,7 @@ def flatten_tensor_dims(
             )
 
     if rank == 0:
-        leading_shape = t.shape[: -rank - 2]
+        leading_shape = t.shape[:-2]
     else:
         leading_shape = t.shape[: -rank - 1]
 
