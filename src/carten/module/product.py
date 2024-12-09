@@ -1,0 +1,166 @@
+"""
+Product of natural tensors.
+"""
+
+from collections import defaultdict
+
+import torch
+from torch import Tensor, nn
+
+from carten.core.tp import tp_even, tp_odd
+from carten.module.linear import LinearCombination
+
+
+class TensorProduct(nn.Module):
+    """
+    Tensor product of two feature tensors.
+
+    z_L3 = x_L1 \otimes y_L2
+
+    Multiple paths l1, l2 -> l3 can lead to the same l3, and these paths are linearly
+    combined to get the output tensor of rank l3.
+
+
+    A feature tensor is a collection of natural tensors with rank 0, 1, and up to L.
+    It has the shape (..., F, T), where ... can be any batching dimensions, `F` is the
+    number of features (channels) and `T = \sum_{l=0}^L 3**l= [3**(L+1)-1]/2` is the
+    tensor dimension. The tensor dimension combines all elements of the natural tensors
+    up to rank L.
+
+    In other words, the innermost dim `T` of a feature tensor looks like:
+    X_0, X_1^0, X_1^1, X_1^2, X_2^00, X_2^01, X_2^02, X_2^10, X_2^11, X_2^12, X_2^20, X_2^21, X_2^22, ...
+    where subscripts denote the rank of the natural tensor and superscripts denote the
+    index of the element.
+
+    The innermost dim `T` can be sliced to get the natural tensors of rank l:
+    x_l = x[..., [3**l-1]//2 : [3**(l+1)-1]//2]
+    """
+
+    def __init__(
+        self,
+        F: int,
+        L1: int,
+        L2: int,
+        L3: int | tuple[int, ...] = None,
+        normalize: str = "unity",
+    ):
+        """
+        Args:
+            F: number of features (channels) in the input feature tensors.
+            L1: maximum rank of the natural tensor in the first input feature tensor.
+            L2: maximum rank of the natural tensor in the second input feature tensor.
+            L3: rank of the output feature tensor.
+                If int, it is the maximum allowed rank of the natural tensor in the
+                output feature tensor. Then the output feature tensor will consist of
+                natural tensors of rank |L1 - L2|, |L1-L2|+1, ..., L3.
+                If a tuple or list, only natural tensors of ranks in the tuple will be
+                included in the output feature tensor.
+                If None, the output feature tensor will consist of natural tensors of
+                rank up to the maximum rank of the input feature tensors, namely
+                |L1 - L2|, |L1-L2|+1, ..., max(L1, L2).
+            normalize: normalization method for the output tensor. Options are:
+                `unity` or `none`. See `carten.core.tp.tp_even`.
+        """
+        super().__init__()
+        self.L1 = L1
+        self.L2 = L2
+        self.L3 = self.check_rank(L1, L2, L3)
+        self.normalize = normalize
+
+        self.paths = get_paths(L1, L2, self.L3)
+
+        # TODO, we might want to skip linear combination if there is only one path
+        # TODO, LinearCombination uses different params for different F. Do we want
+        #  to share the params for all F?
+        # Kernel parameters for linear combination of paths to each l3
+        self.kernels = nn.ModuleList(
+            [LinearCombination(len(self.paths[l3]), F) for l3 in self.L3]
+        )
+
+        self.z_tensor_dims = [3**l3 for l3 in self.L3]
+
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        """
+
+        Args:
+            x: Feature tensor of maximum rank L1. Shape (..., F, T1),
+                where T1 = \sum_{l1} 3**l1.
+            y: Feature tensor of maximum rank L2. Shape (..., F, T2),
+                where T2 = \sum_{l2} 3**l2.
+
+        Returns:
+            z: Output feature tensor, whose ranks are determined the input L3. Shape
+                (..., F, T3), where T3 = \sum_{l3} 3**l3.
+        """
+        z = []
+        for idx, l3 in enumerate(self.L3):
+            z_l3 = []  # z_l3 from all paths
+            for path in self.paths[l3]:
+                l1, l2, _ = path
+
+                # x_l1: (..., F, 3**l1)
+                # y_l2: (..., F, 3**l2)
+                x_l1 = x[..., (3**l1 - 1) // 2 : (3 ** (l1 + 1) - 1) // 2]
+                y_l2 = y[..., (3**l2 - 1) // 2 : (3 ** (l2 + 1) - 1) // 2]
+
+                if (l1 + l2 - l3) % 2 == 0:
+                    z_tmp = tp_even(x_l1, y_l2, l1, l2, l3, self.normalize)
+                else:
+                    z_tmp = tp_odd(x_l1, y_l2, l1, l2, l3, self.normalize)
+                z_l3.append(z_tmp)
+
+            # (..., Np, F, 3**l3), where Np is the number of all paths to l3
+            z_l3 = torch.stack(z_l3, dim=-3)
+
+            # (..., F, 3**l3) Linear combination of all Np paths to l3
+            z_l3_combined = self.kernels[idx](z_l3)
+
+            z.append(z_l3_combined)
+
+        # Combine z of different l3 in the last dim
+        z = torch.cat(z, dim=-1)  # (..., F, T3)
+
+        return z
+
+    @staticmethod
+    def check_rank(L1: int, L2: int, L3: int) -> tuple[int, ...]:
+        """Helper function to get valid L3."""
+
+        if isinstance(L3, int):
+            L3 = range(abs(L1 - L2), L3 + 1)
+        elif isinstance(L3, (tuple, list)):
+            allowed = set(range(abs(L1 - L2), max(L1, L2) + 1))
+            if not set(L3).issubset(allowed):
+                raise ValueError(f"Invalid L3: {L3}. Allowed values are {allowed}.")
+            L3 = sorted(L3)
+        elif L3 is None:
+            L3 = range(abs(L1 - L2), max(L1, L2) + 1)
+        else:
+            raise ValueError(f"Invalid L3: {L3}. Must be int, tuple, list, or None.")
+
+        return tuple(sorted(L3))
+
+
+def get_paths(
+    L1: int, L2: int, L3: tuple[int, ...]
+) -> dict[int, list[tuple[int, int, int]]]:
+    """Get the paths from L1 and L2 to L3.
+
+    Args:
+        L1: maximum rank of the natural tensor in the first input feature tensor.
+        L2: maximum rank of the natural tensor in the second input feature tensor.
+        L3: ranks of the output feature tensor.
+
+    Returns:
+        Dictionary of paths from L1 and L2 to L3: {l3: [(l1, l2, l3)]}, where each
+        tuple is a valid path from l1 and l2 to l3.
+    """
+    paths = defaultdict(list)
+
+    for l1 in range(L1 + 1):
+        for l2 in range(L2 + 1):
+            for l in range(abs(l1 - l2), l1 + l2 + 1):
+                if l in L3:
+                    paths[l].append((l1, l2, l))
+
+    return paths
