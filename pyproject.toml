@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings",
     "torch",
     "opt_einsum",
+    "torch-geometric>=2.5.3",
 ]
 
 [project.optional-dependencies]
