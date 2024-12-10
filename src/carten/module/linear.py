@@ -48,21 +48,27 @@ class LinearMap(nn.Module):
     """
     Linear map of tensors.
 
-    Given a tensor of shape (..., d0, d1, d2), this module computes the linear
+    Given a tensor of shape (..., d1, d2), this module computes the linear
     combination of the tensor along the d1 (last but one) dimension, and returns
-    a tensor of shape (..., d0, d1', d2).
+    a tensor of shape (..., d1', d2).
 
     Args:
         in_features: d1
         out_features: d1'
+        bias: whether to add bias
     """
 
-    def __init__(self, in_features: int, out_features: int):
+    def __init__(self, in_features: int, out_features: int, bias: bool = False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
 
         self.weight = nn.Parameter(torch.empty(out_features, in_features))
+
+        if bias:
+            self.bias = nn.Parameter(torch.empty(out_features))
+        else:
+            self.register_parameter("bias", None)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -71,15 +77,22 @@ class LinearMap(nn.Module):
         """
         nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
+
     def forward(self, input: Tensor) -> Tensor:
         """
         Args:
-            input: tensor of shape (..., d0, d1, d2)
+            input: tensor of shape (..., d1, d2)
 
         Returns:
-            tensor of shape (..., d0, d1', d2)
+            tensor of shape (..., d1', d2)
         """
 
-        out = torch.tensordot(self.weight, input, dims=[[1], [-2]])
+        out = torch.einsum("ij,...jk->...ik", self.weight, input)
+        if self.bias is not None:
+            out += self.bias
 
         return out
