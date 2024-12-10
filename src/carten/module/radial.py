@@ -96,7 +96,7 @@ def radial_basis(
     r: Tensor,
     r_min: float = 0,
     r_cut: float = 5,
-    envelope: Optional[int] = "dimenet",
+    envelope: Optional[int] = None,
 ) -> Tensor:
     """
     Radial basis function, using Chebyshev polynomials.
@@ -109,8 +109,8 @@ def radial_basis(
         r_min: minimum distance.
         r_cut: cutoff distance.
         envelope: envelope function to make the radial basis function smooth at r_cut.
-            Options: `dimenet`: to use the 6th order polynomial envelope as in DimNet.
-            `mtp` to use the MTP 2nd order polynomial envelope.
+            if None, using the MTP 2nd order polynomial envelope. Otherwise, p is a
+            positive integer, and the envelope function in dimenet is used.
 
     Returns:
         A tensor X of shape (degree+1, *r.shape); +1 to include the zeroth degree.
@@ -126,12 +126,10 @@ def radial_basis(
 
     che = chebyshev_first(degree, normalized_r)
 
-    if envelope == "mtp":
+    if envelope is None:
         env = mtp_envelope(normalized_r)
-    elif envelope == "dimenet":
-        env = dimenet_envelope(normalized_r, p=envelope)
     else:
-        raise ValueError(f"Unknown envelope function: {envelope}")
+        env = dimenet_envelope(normalized_r, p=envelope)
 
     Q = che * env
 

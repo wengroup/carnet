@@ -48,13 +48,13 @@ class LinearMap(nn.Module):
     """
     Linear map of tensors.
 
-    Given a tensor of shape (d0, d1, d2 ...), this module computes the linear
-    combination of the tensor along the first dimension d0, and returns a tensor of
-    shape (d0', d1, d2, ...).
+    Given a tensor of shape (..., d0, d1, d2), this module computes the linear
+    combination of the tensor along the d1 (last but one) dimension, and returns
+    a tensor of shape (..., d0, d1', d2).
 
     Args:
-        in_features: d0
-        out_features: d0'
+        in_features: d1
+        out_features: d1'
     """
 
     def __init__(self, in_features: int, out_features: int):
@@ -74,12 +74,12 @@ class LinearMap(nn.Module):
     def forward(self, input: Tensor) -> Tensor:
         """
         Args:
-            x: tensor of shape (d0, d1,...)
+            input: tensor of shape (..., d0, d1, d2)
 
         Returns:
-            tensor of shape (d0', d1,...)
+            tensor of shape (..., d0, d1', d2)
         """
 
-        out = torch.tensordot(self.weight, input, dims=1)
+        out = torch.tensordot(self.weight, input, dims=[[1], [-2]])
 
         return out
