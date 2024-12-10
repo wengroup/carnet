@@ -14,12 +14,14 @@ from carten.core.utils import (
 )
 
 
-def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
+def get_nt_from_vector(
+    a: Tensor, l: int, normalize: str = "unity", flatten: bool = False
+) -> Tensor:
     """
     Create a natural tensor from a unit vector.
 
-    X = C \sum_{d=0}^D (-1)^d \frac{(2n-2d-1)!!}{(2n-1)!!}
-    \{ \hat{\bm a}^{\otimes^{n-2d}}\otimes \bm I^{\otimes d} \},
+    X = C \sum_{d=0}^D (-1)^d \frac{(2l-2d-1)!!}{(2l-1)!!}
+    \{ \hat{\bm a}^{\otimes^{l-2d}}\otimes \bm I^{\otimes d} \},
 
     where $D = n/2$ for even $n$ and $D = (n-1)/2$ for odd $n$.
 
@@ -28,44 +30,48 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
     Args:
         a: The unit vector(s). Shape(..., 3), where the last dimension is the vector,
             and the rest are batch dimensions.
-        n: Rank of the natural tensor to create.
+        l: Rank of the natural tensor to create.
         normalize: Normalization type.
-            If `unity`, $C = \frac{(2n-1)!!}{l!}$ is used for normalization.
-            In this case, an n-contraction between the output natural tensor and an
+            If `unity`, $C = \frac{(2l-1)!!}{l!}$ is used for normalization.
+            In this case, an l-contraction between the output natural tensor and an
             arbitrary unit vector `b` is equal to the Legendre polynomial of the angle
-            between `a` and `b`. Namely: $out \odot^n b^{\otimes^n} = P_n(a \cdot b)$.
-            If `b` is chosen to be `a`, the n-contraction between the output natural
-            and `a` is equal to 1, i.e. $out \odot^n a^{\otimes^n} = 1$.
+            between `a` and `b`. Namely: $out \odot^l b^{\otimes^l} = P_l(a \cdot b)$.
+            If `b` is chosen to be `a`, the l-contraction between the output natural
+            and `a` is equal to 1, i.e. $out \odot^l a^{\otimes^l} = 1$.
             If `none`, no normalization is applied, i.e. $C = 1$.
+        flatten: Whether to flatten the tensor dims. If `False`, the output tensor will
+            have shape (..., 3, 3, ..., 3), where the number of 3s is `l`. If `True`,
+            the output tensor will have shape (..., 3**l).
 
     Returns:
-            The rank-n natural tensor constructed from the unit vector.
+            The rank-l natural tensor constructed from the unit vector.
     """
-    # TODO, we can force to normalize `a` as a unit vector
+    # TODO we can force to normalize `a` as a unit vector
 
     # For rank-0, return scalar 1. For rank-1, return the unit vector itself.
     batch_dims = a.shape[:-1]
 
-    if n == 0:
-        return torch.ones(batch_dims, dtype=a.dtype, device=a.device)
-    elif n == 1:
+    if l == 0:
+        return torch.atleast_1d(torch.ones(batch_dims, dtype=a.dtype, device=a.device))
+
+    elif l == 1:
         return a
 
     delta = dij(a.device)
 
-    D = n // 2
+    D = l // 2
 
-    out = torch.zeros([3] * n, dtype=a.dtype, device=a.device)
+    out = torch.zeros([3] * l, dtype=a.dtype, device=a.device)
     coeff = 1
     for d in range(D + 1):
-        rule, symmetry, delta_indices = get_nt_from_vector_rule(n, d)
+        rule, symmetry, delta_indices = get_nt_from_vector_rule(l, d)
 
-        # When n == 2*d, we have only deltas, and we create a placeholder of 1 to deal
+        # When l == 2*d, we have only deltas, and we create a placeholder of 1 to deal
         # with the batch dimensions in the vector `a`.
-        if n == 2 * d:
+        if l == 2 * d:
             all_a = [torch.ones(batch_dims, dtype=a.dtype, device=a.device)]
         else:
-            all_a = [a] * (n - 2 * d)
+            all_a = [a] * (l - 2 * d)
 
         # Get one tensor product
         prod = torch.einsum(rule, *all_a, *([delta] * d))
@@ -77,44 +83,75 @@ def get_nt_from_vector(a: Tensor, n: int, normalize: str = "unity") -> Tensor:
         out = out + coeff * prod
 
         # Update the coefficient
-        # coeff = (-1) ** d / double_factorial(2 * n - 1, 2 * n - 2 * d - 1 + 2)
-        coeff = -coeff / (2 * n - 2 * d - 1)
+        # coeff = (-1) ** d / double_factorial(2 * l - 1, 2 * l - 2 * d - 1 + 2)
+        coeff = -coeff / (2 * l - 2 * d - 1)
 
     if normalize == "unity":
-        out = double_factorial(2 * n - 1) / factorial(n) * out
+        out = double_factorial(2 * l - 1) / factorial(l) * out
     elif normalize == "none":
         pass
     else:
         raise ValueError(f"Unknown normalization method: {normalize}")
 
-    return out
+    if flatten:
+        return out.view(batch_dims + (-1,))
+    else:
+        return out
 
 
-def get_nt_from_vector_rule(n: int, d: int) -> tuple[str, str, str]:
+def get_polyadics_from_vector(a: Tensor, L: int, normalize="unity"):
     """
-    Get the rule for creating a rank-n natural tensor from a unit vector.
+    Create polyadic tensors from a unit vector.
+
+    A polyadic tensor of rank L from a unit vector is defined as:
+    $a \otimes a \otimes ... \otimes a$,  # a total of L a.
+    It can be decomposed to natural tensors of unit vector of rank 0, 1, and up to L.
+
+    This function gets all the natural tensors and concatenates them at the last
+    dimension.
 
     Args:
-        n: Rank of the natural tensor to create.
+        a: The unit vector(s). Shape(..., 3), where the last dimension is the vector,
+            and the rest are batch dimensions.
+        L: Maximum rank of the natural tensors to create.
+        normalize: Normalization type. See `get_nt_from_vector()`.
+
+    Returns:
+        The feature tensor of the unit vector. Shape (..., T), where
+        T = \sum_{l=0}^L = ((L+1)**2 -1)/2.
+    """
+    feature_tensors = []
+    for l in range(L + 1):
+        feature_tensors.append(get_nt_from_vector(a, l, normalize, flatten=True))
+
+    return torch.cat(feature_tensors, dim=-1)
+
+
+def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:
+    """
+    Get the rule for creating a rank-l natural tensor from a unit vector.
+
+    Args:
+        l: Rank of the natural tensor to create.
         d: Number of deltas.
 
     Returns:
-        rule: The rule for creating a rank-n natural tensor from a unit vector.
+        rule: The rule for creating a rank-l natural tensor from a unit vector.
         symmetry: The symmetry of the rule.
         delta_indices: The delta indices.
     """
-    a = letter_index(n - 2 * d)
+    a = letter_index(l - 2 * d)
     a_left = "..." + ",...".join(a)  # the first `...` is for batch dimensions
     a_right = "..." + a  # the first `...` is for batch dimensions
 
-    delta = double_index(d, start=n - 2 * d)
+    delta = double_index(d, start=l - 2 * d)
     delta_right = "".join(delta)
     delta_left = ",".join(delta) if delta else ""
     if a_left and delta_left:
         delta_left = "," + delta_left
 
     rule = f"{a_left}{delta_left}->{a_right}{delta_right}"
-    symmetry = "x" * (n - 2 * d) + "".join(repeat_double_index(d))
+    symmetry = "x" * (l - 2 * d) + "".join(repeat_double_index(d))
     delta_indices = letter_index(d)
 
     return rule, symmetry, delta_indices

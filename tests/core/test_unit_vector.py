@@ -1,7 +1,11 @@
 import torch
 
 from carten.core.legendre import legendre
-from carten.core.unit_vector import get_nt_from_vector, get_nt_from_vector_rule
+from carten.core.unit_vector import (
+    get_nt_from_vector,
+    get_nt_from_vector_rule,
+    get_polyadics_from_vector,
+)
 from carten.core.utils import is_symmetric_traceless, letter_index
 
 
@@ -40,9 +44,11 @@ def test_get_nt_from_vector():
     a_dot_b = torch.dot(a, b)
 
     nt = get_nt_from_vector(a, 0)
-    assert nt == torch.tensor(1.0)
+    assert nt.shape == (1,)
+    assert nt == torch.tensor([1.0])
 
     nt = get_nt_from_vector(a, 1)
+    assert nt.shape == (3,)
     assert torch.allclose(nt, a)
 
     for n in range(2, 8):
@@ -64,6 +70,8 @@ def test_get_nt_from_vector():
 
 def test_get_nt_from_vector_batch():
     a = torch.tensor([1.0, 2.0, 3.0])
+    a = a / a.norm()
+
     batch = 4
     a2 = a.repeat(batch, 1)
 
@@ -72,3 +80,12 @@ def test_get_nt_from_vector_batch():
         nt_repeat = nt.repeat(batch, *([1] * n))
         bnt = get_nt_from_vector(a2, n)
         assert torch.allclose(bnt, nt_repeat), f"Failing for n = {n}"
+
+
+def test_get_polyadics_from_vector():
+    a = torch.tensor([1.0, 2.0, 3.0])
+    a = a / a.norm()
+
+    for L in range(5):
+        x = get_polyadics_from_vector(a, L)
+        assert x.shape == ((3 ** (L + 1) - 1) // 2,)
