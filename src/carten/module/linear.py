@@ -48,9 +48,9 @@ class LinearMap(nn.Module):
     """
     Linear map of tensors.
 
-    Given a tensor of shape (..., d1, d2), this module computes the linear
-    combination of the tensor along the d1 (last but one) dimension, and returns
-    a tensor of shape (..., d1', d2).
+    Given a tensor of shape (..., d1, d2), this module computes the linear map of the
+    tensor along the d1 (last but one) dimension, and returns a tensor of shape
+    (..., d1', d2).
 
     Args:
         in_features: d1

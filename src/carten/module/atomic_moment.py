@@ -23,7 +23,7 @@ class AtomicMoment(nn.Module):
         F: int,
         L1: int,
         L2: int,
-        L3: int | tuple[int, ...],
+        L3: int | tuple[int, ...] | None,
         num_atom_types: int,
         num_average_neigh: float,
         max_chebyshev_degree: int = 8,
@@ -70,12 +70,13 @@ class AtomicMoment(nn.Module):
                 )
 
         # Linear combination of channels, separate for each l3
-        self.linear_channel = nn.ModuleList(
-            [
-                LinearMap(F, F, True) if l3 == 0 else LinearMap(F, F, False)
-                for l3 in self.L3
-            ]
-        )
+        self.linear_channel = nn.ModuleList([])
+        for l3 in self.L3:
+            if l3 == 0:
+                bias = True
+            else:
+                bias = False
+            self.linear_channel.append(LinearMap(F, F, bias))
 
     def forward(
         self,
@@ -132,13 +133,15 @@ class AtomicMoment(nn.Module):
         product = self.tp(atom_feats[j_idx], polyadics, R)
 
         # aggregate atoms j (src) to atom i (dst); (n_atoms, F, T3)
-        t = scatter(product, i_idx, reduce="sum", dim=0) / self.num_average_neigh**0.5
+        M = scatter(product, i_idx, reduce="sum", dim=0) / self.num_average_neigh**0.5
 
+        # TODO, is it possible to not do looping, maybe by constructing a kernel that
+        #  combines all l3
         # Linear mix across channels
         start = 0
         for l3, fn in zip(self.L3, self.linear_channel):
             end = start + 3**l3
-            t[..., start:end] = fn(t[..., start:end])
+            M[..., start:end] = fn(M[..., start:end])
             start = end
 
-        return t
+        return M

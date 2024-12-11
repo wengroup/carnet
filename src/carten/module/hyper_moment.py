@@ -1,0 +1,121 @@
+"""Hyper moment constructed as the tensor product of multiple atomic moments."""
+import torch
+from torch import Tensor, nn
+
+from .linear import LinearCombination
+from .product import TensorProduct
+
+
+class HyperMoment(nn.Module):
+    """
+    Self tensor product of atomic moment feature tensor:
+
+    $H = x_L \otimes x_L \otimes ... \otimes x_L$
+
+    where $L$ is the max rank of the atomic moment feature tensor, consisting of
+    natural tensors of rank 0, 1, 2, ..., and up to $L$.
+
+    The number of $x_L$ used in the tensor product is denoted as the correlation degree
+    of the hyper moment feature tensor. The hyper moment feature tensor are created
+    for degree 1, 2, ..., and up max degree:
+    H^1, H^2, ..., H^{max_degree}.
+
+    For each H_i, only natural tensors of rank up to L are kept, and the ones of rank
+    higher than L are discarded.
+
+    Natural tensors of the same rank l from different H_i are linearly combined to
+    generate the final hyper moment feature tensor, i.e.:
+    H = \sum_d w_d H^d
+
+    Args:
+        F: Number of features in the atomic moment feature tensor.
+        L: Max rank of the atomic moment feature tensor.
+        max_out_L: Max rank L for the output hyper moment feature tensor.
+        max_degree: Max correlation degree of the hyper moment feature tensor.
+    """
+
+    def __init__(
+        self,
+        F: int,
+        L: int,
+        max_out_L: int = None,
+        max_degree: int = None,
+    ):
+        super().__init__()
+
+        if max_out_L is None:
+            max_out_L = L
+        else:
+            if not max_out_L <= L:
+                raise ValueError(f"Expect max_out_L <= L, got {max_out_L} > {L}.")
+
+        if max_degree is None:
+            max_degree = L
+        else:
+            if not max_degree <= L:
+                raise ValueError(f"Expect max_degree <= L, got {max_degree} > {L}.")
+
+        self.F = F
+        self.L = L
+        self.max_out_L = max_out_L
+        self.max_degree = max_degree
+
+        # Iterative tensor products to evaluate H^1, H^2, ..., H^{max_degree}
+        # H^1 = x_L
+        # H^2 = H^1 \otimes x_L
+        # H^3 = H^2 \otimes x_L
+        # ...
+        # H^{max_degree} = H^{max_degree-1} \otimes x_L
+        # So, in total there will be max_degree-1 tensor products to be evaluated.
+        # For each tensor product, H^i = H^{i-1} \otimes x_L, it is chosen that the
+        # maximum rank of the natural tensors in H^i is L. However, this is not the
+        # case for the final output hyper moment tensor, H^{max_degree}, where the
+        # maximum rank of the natural tensors is set to max_out_L.
+        #
+        # TODO, it might be possible that, for a given max_out_L < L, the rank of the
+        #   natural tensor in H^{i} can be smaller than L. Well, maybe not. For example,
+        #   if L=2, and max_out_L=0, then the scalar part of H^2 = H^1 \otimes x_2 can
+        #   still come from H^1_2 and x_2. So, we need H^1 to have ranks up to L.
+
+        self.tp = nn.ModuleList([])
+        for i in range(max_degree - 1):
+            if i == max_degree - 2:
+                out_L = max_out_L
+            else:
+                out_L = L
+            self.tp.append(TensorProduct(F, L, L, out_L, normalize="unity"))
+
+        # Linear combination of different degree
+        # In TensorProduct, a separate kernel is used for each rank to combine different
+        # paths, so do not need to use a separate linear combination for rank here.
+        # H = \sum_d w_d H^d
+        self.linear_degree = LinearCombination(max_degree, F)
+
+
+def forward(self, x: Tensor) -> Tensor:
+    """
+    Args:
+        x: Atomic moment tensors. Shape (..., F, T), where F is the number of
+            features, and T=(3**(L+1)-1)/2 is the number of tensor components.
+
+    Returns:
+        Hyper moments. Shape (n_atoms, F, T'), where T' is determined by the max_out_L.
+    """
+    # The number of tensor components to keep in the output
+    size = (3 ** (self.max_out_L + 1) - 1) // 2
+
+    # Output hyper moments from different degrees
+    # Shape of each element is (..., F, T'), where T' is the size above
+    out_H = [x[..., :size]]
+
+    H_tmp = x
+    for i in range(self.max_degree - 1):
+        tp = self.tp[i]
+        product = tp(H_tmp, x)
+        H_tmp = product
+        out_H.append(product[..., :size])
+
+    out_H = torch.stack(out_H, dim=-3)  # (..., max_degree, F, T')
+    H = self.linear_degree(out_H)  # (..., F, T')
+
+    return H

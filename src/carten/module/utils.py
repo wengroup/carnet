@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 
-def check_rank(L1: int, L2: int, L3: int) -> tuple[int, ...]:
+def check_rank(L1: int, L2: int, L3: int | tuple[int, ...] | None) -> tuple[int, ...]:
     """Helper function to get valid L3."""
 
     if isinstance(L3, int):
