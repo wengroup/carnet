@@ -101,6 +101,8 @@ def forward(self, x: Tensor) -> Tensor:
     Returns:
         Hyper moments. Shape (n_atoms, F, T'), where T' is determined by the max_out_L.
     """
+    assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid x shape."
+
     # The number of tensor components to keep in the output
     size = (3 ** (self.max_out_L + 1) - 1) // 2
 

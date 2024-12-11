@@ -11,51 +11,47 @@ def T0():
 
 @pytest.fixture(scope="session")
 def T1():
-    t = torch.arange(3).to(torch.float32)
-    return t / t.mean()
+    return get_T(1)
 
 
 @pytest.fixture(scope="session")
 def T2():
-    t = torch.arange(9).reshape((3, 3)).to(torch.float32)
-    return t / t.mean()
+    return get_T(2)
 
 
 @pytest.fixture(scope="session")
 def T3():
-    t = torch.arange(27).reshape((3, 3, 3)).to(torch.float32)
-    return t / t.mean()
+    return get_T(3)
 
 
 @pytest.fixture(scope="session")
 def T4():
-    t = torch.arange(81).reshape((3, 3, 3, 3)).to(torch.float32)
-    return t / t.mean()
+    return get_T(4)
 
 
 @pytest.fixture(scope="session")
-def NT0(T0):
-    return T0
+def NT0():
+    return torch.tensor(1.0)
 
 
 @pytest.fixture(scope="session")
-def NT1(T1):
-    return symmetrize_and_remove_trace(T1)
+def NT1():
+    return get_NT(1)
 
 
 @pytest.fixture(scope="session")
-def NT2(T2):
-    return symmetrize_and_remove_trace(T2)
+def NT2():
+    return get_NT(2)
 
 
 @pytest.fixture(scope="session")
-def NT3(T3):
-    return symmetrize_and_remove_trace(T3)
+def NT3():
+    return get_NT(3)
 
 
 @pytest.fixture(scope="session")
 def NT4(T4):
-    return symmetrize_and_remove_trace(T4)
+    return get_NT(4)
 
 
 @pytest.fixture(scope="session")
@@ -108,3 +104,15 @@ def T4_chunk(NT4, mul=2):
 @pytest.fixture(scope="session")
 def T4_shaped_chunk(T4, mul=2):
     return torch.cat([T4.flatten()] * mul, dim=-1).reshape(1, mul, 3, 3, 3, 3)
+
+
+def get_T(rank: int):
+    """Create a tensor of rank `rank` for testing."""
+    t = torch.arange(3**rank).reshape([3] * rank).to(torch.float32)
+    return t / t.mean()
+
+
+def get_NT(rank: int):
+    """Create a natural tensor of rank `rank` for testing."""
+    t = get_T(rank)
+    return symmetrize_and_remove_trace(t)
