@@ -69,6 +69,7 @@ class LinearMap(nn.Module):
             self.bias = nn.Parameter(torch.empty(out_features))
         else:
             self.register_parameter("bias", None)
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -93,6 +94,6 @@ class LinearMap(nn.Module):
 
         out = torch.einsum("ij,...jk->...ik", self.weight, input)
         if self.bias is not None:
-            out += self.bias
+            out += self.bias.unsqueeze(-1)
 
         return out
