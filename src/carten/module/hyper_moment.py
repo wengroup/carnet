@@ -92,32 +92,32 @@ class HyperMoment(nn.Module):
         self.linear_degree = LinearCombination(max_degree, F)
 
 
-def forward(self, x: Tensor) -> Tensor:
-    """
-    Args:
-        x: Atomic moment tensors. Shape (..., F, T), where F is the number of
-            features, and T=(3**(L+1)-1)/2 is the number of tensor components.
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: Atomic moment tensors. Shape (..., F, T), where F is the number of
+                features, and T=(3**(L+1)-1)/2 is the number of tensor components.
 
-    Returns:
-        Hyper moments. Shape (n_atoms, F, T'), where T' is determined by the max_out_L.
-    """
-    assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid x shape."
+        Returns:
+            Hyper moments. Shape (n_atoms, F, T'), where T' is determined by the max_out_L.
+        """
+        assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid x shape."
 
-    # The number of tensor components to keep in the output
-    size = (3 ** (self.max_out_L + 1) - 1) // 2
+        # The number of tensor components to keep in the output
+        size = (3 ** (self.max_out_L + 1) - 1) // 2
 
-    # Output hyper moments from different degrees
-    # Shape of each element is (..., F, T'), where T' is the size above
-    out_H = [x[..., :size]]
+        # Output hyper moments from different degrees
+        # Shape of each element is (..., F, T'), where T' is the size above
+        out_H = [x[..., :size]]
 
-    H_tmp = x
-    for i in range(self.max_degree - 1):
-        tp = self.tp[i]
-        product = tp(H_tmp, x)
-        H_tmp = product
-        out_H.append(product[..., :size])
+        H_tmp = x
+        for i in range(self.max_degree - 1):
+            tp = self.tp[i]
+            product = tp(H_tmp, x)
+            H_tmp = product
+            out_H.append(product[..., :size])
 
-    out_H = torch.stack(out_H, dim=-3)  # (..., max_degree, F, T')
-    H = self.linear_degree(out_H)  # (..., F, T')
+        out_H = torch.stack(out_H, dim=-3)  # (..., max_degree, F, T')
+        H = self.linear_degree(out_H)  # (..., F, T')
 
-    return H
+        return H

@@ -1,24 +1,25 @@
 from carten.core.utils import is_symmetric, is_traceless
-from carten.module.atomic_moment import AtomicMoment
+from carten.module.hyper_moment import HyperMoment
 
 from .conftest import create_feature_tensors
 
 
-def test_AtomicMoment(config_info):
+def test_HyperMoment(config_info):
     coords, atom_type, edge_vector, edge_idx, num_atoms, num_atom_types = config_info
 
     F = 5
-    L1 = L2 = L3 = 4
-    x = create_feature_tensors(num_atoms, F, L1)
+    L = 4
+    max_out_L = 4
+    x = create_feature_tensors(num_atoms, F, L)
 
-    am = AtomicMoment(F, L1, L2, L3, num_atom_types, num_average_neigh=5.0)
-    out = am(edge_vector, edge_idx, atom_type, x)
+    hm = HyperMoment(F, L, max_out_L)
+    out = hm(x)
 
     # Check the total shape
-    assert out.shape == (num_atoms, F, (3 ** (L3 + 1) - 1) // 2)
+    assert out.shape == (num_atoms, F, (3 ** (max_out_L + 1) - 1) // 2)
 
     # Check each l is a natural tensor
-    for l3 in range(L3 + 1):
+    for l3 in range(max_out_L + 1):
         sliced = out[..., (3**l3 - 1) // 2 : (3 ** (l3 + 1) - 1) // 2]
 
         # change the shape to (num_atoms, F, 3, 3, ...)
