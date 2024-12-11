@@ -53,7 +53,7 @@ def test_get_nt_from_vector():
 
     for n in range(2, 8):
         nt = get_nt_from_vector(a, n)
-        assert nt.shape == tuple([3] * n)
+        assert nt.shape == (3,) * n
         assert is_symmetric_traceless(nt, atol=1e-5), f"Failing for n = {n}"
 
         # check n-contraction between nt and b is equal to Legendre(a\dot b)
@@ -77,8 +77,18 @@ def test_get_nt_from_vector_batch():
 
     for n in range(5):
         nt = get_nt_from_vector(a, n)
+        if n == 0:
+            assert nt.shape == (1,)
+        else:
+            assert nt.shape == (3,) * n
+
         nt_repeat = nt.repeat(batch, *([1] * n))
         bnt = get_nt_from_vector(a2, n)
+        if n == 0:
+            assert bnt.shape == (batch, 1)
+        else:
+            assert bnt.shape == (batch,) + (3,) * n
+
         assert torch.allclose(bnt, nt_repeat), f"Failing for n = {n}"
 
 

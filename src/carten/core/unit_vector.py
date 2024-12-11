@@ -52,7 +52,8 @@ def get_nt_from_vector(
     batch_dims = a.shape[:-1]
 
     if l == 0:
-        return torch.atleast_1d(torch.ones(batch_dims, dtype=a.dtype, device=a.device))
+        out = torch.ones(batch_dims, dtype=a.dtype, device=a.device)
+        return out.view(batch_dims + (1,))
 
     elif l == 1:
         return a
