@@ -16,6 +16,12 @@ from .utils import check_rank
 class AtomicMoment(nn.Module):
     """
     Atomic Moments.
+
+    Args:
+        F: Number of features.
+        L1: Max rank for the atomic features.
+        L2: Max rank for the polyadics from the unit vectors.
+        L3: Max rank for the tensor product of the atomic features and polyadics.
     """
 
     def __init__(
@@ -62,7 +68,7 @@ class AtomicMoment(nn.Module):
         self.radial_mlp = nn.ModuleDict()
         for paths in self.tp.paths.values():
             for p in paths:
-                self.radial_mlp[p] = MLP(
+                self.radial_mlp[str(p)] = MLP(
                     in_features=F,
                     out_features=F,
                     hidden_features=radial_mlp_hidden_layers,
@@ -99,8 +105,9 @@ class AtomicMoment(nn.Module):
         Returns:
             Updated atom feats. The same shape as input atom_feats.
         """
-
-        assert atom_feats.shape[-1] == self.L1, "Invalid atom feature shape."
+        assert (
+            atom_feats.shape[-1] == (3 ** (self.L1 + 1) - 1) // 2
+        ), "Invalid atom feats shape."
 
         # Indices of center atoms (i) and neighbor atoms (j); (n_edges,)
         i_idx = edge_idx[0]
@@ -112,6 +119,10 @@ class AtomicMoment(nn.Module):
         polyadics = get_polyadics_from_vector(
             nn.functional.normalize(edge_vector, p=2, dim=-1), self.L2
         )
+        # (n_edges, F, T2)
+        polyadics = polyadics.unsqueeze(-2).expand(
+            polyadics.shape[0], self.F, polyadics.shape[1]
+        )
 
         # Radial basis; (n_edges, F)
         fu = self.radial(
@@ -122,12 +133,14 @@ class AtomicMoment(nn.Module):
 
         # Radial params for each path
         R = {
-            p: self.radial_mlp[p](fu) for paths in self.tp.paths.values() for p in paths
+            p: self.radial_mlp[str(p)](fu)
+            for paths in self.tp.paths.values()
+            for p in paths
         }
 
         # Tensor product of the features of center atoms and neighbor atoms
         # atom_feats[j_idx]: (n_edges, F, T1)
-        # polyadics: (n_edges, T2)
+        # polyadics: (n_edges, F, T2)
         # R: (n_edges, F) for each path
         # product: (n_edges, F, T3)
         product = self.tp(atom_feats[j_idx], polyadics, R)
