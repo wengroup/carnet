@@ -1,7 +1,7 @@
 from carten.core.utils import is_symmetric, is_traceless
 from carten.module.atomic_moment import AtomicMoment
 
-from .conftest import create_feature_tensors
+from ..conftest import create_feature_tensors
 
 
 def test_AtomicMoment(config_info):

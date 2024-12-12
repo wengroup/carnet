@@ -1,7 +1,7 @@
 from carten.core.utils import is_symmetric, is_traceless
 from carten.module.layer import Layer
 
-from .conftest import create_feature_tensors
+from ..conftest import create_feature_tensors
 
 
 def test_Layer(config_info):
