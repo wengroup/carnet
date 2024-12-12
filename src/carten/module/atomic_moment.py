@@ -18,7 +18,7 @@ class AtomicMoment(nn.Module):
     Atomic Moments.
 
     Args:
-        F: Number of features.
+        F: Channel dimension.
         L1: Max rank for the atomic features.
         L2: Max rank for the polyadics from the unit vectors.
         L3: Max rank for the tensor product of the atomic features and polyadics.
@@ -76,7 +76,7 @@ class AtomicMoment(nn.Module):
                 )
 
         # Linear combination of channels, separate for each l3
-        self.linear_channel = nn.ModuleList([])
+        self.linear_channel = nn.ModuleList()
         for l3 in self.L3:
             if l3 == 0:
                 bias = True

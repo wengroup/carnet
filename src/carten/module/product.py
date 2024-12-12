@@ -22,7 +22,7 @@ class TensorProduct(nn.Module):
 
     A feature tensor is a collection of natural tensors with rank 0, 1, and up to L.
     It has the shape (..., F, T), where ... can be any batching dimensions, `F` is the
-    number of features (channels) and `T = \sum_{l=0}^L 3**l= [3**(L+1)-1]/2` is the
+    number of features (channels) and `T = \sum_{l=0}^L 3**l= (3**(L+1)-1)/2` is the
     tensor dimension. The tensor dimension combines all elements of the natural tensors
     up to rank L.
 
@@ -45,18 +45,18 @@ class TensorProduct(nn.Module):
     ):
         """
         Args:
-            F: number of features (channels) in the input feature tensors.
+            F: number of features (channel dimension) in the input feature tensors.
             L1: maximum rank of the natural tensor in the first input feature tensor.
             L2: maximum rank of the natural tensor in the second input feature tensor.
             L3: rank of the output feature tensor.
                 If int, it is the maximum allowed rank of the natural tensor in the
                 output feature tensor. Then the output feature tensor will consist of
-                natural tensors of rank |L1 - L2|, |L1-L2|+1, ..., L3.
+                natural tensors of rank 0, 1, ..., L3.
                 If a tuple or list, only natural tensors of ranks in the tuple will be
                 included in the output feature tensor.
                 If None, the output feature tensor will consist of natural tensors of
                 rank up to the maximum rank of the input feature tensors, namely
-                |L1 - L2|, |L1-L2|+1, ..., max(L1, L2).
+                0, 1, ..., max(L1, L2).
             normalize: normalization method for the output tensor. Options are:
                 `unity` or `none`. See `carten.core.tp.tp_even`.
         """

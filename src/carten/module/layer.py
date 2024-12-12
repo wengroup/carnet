@@ -30,6 +30,10 @@ class Layer(nn.Module):
         """
 
         Args:
+            F:
+            L1:
+            L2:
+            L3:
             num_atom_types:
             num_average_neigh:
             max_chebyshev_degree:

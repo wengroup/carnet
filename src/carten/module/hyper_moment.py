@@ -28,7 +28,7 @@ class HyperMoment(nn.Module):
     H = \sum_d w_d H^d
 
     Args:
-        F: Number of features in the atomic moment feature tensor.
+        F: Channel dimension.
         L: Max rank of the atomic moment feature tensor.
         max_out_L: Max rank for the output hyper moment feature tensor.
             If None, set to L.
@@ -79,7 +79,7 @@ class HyperMoment(nn.Module):
         #   if L=2, and max_out_L=0, then the scalar part of H^2 = H^1 \otimes x_2 can
         #   still come from H^1_2 and x_2. So, we need H^1 to have ranks up to L.
 
-        self.tp = nn.ModuleList([])
+        self.tp = nn.ModuleList()
         for i in range(max_degree - 1):
             if i == max_degree - 2:
                 out_L = max_out_L
@@ -103,12 +103,12 @@ class HyperMoment(nn.Module):
             Hyper moments. Shape (n_atoms, F, T'), where T' is the number of tensor
             components, determined by max_out_L.
         """
-        assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid x shape."
+        assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid input shape."
 
         # The number of tensor components to keep in the output
         size = (3 ** (self.max_out_L + 1) - 1) // 2
 
-        # Output hyper moments from different degrees
+        # Output hyper moments from different coupling degrees
         # Shape of each element is (..., F, T'), where T' is the size above
         out_H = [x[..., :size]]
 
