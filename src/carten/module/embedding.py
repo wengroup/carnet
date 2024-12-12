@@ -6,6 +6,9 @@ class Embedding(nn.Module):
     """
     Embed integers 0, 1, 2, ... as learnable fixed-size vectors.
 
+    This is done by first converting the integers to one-hot vectors and then applying
+    a linear layer to embed the one-hot vectors.
+
     Args:
         size: number of integers to embed.
         embedding_dim: output dim of the species embedding.
