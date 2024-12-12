@@ -2,17 +2,24 @@ from collections import defaultdict
 
 
 def check_rank(L1: int, L2: int, L3: int | tuple[int, ...] | None) -> tuple[int, ...]:
-    """Helper function to get valid L3."""
+    """Helper function to get valid l3.
+
+    Convert all values to a tuple of l3 for the give L1, L2, and L3.
+    """
 
     if isinstance(L3, int):
-        L3 = range(abs(L1 - L2), L3 + 1)
+        if not 0 <= L3 <= L1 + L2:
+            raise ValueError(f"Invalid L3: {L3}. Must be in [0, L1 + L2].")
+        L3 = range(L3 + 1)
     elif isinstance(L3, (tuple, list)):
-        allowed = set(range(abs(L1 - L2), max(L1, L2) + 1))
+        allowed = set(range(L1 + L2 + 1))
         if not set(L3).issubset(allowed):
-            raise ValueError(f"Invalid L3: {L3}. Allowed values are {allowed}.")
-        L3 = sorted(L3)
+            raise ValueError(
+                f"Invalid L3: {L3}. For L1={L1} and L2={L2}, allowed values are "
+                f"{allowed}."
+            )
     elif L3 is None:
-        L3 = range(abs(L1 - L2), max(L1, L2) + 1)
+        L3 = range(max(L1, L2) + 1)
     else:
         raise ValueError(f"Invalid L3: {L3}. Must be int, tuple, list, or None.")
 
