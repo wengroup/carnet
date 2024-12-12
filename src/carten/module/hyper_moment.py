@@ -30,8 +30,10 @@ class HyperMoment(nn.Module):
     Args:
         F: Number of features in the atomic moment feature tensor.
         L: Max rank of the atomic moment feature tensor.
-        max_out_L: Max rank L for the output hyper moment feature tensor.
+        max_out_L: Max rank for the output hyper moment feature tensor.
+            If None, set to L.
         max_degree: Max correlation degree of the hyper moment feature tensor.
+            If None, set to L.
     """
 
     def __init__(
@@ -91,7 +93,6 @@ class HyperMoment(nn.Module):
         # H = \sum_d w_d H^d
         self.linear_degree = LinearCombination(max_degree, F)
 
-
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
@@ -99,7 +100,8 @@ class HyperMoment(nn.Module):
                 features, and T=(3**(L+1)-1)/2 is the number of tensor components.
 
         Returns:
-            Hyper moments. Shape (n_atoms, F, T'), where T' is determined by the max_out_L.
+            Hyper moments. Shape (n_atoms, F, T'), where T' is the number of tensor
+            components, determined by max_out_L.
         """
         assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid x shape."
 

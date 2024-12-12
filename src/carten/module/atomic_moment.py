@@ -103,7 +103,8 @@ class AtomicMoment(nn.Module):
                 number of features, and T1 = (3**(L1+1)-1)//2 is the tensor dim.
 
         Returns:
-            Updated atom feats. The same shape as input atom_feats.
+            Updated atom feats. Shape (Na, F, T3), where T3 is the number tensor
+            components determined by L3.
         """
         assert (
             atom_feats.shape[-1] == (3 ** (self.L1 + 1) - 1) // 2
@@ -148,12 +149,14 @@ class AtomicMoment(nn.Module):
         # aggregate atoms j (src) to atom i (dst); (n_atoms, F, T3)
         M = scatter(product, i_idx, reduce="sum", dim=0) / self.num_average_neigh**0.5
 
+        # TODO, we should move the mixing to the `Layer` module
         # TODO, is it possible to not do looping, maybe by constructing a kernel that
         #  combines all l3
         # Linear mix across channels
         start = 0
         for l3, fn in zip(self.L3, self.linear_channel):
             end = start + 3**l3
+            # TODO, is the inplace OK? A: not for backprop
             M[..., start:end] = fn(M[..., start:end])
             start = end
 

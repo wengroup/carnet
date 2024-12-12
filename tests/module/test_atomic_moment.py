@@ -11,7 +11,7 @@ def test_AtomicMoment(config_info):
     L1 = L2 = L3 = 4
     x = create_feature_tensors(num_atoms, F, L1)
 
-    am = AtomicMoment(F, L1, L2, L3, num_atom_types, num_average_neigh=5.0)
+    am = AtomicMoment(F, L1, L2, L3, num_atom_types, num_average_neigh=1.0)
     out = am(edge_vector, edge_idx, atom_type, x)
 
     # Check the total shape
