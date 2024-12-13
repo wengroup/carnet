@@ -1,10 +1,9 @@
 """CARTEN layer module."""
-import torch
 from torch import Tensor, nn
 
 from .atomic_moment import AtomicMoment
 from .hyper_moment import HyperMoment
-from .linear import LinearMap
+from .linear import SlicedLinearMap
 
 
 class Layer(nn.Module):
@@ -68,8 +67,8 @@ class Layer(nn.Module):
         # TODO, we might not need this, given that we perform the mixing at the end
         #  This might be beneficial for the first layer.
         # Kernel for mixing atom feats across channel, separate for each rank
-        self.linear_channel_input = nn.ModuleList(
-            [LinearMap(F, F) for _ in range(L1 + 1)]
+        self.linear_channel_input = SlicedLinearMap(
+            F, F, [3**l for l in range(L1 + 1)], bias=True
         )
 
         self.atom_moment = AtomicMoment(
@@ -85,27 +84,26 @@ class Layer(nn.Module):
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
-        self.linear_channel_atomic = nn.ModuleList()
-        for l3 in range(self.L3 + 1):
-            if l3 == 0:
-                bias = True
-            else:
-                bias = False
-            self.linear_channel_atomic.append(LinearMap(F, F, bias))
+        self.linear_channel_atomic = SlicedLinearMap(
+            F, F, [3**l for l in range(L3 + 1)], bias=True
+        )
 
         self.hyper_moment = HyperMoment(
             F=self.F, L=self.L3, max_out_L=self.max_out_L, max_degree=self.max_degree
         )
 
         # Kernel for mixing channel of hyper moment, separate for each rank
-        self.linear_channel_hyper = nn.ModuleList(
-            [LinearMap(F, F) for _ in range(self.max_out_L + 1)]
+        self.linear_channel_hyper = SlicedLinearMap(
+            F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
         )
 
         # Kernel for mixing channel of input atom feats, separate for each rank
         if mix_atom_feats_across_channel:
-            self.linear_channel_feats = nn.ModuleList(
-                [LinearMap(F, F) for _ in range(self.max_out_L + 1)]
+            # Only do it for the ranks that exist in both the input atom feats and the
+            # output hyper moment
+            self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
+            self.linear_channel_feats = SlicedLinearMap(
+                F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
             )
         else:
             self.register_buffer("linear_channel_feats", None)
@@ -118,7 +116,6 @@ class Layer(nn.Module):
         atom_feats: Tensor,
     ) -> Tensor:
         """
-
         Args:
             edge_vector: Edge vectors. Shape (n_edges, 3).
             edge_idx: Indices of center and neighbor atoms, that form the edges.
@@ -132,90 +129,27 @@ class Layer(nn.Module):
             Updated atom feats. Shape (Na, F, T'), where T' is the number of tensor
             components, determined by max_out_L.
         """
-        # # mix atom feats across radial channel
-        # feats: dict[int, Tensor] = {}
-        # for v, f in atom_feats.items():
-        #     # Make indexing ModuleDict work
-        #     # See https://github.com/pytorch/pytorch/issues/68568
-        #     fn: JITInterface = self.linear_channel_input[str(v)]
-        #     feats[v] = fn.forward(f)
-        #
-        # am = self.atom_moment(edge_vector, edge_idx, atom_type, feats)
-        #
-        # hm = self.hyper_moment(am)  # {v: (n_u, n_atoms, 3, 3, ...)}}
-        #
-        # # mix radial channel of hyper moment
-        # # {v: {n_u, n_atoms, 3, 3, ...)}}
-        # # hm = {rank: self.linear_channel_hyper[str(rank)](m) for rank, m in hm.items()}
-        #
-        # for rank, m in hm.items():
-        #     fn: JITInterface = self.linear_channel_hyper[str(rank)]
-        #     hm[rank] = fn.forward(m)
-        #
-        # out = hm
-        #
-        # # mix radial channel of input atom feats and add to the output
-        # if self.mix_atom_feats_across_channel:
-        #     max_rank = min(self.max_atom_feats_rank, self.max_out_L)
-        #     for rank in range(max_rank + 1):
-        #         fn: JITInterface = self.linear_channel_feats[str(rank)]
-        #         out[rank] = out[rank] + fn.forward(feats[rank])
-        #
-        # return out
 
         # TODO, This seems not needed, we have too many mixing
         # Mixing input atom feats across channel
-        feats = []
-        start = 0
-        for l, fn in zip(range(self.L1 + 1), self.linear_channel_input):
-            end = start + 3**l
-            feats.append(fn(atom_feats[..., start:end]))
-            start = end
-        feats = torch.cat(feats, dim=-1)  # (Na, F, T1)
+        feats = self.linear_channel_input(atom_feats)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
         am = self.atom_moment(edge_vector, edge_idx, atom_type, feats)
 
-        # TODO, is it possible to not do looping, maybe by constructing a kernel that
-        #  combines all l3
         # Mix atomic moments across channel
-        am_mixed = []
-        start = 0
-        for l3, fn in zip(range(self.L3 + 1), self.linear_channel_atomic):
-            end = start + 3**l3
-            am_mixed.append(fn(am[..., start:end]))
-            start = end
-        am_mixed = torch.cat(am_mixed, dim=-1)  # (Na, F, T3)
+        am_mixed = self.linear_channel_atomic(am)  # (Na, F, T3)
 
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am_mixed)
 
         # Mix hyper moments across channel
-        hm_mixed = []
-        start = 0
-        for l, fn in zip(range(self.max_out_L + 1), self.linear_channel_hyper):
-            end = start + 3**l
-            hm_mixed.append(fn(hm[..., start:end]))
-            start = end
-        hm_mixed = torch.cat(hm_mixed, dim=-1)  # (Na, F, T')
-
-        # TODO, if we want to use this, we need to ensure max_out_L < L1, because
-        #  atom_feats can be smaller, e.g. for the first layer, it only consists of
-        #  scalar features.
-        #
-        # TODO, we need to modify the definition of self.linear_channel_feats as:
-        #  self.linear_channel_feats =
-        #  nn.ModuleList([LinearMap(F, F) for _ in range(min(self.max_out_L, self.L1) + 1)])
-        #  and modify the below range accordingly.
+        hm_mixed = self.linear_channel_hyper(hm)  # (Na, F, T')
 
         # Mix input atom feats across channel and add to the output
         if self.linear_channel_feats is not None:
-            start = 0
-            for l, fn in zip(range(self.max_out_L + 1), self.linear_channel_feats):
-                end = start + 3**l
-                # NOTE, although it is in-place, it is fine for autograd. PyTorch
-                # defines += to handle in-place operation correctly.
-                hm_mixed[..., start:end] += fn(atom_feats[..., start:end])
-                start = end
+            size = (3 ** (self.min_max_out_L_L1 + 1) - 1) // 2
+            feats_skip_connection = self.linear_channel_feats(atom_feats[..., :size])
+            hm_mixed[..., :size] += feats_skip_connection
 
         return hm_mixed
