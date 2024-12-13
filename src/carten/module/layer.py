@@ -84,6 +84,15 @@ class Layer(nn.Module):
             r_cut=r_cut,
         )
 
+        # Kernel for mixing channel of atomic moment, separate for each rank
+        self.linear_channel_atomic = nn.ModuleList()
+        for l3 in range(self.L3 + 1):
+            if l3 == 0:
+                bias = True
+            else:
+                bias = False
+            self.linear_channel_atomic.append(LinearMap(F, F, bias))
+
         self.hyper_moment = HyperMoment(
             F=self.F, L=self.L3, max_out_L=self.max_out_L, max_degree=self.max_degree
         )
@@ -154,6 +163,7 @@ class Layer(nn.Module):
         #
         # return out
 
+        # TODO, This seems not needed, we have too many mixing
         # Mixing input atom feats across channel
         feats = []
         start = 0
@@ -166,19 +176,28 @@ class Layer(nn.Module):
         # Get atomic moments; (Na, F, T3)
         am = self.atom_moment(edge_vector, edge_idx, atom_type, feats)
 
-        # TODO, move mixing of atomic moment across channel from atomic_moment.py to here
+        # TODO, is it possible to not do looping, maybe by constructing a kernel that
+        #  combines all l3
+        # Mix atomic moments across channel
+        am_mixed = []
+        start = 0
+        for l3, fn in zip(range(self.L3 + 1), self.linear_channel_atomic):
+            end = start + 3**l3
+            am_mixed.append(fn(am[..., start:end]))
+            start = end
+        am_mixed = torch.cat(am_mixed, dim=-1)  # (Na, F, T3)
 
         # Get hyper moments; (Na, F, T')
-        hm = self.hyper_moment(am)
+        hm = self.hyper_moment(am_mixed)
 
-        # TODO, we have so many such mixing, create a function for it and share
         # Mix hyper moments across channel
+        hm_mixed = []
         start = 0
         for l, fn in zip(range(self.max_out_L + 1), self.linear_channel_hyper):
             end = start + 3**l
-            # TODO, inplace change is not OK for backprop
-            hm[..., start:end] = fn(hm[..., start:end])
+            hm_mixed.append(fn(hm[..., start:end]))
             start = end
+        hm_mixed = torch.cat(hm_mixed, dim=-1)  # (Na, F, T')
 
         # TODO, if we want to use this, we need to ensure max_out_L < L1, because
         #  atom_feats can be smaller, e.g. for the first layer, it only consists of
@@ -194,8 +213,9 @@ class Layer(nn.Module):
             start = 0
             for l, fn in zip(range(self.max_out_L + 1), self.linear_channel_feats):
                 end = start + 3**l
-                # TODO, inplace change is not OK for backprop
-                hm[..., start:end] = hm[..., start:end] + fn(atom_feats[..., start:end])
+                # NOTE, although it is in-place, it is fine for autograd. PyTorch
+                # defines += to handle in-place operation correctly.
+                hm_mixed[..., start:end] += fn(atom_feats[..., start:end])
                 start = end
 
-        return hm
+        return hm_mixed

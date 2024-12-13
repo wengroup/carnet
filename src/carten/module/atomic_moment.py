@@ -75,15 +75,6 @@ class AtomicMoment(nn.Module):
                     out_activation=False,
                 )
 
-        # Linear combination of channels, separate for each l3
-        self.linear_channel = nn.ModuleList()
-        for l3 in self.L3:
-            if l3 == 0:
-                bias = True
-            else:
-                bias = False
-            self.linear_channel.append(LinearMap(F, F, bias))
-
     def forward(
         self,
         edge_vector: Tensor,
@@ -148,16 +139,5 @@ class AtomicMoment(nn.Module):
 
         # aggregate atoms j (src) to atom i (dst); (n_atoms, F, T3)
         M = scatter(product, i_idx, reduce="sum", dim=0) / self.num_average_neigh**0.5
-
-        # TODO, we should move the mixing to the `Layer` module
-        # TODO, is it possible to not do looping, maybe by constructing a kernel that
-        #  combines all l3
-        # Linear mix across channels
-        start = 0
-        for l3, fn in zip(self.L3, self.linear_channel):
-            end = start + 3**l3
-            # TODO, is the inplace OK? A: not for backprop
-            M[..., start:end] = fn(M[..., start:end])
-            start = end
 
         return M

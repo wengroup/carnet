@@ -28,6 +28,6 @@ def test_InteratomicPotential(batched_config_info):
 
     energy = model(edge_vector, edge_idx, atom_type, num_atoms)
 
-    # forces = compute_forces(energy, coords)
-    # assert forces.shape == (num_atoms.sum(), 3)
-    # assert torch.allclose(forces[:4], forces[4:])
+    forces = compute_forces(energy, coords)
+    assert forces.shape == (num_atoms.sum(), 3)
+    assert torch.allclose(forces[:4], forces[4:])
