@@ -8,13 +8,13 @@ class LinearCombination(nn.Module):
     """
     Linear combination of tensors.
 
-    Given a tensor of shape (..., d0, d1, d2), this module computes the linear
-    combination along the dimension d0, but separately for each d1 dimension,
-    resulting in a tensor of shape (..., d1, d2).
+    Given a tensor of shape (..., F', F, T), this module computes the linear combination
+    along the dimension F', but separately for each d1 dimension, resulting in a tensor
+    of shape (..., F, T).
 
     Args:
-        in_features: d0
-        const_features: d1
+        in_features: F'
+        const_features: F
     """
 
     def __init__(self, in_features: int, const_features: int):
@@ -48,13 +48,13 @@ class LinearMap(nn.Module):
     """
     Linear map of tensors.
 
-    Given a tensor of shape (..., d1, d2), this module computes the linear map of the
-    tensor along the d1 (last but one) dimension, and returns a tensor of shape
-    (..., d1', d2).
+    Given a tensor of shape (..., F, t), this module computes the linear map of the
+    tensor along the F (last but one) dimension, and returns a tensor of shape
+    (..., F', t).
 
     Args:
-        in_features: d1
-        out_features: d1'
+        in_features: F
+        out_features: F'
         bias: whether to add bias
     """
 
@@ -86,14 +86,106 @@ class LinearMap(nn.Module):
     def forward(self, input: Tensor) -> Tensor:
         """
         Args:
-            input: tensor of shape (..., d1, d2)
+            input: tensor of shape (..., F, t)
 
         Returns:
-            tensor of shape (..., d1', d2)
+            tensor of shape (..., F', t)
         """
 
         out = torch.einsum("ij,...jk->...ik", self.weight, input)
         if self.bias is not None:
             out += self.bias.unsqueeze(-1)
+
+        return out
+
+
+class SlicedLinearMap(nn.Module):
+    """
+    Sliced linear map of tensors.
+
+    Given a tensor of shape (..., F, T), this module computes the linear map of the
+    tensor along the F (last but one) dimension to a tensor of shape (..., F', T).
+
+    Unlike LinearMap, where a single weight matrix is used for the entire tensor, here
+    separate weight matrices are used for each slice across the T dimension.
+
+    For example, let T = t1+t2+...+tn, then n weight matrices are used, each for a slice
+    of size ti across the T dimension.
+
+    This is essentially a generalization of LinearMap.
+
+    Args:
+        in_features: F
+        out_features: F'
+        slice_sizes: Sizes of slices across the T dimension.
+        bias: Whether to add bias for the first slice. Bias is only added to the first
+            slice and when slice_sizes[0] == 1, namely when the first slice is a scalar.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        slice_sizes: list[int],
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.slice_sizes = slice_sizes
+
+        # Store original weight matrix, one for each slice; (F', F)
+        self.weights = nn.ParameterList(
+            [nn.Parameter(torch.empty(out_features, in_features)) for _ in slice_sizes]
+        )
+
+        # Combine all weights into a single tensor; (F', F, T)
+        self.expanded_weight = torch.cat(
+            [
+                w.unsqueeze(-1).expand(-1, -1, size)
+                for w, size in zip(self.weights, self.slice_sizes)
+            ],
+            dim=-1,
+        )
+
+        # Add bias for the first slice
+        if bias:
+            if slice_sizes[0] != 1:
+                raise ValueError(
+                    f"Bias can only be used when first slice size is 1 "
+                    f"(namely a scalar), but got {slice_sizes[0]}"
+                )
+            self.bias = nn.Parameter(torch.empty(out_features))
+        else:
+            self.register_parameter("bias", None)
+
+        # TODO, should we move this before self.expanded_weight?
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """
+        https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#l109
+        """
+        for weight in self.weights:
+            nn.init.kaiming_uniform_(weight, a=math.sqrt(5))
+
+        if self.bias is not None:
+            fan_in = self.in_features
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: Tensor) -> Tensor:
+        """
+        Args:
+            input: tensor of shape (..., F, T)
+
+        Returns:
+            tensor of shape (..., F', T)
+        """
+        out = torch.einsum("ijk,...jk->...ik", self.expanded_weight, input)
+
+        if self.bias is not None:
+            # Bias is now shape (F',) and we add it to first slice only
+            out[..., 0] += self.bias
 
         return out
