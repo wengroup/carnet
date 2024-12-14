@@ -69,10 +69,9 @@ class TensorProduct(nn.Module):
         self.paths = get_paths(self.L1, self.L2, self.L3)
 
         # TODO, we might want to skip linear combination if there is only one path
-        # TODO, LinearCombination uses different params for different F. Do we want
-        #  to share the params for all F?
+        # TODO, LinearCombination uses different params for different channel F. Do we
+        #  want to share the params for all F?
 
-        # TODO, we might be able to implement a different kernel to avoid the loop
         # Kernel parameters for linear combination of paths to each l3
         # Each (l1, l2, l3) has its own kernel parameters
         self.kernels = nn.ModuleList(

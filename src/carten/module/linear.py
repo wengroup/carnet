@@ -8,12 +8,12 @@ class LinearCombination(nn.Module):
     """
     Linear combination of tensors.
 
-    Given a tensor of shape (..., F', F, T), this module computes the linear combination
-    along the dimension F', but separately for each d1 dimension, resulting in a tensor
-    of shape (..., F, T).
+    Given a tensor of shape (..., P, F, t), this module computes the linear combination
+    along the dimension F', but separately for each F dimension, resulting in a tensor
+    of shape (..., F, t).
 
     Args:
-        in_features: F'
+        in_features: P
         const_features: F
     """
 
@@ -35,13 +35,13 @@ class LinearCombination(nn.Module):
     def forward(self, input: Tensor) -> Tensor:
         """
         Args:
-            input: tensor of shape (...,d0, d1, d2)
+            input: tensor of shape (...,P, F, t)
 
         Returns:
-            tensor of shape (..., d1, d2)
+            tensor of shape (..., F, t)
         """
 
-        return torch.einsum("ij,...ijk->...jk", self.weight, input)
+        return torch.einsum("pf,...pft->...ft", self.weight, input)
 
 
 class LinearMap(nn.Module):
@@ -92,7 +92,7 @@ class LinearMap(nn.Module):
             tensor of shape (..., F', t)
         """
 
-        out = torch.einsum("ij,...jk->...ik", self.weight, input)
+        out = torch.einsum("ij,...jt->...it", self.weight, input)
         if self.bias is not None:
             out += self.bias.unsqueeze(-1)
 
@@ -182,7 +182,7 @@ class SlicedLinearMap(nn.Module):
             dim=-1,
         )
 
-        out = torch.einsum("ijk,...jk->...ik", expanded_weight, input)
+        out = torch.einsum("ijt,...jt->...it", expanded_weight, input)
 
         if self.bias is not None:
             # Bias is now shape (F',) and we add it to first slice only
