@@ -134,21 +134,15 @@ class SlicedLinearMap(nn.Module):
         self.out_features = out_features
         self.slice_sizes = slice_sizes
 
-        # Store original weight matrix, one for each slice; (F', F)
+        # Weight matrices, each for a slice; (F', F, 1)
         self.weights = nn.ParameterList(
-            [nn.Parameter(torch.empty(out_features, in_features)) for _ in slice_sizes]
-        )
-
-        # Combine all weights into a single tensor; (F', F, T)
-        self.expanded_weight = torch.cat(
             [
-                w.unsqueeze(-1).expand(-1, -1, size)
-                for w, size in zip(self.weights, self.slice_sizes)
-            ],
-            dim=-1,
+                nn.Parameter(torch.empty(out_features, in_features, 1))
+                for _ in slice_sizes
+            ]
         )
 
-        # Add bias for the first slice
+        # Bias for the first slice
         if bias:
             if slice_sizes[0] != 1:
                 raise ValueError(
@@ -159,7 +153,6 @@ class SlicedLinearMap(nn.Module):
         else:
             self.register_parameter("bias", None)
 
-        # TODO, should we move this before self.expanded_weight?
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -182,7 +175,14 @@ class SlicedLinearMap(nn.Module):
         Returns:
             tensor of shape (..., F', T)
         """
-        out = torch.einsum("ijk,...jk->...ik", self.expanded_weight, input)
+
+        # Combine all weights into a single tensor; (F', F, T)
+        expanded_weight = torch.cat(
+            [w.expand(-1, -1, size) for w, size in zip(self.weights, self.slice_sizes)],
+            dim=-1,
+        )
+
+        out = torch.einsum("ijk,...jk->...ik", expanded_weight, input)
 
         if self.bias is not None:
             # Bias is now shape (F',) and we add it to first slice only
