@@ -1,0 +1,121 @@
+seed_everything: 35
+default_dtype: float32
+restore_checkpoint: null # path to checkpoint to restore from; if `null`, train from scratch
+
+data:
+  atomic_number: [3, 15, 16]
+  trainset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
+  valset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_100_LiPS.json
+  testset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_100_LiPS.json
+  #  atomic_number: [1, 6, 8]
+  #  trainset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_train.json
+  #  valset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_val.json
+  #  testset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_test.json
+  #  atomic_number: [1, 6, 7, 8]
+  #  trainset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
+  #  valset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
+  #  testset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
+  #  atomic_number: [6]
+  #  trainset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
+  #  valset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
+  #  testset_filename: /Users/mjwen.admin/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
+  r_cut: 5.0
+  train_batch_size: 4
+  val_batch_size: 20
+  test_batch_size: 20
+
+model:
+
+  F: 4 # number of channels
+  num_layers: 2 # number of layers
+  num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
+
+  # angular
+  max_L: 2 # max rank of natural tensor
+  max_degree: null # max degree of coupling natural tensor, if `null`, equal to max_L
+
+  # radial
+  # TODO, this would be better to be smaller than F?
+  radial_mlp_hidden_layers: [32, 32]
+  max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
+
+  # output
+  # TODO, this would be better to be smaller than F?
+  output_mlp_hidden_layers: [32, 32]
+
+loss:
+  energy_ratio: 1.0
+  forces_ratio: 1.0
+  normalize: true # normalize energy by number of atoms
+
+metrics:
+  type: mae
+  normalize: true # normalize energy by number of atoms
+  validation_start_epoch: 0 # start calculating metrics at this epoch
+
+optimizer:
+  class_path: torch.optim.Adam
+  init_args:
+    amsgrad: true
+    lr: 0.01
+    weight_decay: 0.0
+
+lr_scheduler:
+  monitor: val/mae_f
+  class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
+  init_args:
+    mode: min
+    factor: 0.8
+    patience: 100
+    verbose: true
+#lr_scheduler:
+#  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+#  init_args:
+#    T_max: 5 # should be equal to trainer.max_epochs
+#    eta_min: 0.0001
+
+ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
+  beta: 0.999
+  update_after_step: 1000
+  update_every: 10
+  power: 0.6667
+  include_online_model: false
+
+trainer:
+  max_epochs: 5
+  accelerator: cpu
+  num_nodes: 1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  detect_anomaly: false
+  inference_mode: false # enable calculation of gradients in val/test step, must be false for inference
+  gradient_clip_val: 100.0
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: carten_proj
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelSummary
+      init_args:
+        max_depth: -1
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: null
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val_ema/mae_e
+        mode: min
+        save_top_k: 3
+        verbose: false
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val_ema/mae_e
+        mode: min
+        patience: 200
+        verbose: true
+#    - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
+#      init_args:
+#        swa_lrs: 0.001
+#        swa_epoch_start: 0.8

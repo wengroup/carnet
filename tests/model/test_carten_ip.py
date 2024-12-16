@@ -1,6 +1,6 @@
 import torch
 
-from carten.model.carten_ip import InteratomicPotenital
+from carten.model.ip import InteratomicPotenital
 from carten.model.force_stress import compute_forces
 
 

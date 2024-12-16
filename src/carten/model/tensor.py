@@ -1,4 +1,4 @@
-"""Carten model to predict tensorial properties of mateirals and molecules."""
+"""Carten model to predict tensorial properties of materials and molecules."""
 from torch import Tensor, nn
 
 from .backbone import Backbone

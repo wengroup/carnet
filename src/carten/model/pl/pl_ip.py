@@ -1,4 +1,9 @@
-"""PyTorch Lightning Trainer."""
+"""Lightning model for interatomic potential.
+
+This is supposed to be used with the `carten.model.ip.InteratomicPotenital` model.
+"""
+
+
 from typing import Any
 
 import torch
@@ -11,10 +16,11 @@ from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
 from carten.data.utils import get_edge_vec
-from carten.model.force_stress import compute_forces
+
+from ..force_stress import compute_forces
 
 
-class LitModel(LightningModule):
+class LitModelIP(LightningModule):
     def __init__(
         self,
         model: nn.Module,
@@ -52,6 +58,7 @@ class LitModel(LightningModule):
         else:
             raise ValueError(f"Unknown metrics type: {self.metrics_type}")
 
+        # validation will only start after this
         self.validation_start_epoch = self.metrics_hparams.get(
             "validation_start_epoch", 0
         )

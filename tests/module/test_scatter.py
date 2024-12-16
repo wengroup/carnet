@@ -1,5 +1,6 @@
 import torch
-from camp.model.scatter import scatter
+
+from carten.module.scatter import scatter
 
 
 def test_scatter():

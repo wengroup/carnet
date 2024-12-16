@@ -1,4 +1,4 @@
-"""CARTEN interatomic potentials."""
+"""CARTEN interatomic potential model."""
 
 from torch import Tensor, nn
 

@@ -5,8 +5,6 @@ import torch
 import yaml
 from lightning.pytorch.cli import instantiate_class as lit_instantiate_class
 
-from carten.training.lit_model import LitModel
-
 
 def instantiate_class(d: dict | list[dict]):
     """Instantiate one or a list of LightningModule classes from a dictionary."""
@@ -26,12 +24,15 @@ def get_args(path: Path):
     return config
 
 
-def load_model(model_cls, checkpoint: Path, map_location: str = None):
+def load_model(model_cls, lit_model_cls, checkpoint: Path, map_location: str = None):
     """
     Load the model from checkpoint.
 
     Args:
-        model_cls: the PyTorch model class
+        model_cls: the PyTorch model class, e.g. `carten.model.carten_ip.InteratomicPotenital`
+        lit_model_cls: the Lightning model class, e.g. `carten.model.pl.pl_ip.LitModel`
+        checkpoint: path to the checkpoint
+        map_location: device to load the model to
     """
     # create the model to load, using the same hyperparameters saved in the checkpoint
     d = torch.load(checkpoint, map_location=map_location)
@@ -46,11 +47,11 @@ def load_model(model_cls, checkpoint: Path, map_location: str = None):
 
     # create the lit model
     # `model` is passed here to overwrite default model in the checkpoint. The reason
-    # we do this is because LitModel can potentially work with different model_cls.
+    # we do this because LitModel can potentially work with different model_cls.
     # Although model is provided, its state_dict will be updated from the checkpoint.
     # note, this will only restore model parameters, not the epoch, optimizer state,
     # lr_scheduler state, etc.
-    lit_model = LitModel.load_from_checkpoint(
+    lit_model = lit_model_cls.load_from_checkpoint(
         checkpoint, map_location=map_location, model=model
     )
 
@@ -94,11 +95,13 @@ def get_git_commit(
 
 
 if __name__ == "__main__":
-    from carten.model.carten import CARTEN
+    from carten.model.ip import InteratomicPotenital
+    from carten.model.pl.pl_ip import LitModelIP
 
     lit_model = load_model(
-        CARTEN,
-        "/Users/mjwen.admin/Packages/camp/scripts/last_epoch.ckpt",
+        InteratomicPotenital,
+        LitModelIP,
+        "/Users/mjwen.admin/Packages/carten/scripts/last_epoch.ckpt",
     )
 
     compile_model(lit_model)
