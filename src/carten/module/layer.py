@@ -71,7 +71,7 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(L1 + 1)], bias=True
         )
 
-        self.atom_moment = AtomicMoment(
+        self.atomic_moment = AtomicMoment(
             F=F,
             L1=L1,
             L2=L2,
@@ -135,7 +135,7 @@ class Layer(nn.Module):
         feats = self.linear_channel_input(atom_feats)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
-        am = self.atom_moment(edge_vector, edge_idx, atom_type, feats)
+        am = self.atomic_moment(edge_vector, edge_idx, atom_type, feats)
 
         # Mix atomic moments across channel
         am_mixed = self.linear_channel_atomic(am)  # (Na, F, T3)
