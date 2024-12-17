@@ -23,8 +23,11 @@ def time_it(func, *args, **kwargs):
 
 @torch.jit.interface
 class JITInterface(nn.Module):
-    """Note, this should have exactly the same signature (including argument name
-    `input` here) as The module it tries to annotate.
+    """
+    Interface to annotate ModuleList for TorchScript.
+
+    Note, this should have exactly the same signature (including argument name
+    `input` here) as the module it tries to annotate.
 
     See https://github.com/pytorch/pytorch/issues/68568
     """

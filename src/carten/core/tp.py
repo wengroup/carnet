@@ -6,6 +6,8 @@ Ref:
 [LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
 http://dx.doi.org/10.1063/1.528515
 """
+from typing import Optional
+
 import torch
 from torch import Tensor
 
@@ -70,7 +72,8 @@ def tp_even(
         rule, symmetry, delta_indices = get_tp_even_rule(l1, l2, k, t)
 
         # Get one tensor product
-        prod = torch.einsum(rule, X, Y, *([d] * t))
+        operands = [X, Y] + [d] * t
+        prod = torch.einsum(rule, operands)
 
         # Symmetrize by summing over all unique permutations
         perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
@@ -141,7 +144,8 @@ def tp_odd(
         rule, symmetry, delta_indices = get_tp_odd_rule(l1, l2, k, t)
 
         # Get one tensor product
-        prod = torch.einsum(rule, epsilon, X, Y, *([d] * t))
+        operands = [epsilon, X, Y] + [d] * t
+        prod = torch.einsum(rule, operands)
 
         # Symmetrize by summing over all unique permutations
         perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
@@ -162,7 +166,7 @@ def tp_odd(
     return Z
 
 
-def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
+def coeff_C(l1: int, l2: int, l3: int, device: Optional[torch.device] = None):
     """Coefficient C for even L.
 
     The coefficient is obtained such at l3 fold contraction of the output tensor with
@@ -189,7 +193,7 @@ def coeff_C(l1: int, l2: int, l3: int, device: torch.device = None):
     )
 
 
-def coeff_D(l1: int, l2: int, l3: int, device: torch.device = None):
+def coeff_D(l1: int, l2: int, l3: int, device: Optional[torch.device] = None):
     """Coefficient D for odd L.
 
     The coefficient is obtained such at l3 fold contraction of the output tensor with
@@ -260,9 +264,10 @@ def get_tp_even_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     # l1-k-t remaining symmetric indices from x
     # l2-k-t remaining symmetric indices from y
     # 2t indices from all deltas. Each delta has 2 symmetric indices.
+    # TorchScript does not allow string multiplication, so we need to use `join`
     symmetry = (
-        "a" * len(x_remain)
-        + "b" * len(y_remain)
+        "".join(["a"] * len(x_remain))
+        + "".join(["b"] * len(y_remain))
         + "".join(repeat_double_index(t, upper_case=True))
     )
     delta_indices = letter_index(t, upper_case=True)
@@ -319,8 +324,8 @@ def get_tp_odd_rule(l1: int, l2: int, k: int, t: int) -> tuple[str, str, str]:
     # 2t indices from all deltas. Each delta has 2 symmetric indices.
     symmetry = (
         "a"
-        + "b" * len(x_remain)
-        + "c" * len(y_remain)
+        + "".join(["b"] * len(x_remain))
+        + "".join(["c"] * len(y_remain))
         + "".join(repeat_double_index(t, upper_case=True))
     )
     delta_indices = letter_index(t, upper_case=True)

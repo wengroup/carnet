@@ -7,7 +7,7 @@ from carten.core.utils import letter_index, repeat_double_index
 
 
 def symmetrize_via_permutation(
-    t: Tensor, perms: list[tuple[int, ...]], mode: str = "sum"
+    t: Tensor, perms: list[list[int]], mode: str = "sum"
 ) -> Tensor:
     """
     Symmetrize a tensor by summing/averaging over all permutations.
@@ -31,7 +31,7 @@ def symmetrize_via_permutation(
 
 # TODO, this is a generalization of get_sym_rule_2 and get_sym_rule_3 in tensor_product1.py
 #  Can we merge them?
-def get_permutations(symmetry: str, start_dim: int = 0) -> list[tuple[int, ...]]:
+def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
     """
     Get the unique permutations of the indices for symmetrizing a tensor.
 
@@ -67,7 +67,7 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[tuple[int, ...]]
 
     all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
 
-    prefix = tuple(range(start_dim))
+    prefix = list(range(start_dim))
     unique_perms = []
     unique_perm_string = set()
 
@@ -76,7 +76,7 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[tuple[int, ...]]
         perm_string = "".join(symmetry[i - start_dim] for i in perm)
 
         if perm_string not in unique_perm_string:
-            unique_perms.append(prefix + perm)
+            unique_perms.append(prefix + list(perm))
             unique_perm_string.add(perm_string)
 
     return unique_perms
@@ -84,7 +84,7 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[tuple[int, ...]]
 
 def get_permutations_delta(
     symmetry: str, delta_indices: str, start_dim: int = 0
-) -> list[tuple[int, ...]]:
+) -> list[list[int]]:
     """
     Get unique permutations of the indices for symmetrizing a tensor, that is obtained
     by tensor product with delta tensors.
@@ -135,42 +135,50 @@ def get_permutations_delta(
         Each inner tuple contains the permutation indices for symmetrization.
     """
 
-    def canonize(ps: str) -> str:
-        """
-        Convert a permutation string to its canonical form, such that equivalent
-        permutation strings have the same representation.
+    # TODO, this is not TorchScript compatible
+    # If we want to use this in TorchScript,
+    # We can create a data file to store the permutations and load it here.
+    # start_dim can be easily handled by adding a constant.
+    all_perms = itertools.permutations(
+        torch.arange(start_dim, start_dim + len(symmetry))
+    )
 
-        Major symmetry is based on first occurrence positions of each letter in the
-        string. For example, `baba` and `fefe` are equivalent permutation strings, and
-        both will be converted to `0101`.
-
-        Args:
-            ps: The permutation string to convert
-
-        Returns:
-            The canonical form of the permutation string
-        """
-        # Do not need to canonize indices not in `delta_indices`.
-        # For example, in `symmetry = xxyyaabb` and `delta_indices = ab`,
-        # xxyy and yyxx are different.
-        return "".join(str(ps.index(c)) if c in delta_indices else c for c in ps)
-
-    all_perms = itertools.permutations(range(start_dim, start_dim + len(symmetry)))
-
-    prefix = tuple(range(start_dim))
-    unique_perms = []
-    unique_canonical_forms = set()
+    prefix = list(range(start_dim))
+    unique_perms: list[list[int]] = []
+    unique_canonical_forms: list[str] = []
 
     # Filter permutations based on contraction pattern
     for perm in all_perms:
         perm_string = "".join(symmetry[i - start_dim] for i in perm)
 
-        canonical_form = canonize(perm_string)
+        canonical_form = _canonize(perm_string, delta_indices)
         if canonical_form not in unique_canonical_forms:
-            unique_perms.append(prefix + perm)
-            unique_canonical_forms.add(canonical_form)
+            unique_perms.append(prefix + [int(i) for i in perm])
+            unique_canonical_forms.append(canonical_form)
 
     return unique_perms
+
+
+def _canonize(ps: str, di: str) -> str:
+    """
+    Convert a permutation string to its canonical form, such that equivalent
+    permutation strings have the same representation.
+
+    Major symmetry is based on first occurrence positions of each letter in the
+    string. For example, `baba` and `fefe` are equivalent permutation strings, and
+    both will be converted to `0101`.
+
+    Args:
+        ps: The permutation string to convert
+        di: `delta_indices`
+
+    Returns:
+        The canonical form of the permutation string
+    """
+    # Do not need to canonize indices not in `delta_indices`.
+    # For example, in `symmetry = xxyyaabb` and `delta_indices = ab`,
+    # xxyy and yyxx are different.
+    return "".join(str(ps.index(c)) if c in di else c for c in ps)
 
 
 def get_permutations_2(m: int, num_delta: int, start_dim: int = 0) -> list[list[int]]:

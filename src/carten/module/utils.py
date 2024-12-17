@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 
-def check_rank(L1: int, L2: int, L3: int | tuple[int, ...] | None) -> tuple[int, ...]:
+def check_rank(L1: int, L2: int, L3: int | list[int] | None) -> list[int]:
     """Helper function to get valid l3.
 
     Convert all values to a tuple of l3 for the give L1, L2, and L3.
@@ -23,12 +23,10 @@ def check_rank(L1: int, L2: int, L3: int | tuple[int, ...] | None) -> tuple[int,
     else:
         raise ValueError(f"Invalid L3: {L3}. Must be int, tuple, list, or None.")
 
-    return tuple(sorted(L3))
+    return sorted(L3)
 
 
-def get_paths(
-    L1: int, L2: int, L3: tuple[int, ...]
-) -> dict[int, list[tuple[int, int, int]]]:
+def get_paths(L1: int, L2: int, L3: list[int]) -> dict[int, list[tuple[int, int, int]]]:
     """Get the paths from L1 and L2 to L3.
 
     Args:

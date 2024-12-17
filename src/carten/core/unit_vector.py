@@ -63,7 +63,7 @@ def get_nt_from_vector(
     D = l // 2
 
     out = torch.zeros([3] * l, dtype=a.dtype, device=a.device)
-    coeff = 1
+    coeff = 1.0
     for d in range(D + 1):
         rule, symmetry, delta_indices = get_nt_from_vector_rule(l, d)
 
@@ -75,7 +75,8 @@ def get_nt_from_vector(
             all_a = [a] * (l - 2 * d)
 
         # Get one tensor product
-        prod = torch.einsum(rule, *all_a, *([delta] * d))
+        operands = all_a + [delta] * d
+        prod = torch.einsum(rule, operands)
 
         # Symmetrize by summing over all unique permutations
         perms = get_permutations_delta(symmetry, delta_indices, start_dim=a.ndim - 1)
@@ -100,7 +101,7 @@ def get_nt_from_vector(
         return out
 
 
-def get_polyadics_from_vector(a: Tensor, L: int, normalize="unity"):
+def get_polyadics_from_vector(a: Tensor, L: int, normalize: str = "unity"):
     """
     Create polyadic tensors from a unit vector.
 
@@ -142,7 +143,10 @@ def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:
         delta_indices: The delta indices.
     """
     a = letter_index(l - 2 * d)
-    a_left = "..." + ",...".join(a)  # the first `...` is for batch dimensions
+
+    # list(a) for TorchScript
+    # TorchScript will treat, e.g., 'ab' as a single value in .join, but not two values
+    a_left = "..." + ",...".join(list(a))  # the first `...` is for batch dimensions
     a_right = "..." + a  # the first `...` is for batch dimensions
 
     delta = double_index(d, start=l - 2 * d)
@@ -152,7 +156,7 @@ def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:
         delta_left = "," + delta_left
 
     rule = f"{a_left}{delta_left}->{a_right}{delta_right}"
-    symmetry = "x" * (l - 2 * d) + "".join(repeat_double_index(d))
+    symmetry = "".join(["x"] * (l - 2 * d)) + "".join(repeat_double_index(d))
     delta_indices = letter_index(d)
 
     return rule, symmetry, delta_indices

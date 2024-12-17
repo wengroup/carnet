@@ -5,7 +5,6 @@ from torch import Tensor, nn
 
 from carten.core.unit_vector import get_polyadics_from_vector
 
-from .linear import LinearMap
 from .mlp import MLP
 from .product import TensorProduct
 from .radial import RadialPart
@@ -29,7 +28,7 @@ class AtomicMoment(nn.Module):
         F: int,
         L1: int,
         L2: int,
-        L3: int | tuple[int, ...] | None,
+        L3: int | list[int] | None,
         num_atom_types: int,
         num_average_neigh: float,
         max_chebyshev_degree: int = 8,
@@ -68,7 +67,8 @@ class AtomicMoment(nn.Module):
         self.radial_mlp = nn.ModuleDict()
         for paths in self.tp.paths.values():
             for p in paths:
-                self.radial_mlp[str(p)] = MLP(
+                p = str(p)
+                self.radial_mlp[p] = MLP(
                     in_features=F,
                     out_features=F,
                     hidden_features=radial_mlp_hidden_layers,
@@ -109,7 +109,7 @@ class AtomicMoment(nn.Module):
 
         # Polyadics from unit vectors; (n_edges, T2)
         polyadics = get_polyadics_from_vector(
-            nn.functional.normalize(edge_vector, p=2, dim=-1), self.L2
+            nn.functional.normalize(edge_vector, p=2.0, dim=-1), self.L2
         )
         # (n_edges, F, T2)
         polyadics = polyadics.unsqueeze(-2).expand(
@@ -123,12 +123,10 @@ class AtomicMoment(nn.Module):
             atom_type[j_idx],
         )
 
+        # TODO, the radial_mlp might be batched
+        #  put all weights as a larger one
         # Radial params for each path
-        R = {
-            p: self.radial_mlp[str(p)](fu)
-            for paths in self.tp.paths.values()
-            for p in paths
-        }
+        R = {p: fn(fu) for p, fn in self.radial_mlp.items()}
 
         # Tensor product of the features of center atoms and neighbor atoms
         # atom_feats[j_idx]: (n_edges, F, T1)

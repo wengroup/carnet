@@ -127,9 +127,14 @@ def get_model(
 
     # TODO, enable jit
     # m = torch.jit.script(m)
-    # TODO, torch.compile does not support grad of grad yet, so we cannot use it for
-    #  interatomic potential model, but might be able to use it for tensor predictions
-    # model = torch.compile(model)
+
+    # torch.compile cannot work up to pytorch v2.4.0, because we need double gradients
+    # to compute forces. Below is the error:
+    # torch.compile with aotautograd does not support double backwards
+    # Check the issue: https://github.com/pytorch/pytorch/issues/91469
+    #
+    # m = torch.compile(m)
+    # TODO, It should work for tensor predictions
 
     model = LitModelIP(
         m,

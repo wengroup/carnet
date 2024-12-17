@@ -106,16 +106,15 @@ class HyperMoment(nn.Module):
         assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid input shape."
 
         # The number of tensor components to keep in the output
-        size = (3 ** (self.max_out_L + 1) - 1) // 2
+        size = int((3 ** (self.max_out_L + 1) - 1) // 2)
 
         # Output hyper moments from different coupling degrees
         # Shape of each element is (..., F, T'), where T' is the size above
         out_H = [x[..., :size]]
 
         H_tmp = x
-        for i in range(self.max_degree - 1):
-            tp = self.tp[i]
-            product = tp(H_tmp, x)
+        for fn in self.tp:
+            product = fn(H_tmp, x)
             H_tmp = product
             out_H.append(product[..., :size])
 

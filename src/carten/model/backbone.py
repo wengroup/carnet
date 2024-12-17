@@ -110,7 +110,7 @@ class Backbone(nn.Module):
         atom_type: Tensor,
         num_atoms: Tensor,
         return_all_scalar_feats: bool = False,
-    ) -> tuple[Tensor, Optional[list[Tensor]]]:
+    ) -> tuple[Tensor, list[Tensor]]:
         """
         Args:
             edge_vector:
@@ -124,9 +124,9 @@ class Backbone(nn.Module):
             updated_feats: Updated atomic features after all layers.
                 Shape (..., F, T'), where T' = ((max_out_L + 1)**2 -1))//2 is the total
                 number of tensor components.
-            scalar_feats: If `return_all_scalar_feats` is False, this is None.
-                If `return_all_scalar_feats` is True, this is a list of scalar features
-                from all layers. Each scalar feature is of shape (..., F, 1).
+            scalar_feats: If `return_all_scalar_feats` is True, this is a list of scalar
+                features from all layers. Each scalar feature is of shape (..., F, 1).
+                If `return_all_scalar_feats` is False, this is an empty list.
         """
         # Embed atom number as scalar features of dim F; (n_atoms, F, 1)
         atom_feats = self.atom_embedding(atom_type).unsqueeze(-1)
@@ -134,16 +134,10 @@ class Backbone(nn.Module):
         # TODO, for the first layer, because atom_feats is special (only scalars), we
         #  might be able to use a more constrained version of AtomicMoment in
         #  `Layer` to save some computation.
-
         scalar_feats = []
         for layer in self.layers:
             atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
             if return_all_scalar_feats:
                 scalar_feats.append(atom_feats[..., 0:1])
 
-        if not return_all_scalar_feats:
-            all_scalar_feats = None
-        else:
-            all_scalar_feats = scalar_feats
-
-        return atom_feats, all_scalar_feats
+        return atom_feats, scalar_feats

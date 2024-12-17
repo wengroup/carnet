@@ -177,10 +177,10 @@ class SlicedLinearMap(nn.Module):
         """
 
         # Combine all weights into a single tensor; (F', F, T)
-        expanded_weight = torch.cat(
-            [w.expand(-1, -1, size) for w, size in zip(self.weights, self.slice_sizes)],
-            dim=-1,
-        )
+        expanded_weights = []
+        for i, w in enumerate(self.weights):
+            expanded_weights.append(w.expand(-1, -1, self.slice_sizes[i]))
+        expanded_weight = torch.cat(expanded_weights, dim=-1)
 
         out = torch.einsum("ijt,...jt->...it", expanded_weight, input)
 

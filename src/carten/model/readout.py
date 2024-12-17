@@ -85,9 +85,8 @@ class StructureScalar(nn.Module):
         assert len(atom_feats) == self.num_layers
 
         V = torch.zeros(1, dtype=atom_feats[0].dtype, device=atom_feats[0].device)
-        for i, feats in enumerate(atom_feats):
-            fn: JITInterface = self.out_layers[i]
-            V = V + fn.forward(feats.squeeze(-1)).view(-1)  # shape (n_atoms,)
+        for i, fn in enumerate(self.out_layers):
+            V = V + fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
         # normalization
         if self.atomic_energy_scale is not None:

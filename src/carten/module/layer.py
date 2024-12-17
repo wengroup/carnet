@@ -148,7 +148,7 @@ class Layer(nn.Module):
 
         # Mix input atom feats across channel and add to the output
         if self.linear_channel_feats is not None:
-            size = (3 ** (self.min_max_out_L_L1 + 1) - 1) // 2
+            size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
             feats_skip_connection = self.linear_channel_feats(atom_feats[..., :size])
             hm_mixed[..., :size] += feats_skip_connection
 

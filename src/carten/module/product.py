@@ -1,6 +1,7 @@
 """
 Product of natural tensors.
 """
+from typing import Optional
 
 import torch
 from torch import Tensor, nn
@@ -40,7 +41,7 @@ class TensorProduct(nn.Module):
         F: int,
         L1: int,
         L2: int,
-        L3: int | tuple[int, ...] = None,
+        L3: int | list[int] = None,
         normalize: str = "unity",
     ):
         """
@@ -81,7 +82,7 @@ class TensorProduct(nn.Module):
         self.z_tensor_dims = [3**l3 for l3 in self.L3]
 
     def forward(
-        self, x: Tensor, y: Tensor, R: dict[tuple[int, int, int], Tensor] = None
+        self, x: Tensor, y: Tensor, R: Optional[dict[str, Tensor]] = None
     ) -> Tensor:
         """
         Evaluate the tensor product of two feature tensors:
@@ -102,15 +103,18 @@ class TensorProduct(nn.Module):
         """
 
         z = []
-        for idx, l3 in enumerate(self.L3):
+        # for idx, l3 in enumerate(self.L3):
+        for idx, kernel in enumerate(self.kernels):
+            l3 = self.L3[idx]
             z_l3 = []  # z_l3 from all paths
             for path in self.paths[l3]:
                 l1, l2, _ = path
 
                 # x_l1: (..., F, 3**l1)
                 # y_l2: (..., F, 3**l2)
-                x_l1 = x[..., (3**l1 - 1) // 2 : (3 ** (l1 + 1) - 1) // 2]
-                y_l2 = y[..., (3**l2 - 1) // 2 : (3 ** (l2 + 1) - 1) // 2]
+                # int() needed for TorchScript
+                x_l1 = x[..., int((3**l1 - 1) // 2) : int((3 ** (l1 + 1) - 1) // 2)]
+                y_l2 = y[..., int((3**l2 - 1) // 2) : int((3 ** (l2 + 1) - 1) // 2)]
 
                 # z_tmp: (..., F, 3**l3)
                 if (l1 + l2 - l3) % 2 == 0:
@@ -120,7 +124,7 @@ class TensorProduct(nn.Module):
 
                 # Multiply with additional parameters
                 if R is not None:
-                    p = R[path]  # (..., F)
+                    p = R[str(path)]  # (..., F)
                     z_tmp = p.unsqueeze(-1) * z_tmp
 
                 z_l3.append(z_tmp)
@@ -129,7 +133,7 @@ class TensorProduct(nn.Module):
             z_l3 = torch.stack(z_l3, dim=-3)
 
             # (..., F, 3**l3) Linear combination of all Np paths to l3
-            z_l3_combined = self.kernels[idx](z_l3)
+            z_l3_combined = kernel(z_l3)
 
             z.append(z_l3_combined)
 

@@ -1,5 +1,6 @@
 import itertools
 import string
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -55,15 +56,17 @@ def repeat_double_index(n: int, start: int = 0, upper_case: bool = False) -> lis
         ['bb', 'cc', 'dd']
     """
     indices = letter_index(n, start, upper_case)
-    return [s * 2 for s in indices]
+
+    # TorchScript does not allow `s*2`
+    return [s+s for s in indices]
 
 
-def dij(device: torch.device = None) -> Tensor:
+def dij(device: Optional[torch.device] = None) -> Tensor:
     """Kronecker delta tensor."""
     return torch.eye(3, device=device)
 
 
-def eijk(device: torch.device = None) -> Tensor:
+def eijk(device: Optional[torch.device] = None) -> Tensor:
     """Levi-Civita tensor."""
     e = torch.zeros(3, 3, 3, device=device)
     e[0, 1, 2] = 1.0
@@ -167,7 +170,7 @@ def check_shape(T: Tensor, n: int = 3) -> bool:
         return True
 
 
-def factorial(n: int, device: torch.device = None):
+def factorial(n: int, device: Optional[torch.device] = None):
     """
     Get the factorial of a number.
     """
@@ -175,7 +178,7 @@ def factorial(n: int, device: torch.device = None):
 
 
 def double_factorial(
-    n: int, lower_bound: int = None, device: torch.device = None
+    n: int, lower_bound: Optional[int] = None, device: Optional[torch.device] = None
 ) -> Tensor:
     """
     Get the double factorial of a number.
@@ -185,6 +188,7 @@ def double_factorial(
         lower_bound: The lower bound of the double factorial. If lower bound is
             provided, this is calculated as n * (n-2) * ... * lower_bound. Default is
             None, meaning 1 if n odd and 2 if n even.
+        device: The device to put the tensor on.
     """
 
     if n == 0 or n == 1:
