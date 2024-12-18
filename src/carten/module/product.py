@@ -105,7 +105,6 @@ class TensorProduct(nn.Module):
         """
 
         z = []
-        # for idx, l3 in enumerate(self.L3):
         for idx, kernel in enumerate(self.kernels):
             l3 = self.L3[idx]
             z_l3 = []  # z_l3 from all paths
