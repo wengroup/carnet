@@ -70,9 +70,9 @@ class Layer(nn.Module):
         # TODO, we might not need this, given that we perform the mixing at the end
         #  This might be beneficial for the first layer.
         # Kernel for mixing atom feats across channel, separate for each rank
-        self.linear_channel_input = SlicedLinearMap(
-            F, F, [3**l for l in range(L1 + 1)], bias=True
-        )
+        # self.linear_channel_input = SlicedLinearMap(
+        #     F, F, [3**l for l in range(L1 + 1)], bias=True
+        # )
 
         if atomic_moment_mode == "vanilla":
             AM = AtomicMoment
@@ -107,7 +107,7 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
         )
 
-        # Kernel for mixing channel of input atom feats, separate for each rank
+        # By skip connection by mixing channel of the input, separate for each rank
         if mix_atom_feats_across_channel:
             # Only do it for the ranks that exist in both the input atom feats and the
             # output hyper moment
@@ -143,10 +143,10 @@ class Layer(nn.Module):
 
         # TODO, This seems not needed, we have too many mixing
         # Mixing input atom feats across channel
-        feats = self.linear_channel_input(atom_feats)  # (Na, F, T1)
+        # feats = self.linear_channel_input(atom_feats)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
-        am = self.atomic_moment(edge_vector, edge_idx, atom_type, feats)
+        am = self.atomic_moment(edge_vector, edge_idx, atom_type, atom_feats)
 
         # Mix atomic moments across channel
         am_mixed = self.linear_channel_atomic(am)  # (Na, F, T3)
