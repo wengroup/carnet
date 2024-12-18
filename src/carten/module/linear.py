@@ -29,6 +29,8 @@ class LinearCombination(nn.Module):
         """
         https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#L109
         """
+        # We don't directly use nn.init.kaiming_uniform_ since in self.weight,
+        # the in_features is not the last dimension
         k = 1 / self.in_features**0.5
         nn.init.uniform_(self.weight, -k, k)
 
@@ -159,8 +161,11 @@ class SlicedLinearMap(nn.Module):
         """
         https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#l109
         """
+        # We don't directly use nn.init.kaiming_uniform_ since in self.weight, the
+        # in_features is not the last dimension
+        k = 1 / self.in_features**0.5
         for w in self.weights:
-            nn.init.kaiming_uniform_(w, a=math.sqrt(5))
+            nn.init.uniform_(w, -k, k)
 
         if self.bias is not None:
             fan_in = self.in_features
