@@ -28,6 +28,7 @@ class InteratomicPotenital(nn.Module):
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
         atomic_energy_scale: Tensor = None,
+        atomic_moment_mode: str = "vanilla",
     ):
         """
         Args:
@@ -37,6 +38,9 @@ class InteratomicPotenital(nn.Module):
                 corresponding hidden layer. If an integer, this will be the number of
                 hidden layers, and the number of units in each hidden layer is set to F,
                 the channel dimension of the feature tensor.
+            atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
+                or `variant2`.
+
         """
         super().__init__()
 
@@ -51,6 +55,7 @@ class InteratomicPotenital(nn.Module):
             max_degree=max_degree,
             max_chebyshev_degree=max_chebyshev_degree,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
+            atomic_moment_mode=atomic_moment_mode,
         )
 
         self.readout = StructureScalar(

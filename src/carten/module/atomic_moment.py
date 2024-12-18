@@ -36,6 +36,7 @@ class AtomicMoment(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         r_cut: float = 5,
         envelope: int = 6,
+        mode: str = None,  # dummy argument to give the same signature as AtomicMoment2
     ):
         super().__init__()
         self.F = F

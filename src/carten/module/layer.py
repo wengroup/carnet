@@ -2,7 +2,7 @@
 from line_profiler import profile
 from torch import Tensor, nn
 
-from .atomic_moment import AtomicMoment
+from .atomic_moment import AtomicMoment, AtomicMoment2
 from .hyper_moment import HyperMoment
 from .linear import SlicedLinearMap
 
@@ -26,6 +26,7 @@ class Layer(nn.Module):
         max_out_L: int = None,
         max_degree: int = None,
         mix_atom_feats_across_channel: bool = True,
+        atomic_moment_mode: str = "vanilla",
     ):
         """
 
@@ -64,6 +65,7 @@ class Layer(nn.Module):
         self.max_out_L = L3 if max_out_L is None else max_out_L
         self.max_degree = L3 if max_degree is None else max_degree
         self.mix_atom_feats_across_channel = mix_atom_feats_across_channel
+        self.atomic_moment_mode = atomic_moment_mode
 
         # TODO, we might not need this, given that we perform the mixing at the end
         #  This might be beneficial for the first layer.
@@ -72,7 +74,13 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(L1 + 1)], bias=True
         )
 
-        self.atomic_moment = AtomicMoment(
+        if atomic_moment_mode == "vanilla":
+            AM = AtomicMoment
+        elif atomic_moment_mode in ["variant1", "variant2"]:
+            AM = AtomicMoment2
+        else:
+            raise ValueError(f"Unknown atomic_moment_mode: {atomic_moment_mode}")
+        self.atomic_moment = AM(
             F=F,
             L1=L1,
             L2=L2,
@@ -82,6 +90,7 @@ class Layer(nn.Module):
             max_chebyshev_degree=max_chebyshev_degree,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
+            mode=atomic_moment_mode,
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank

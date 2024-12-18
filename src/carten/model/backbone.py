@@ -29,6 +29,8 @@ class Backbone(nn.Module):
             layer in the MLP that is applied to the radial basis functions. If int,
             this gives the number of hidden layers, and the size of each hidden
             layer is set to `max_u + 1`, the number of radial basis functions.
+        atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
+            or `variant2`.
     """
 
     def __init__(
@@ -46,6 +48,7 @@ class Backbone(nn.Module):
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
+        atomic_moment_mode: str = "vanilla",
     ):
         super().__init__()
         self.F = F
@@ -60,6 +63,8 @@ class Backbone(nn.Module):
 
         self.max_chebyshev_degree = max_chebyshev_degree
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
+
+        self.atomic_moment_mode = atomic_moment_mode
 
         # Embed atom number as vectors
         self.atom_embedding = Embedding(num_atom_types, F)
@@ -98,6 +103,7 @@ class Backbone(nn.Module):
                     max_out_L=out_L,
                     max_degree=self.max_degree,
                     mix_atom_feats_across_channel=mix,
+                    atomic_moment_mode=self.atomic_moment_mode,
                 )
             )
 
