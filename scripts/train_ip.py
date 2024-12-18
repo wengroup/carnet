@@ -4,6 +4,7 @@ from pathlib import Path
 import lightning as L
 import torch
 from lightning import Trainer
+from line_profiler import profile
 from torch_geometric.loader.dataloader import DataLoader
 
 from carten.data.dataset import Dataset
@@ -130,7 +131,7 @@ def get_model(
 
     # torch.compile cannot work up to pytorch v2.4.0, because we need double gradients
     # to compute forces. Below is the error:
-    # torch.compile with aotautograd does not support double backwards
+    # torch.compile with autograd does not support double backwards
     # Check the issue: https://github.com/pytorch/pytorch/issues/91469
     #
     # m = torch.compile(m)
@@ -149,6 +150,7 @@ def get_model(
     return model
 
 
+@profile
 def main(config: dict):
     L.seed_everything(config["seed_everything"])
 
@@ -237,7 +239,7 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
-    # remove the processed data directory
+    # Remove the processed data directory
     shutil.rmtree("./processed", ignore_errors=True)
 
     config_file = Path(__file__).parent / "configs" / "config_ip.yaml"

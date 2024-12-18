@@ -2,8 +2,6 @@
 
 This is supposed to be used with the `carten.model.ip.InteratomicPotenital` model.
 """
-
-
 from typing import Any
 
 import torch
@@ -12,6 +10,7 @@ from lightning import LightningModule
 from lightning.pytorch.cli import instantiate_class
 from lightning.pytorch.utilities import grad_norm
 from lightning.pytorch.utilities.types import STEP_OUTPUT
+from line_profiler import profile
 from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
@@ -77,6 +76,7 @@ class LitModelIP(LightningModule):
             }
         )
 
+    @profile
     def forward(self, batch):
         """Compute energy and forces."""
         # Note, it is tempting to compute the edge_vector in the collate_fn of the
@@ -96,6 +96,7 @@ class LitModelIP(LightningModule):
 
         return e_pred, f_pred
 
+    @profile
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 

@@ -9,6 +9,7 @@ http://dx.doi.org/10.1063/1.528515
 from typing import Optional
 
 import torch
+from line_profiler import profile
 from torch import Tensor
 
 from carten.core.symmetrize import get_permutations_delta, symmetrize_via_permutation
@@ -23,6 +24,7 @@ from carten.core.utils import (
 )
 
 
+@profile
 def tp_even(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:
@@ -94,6 +96,7 @@ def tp_even(
     return Z
 
 
+@profile
 def tp_odd(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:

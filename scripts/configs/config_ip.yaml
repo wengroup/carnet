@@ -26,22 +26,22 @@ data:
 
 model:
 
-  F: 4 # number of channels
+  F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
 
   # angular
-  max_L: 2 # max rank of natural tensor
+  max_L: 3 # max rank of natural tensor
   max_degree: null # max degree of coupling natural tensor, if `null`, equal to max_L
 
   # radial
   # TODO, this would be better to be smaller than F?
-  radial_mlp_hidden_layers: [32, 32]
+  radial_mlp_hidden_layers: [16, 16]
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
   # output
   # TODO, this would be better to be smaller than F?
-  output_mlp_hidden_layers: [32, 32]
+  output_mlp_hidden_layers: [16, 16]
 
 loss:
   energy_ratio: 1.0
@@ -82,7 +82,7 @@ ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   include_online_model: false
 
 trainer:
-  max_epochs: 5
+  max_epochs: 2
   accelerator: cpu
   num_nodes: 1
   check_val_every_n_epoch: 1

@@ -1,6 +1,7 @@
 """Atomic moment module."""
 
 import torch
+from line_profiler import profile
 from torch import Tensor, nn
 
 from carten.core.unit_vector import get_polyadics_from_vector
@@ -75,6 +76,7 @@ class AtomicMoment(nn.Module):
                     out_activation=False,
                 )
 
+    @profile
     def forward(
         self,
         edge_vector: Tensor,

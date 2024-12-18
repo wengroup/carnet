@@ -1,5 +1,5 @@
 """CARTEN interatomic potential model."""
-
+from line_profiler import profile
 from torch import Tensor, nn
 
 from .backbone import Backbone
@@ -61,6 +61,7 @@ class InteratomicPotenital(nn.Module):
             atomic_scale=atomic_energy_scale,
         )
 
+    @profile
     def forward(
         self,
         edge_vector: Tensor,

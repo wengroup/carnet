@@ -1,7 +1,5 @@
 """CARTEN backbone module that performs multiple iterations of feature updates."""
-
-from typing import Optional
-
+from line_profiler import profile
 from torch import Tensor, nn
 
 from carten.module.embedding import Embedding
@@ -103,6 +101,7 @@ class Backbone(nn.Module):
                 )
             )
 
+    @profile
     def forward(
         self,
         edge_vector: Tensor,
