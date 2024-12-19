@@ -4,35 +4,37 @@ from torch import Tensor, nn
 
 from carten.module.mlp import MLP
 from carten.module.scatter import scatter
-from carten.utils import JITInterface
 
-# TODO, we might want to rename some of the parameters to make it more general
-#  For example:
-#  TotalEnergy -> StructureScalar
-#  atomic_energy_shift -> atomic_shift
-#  atomic_energy_scale -> atomic_scale
-#  We have done the above but need to update the docstrings
+
 class StructureScalar(nn.Module):
-    """Get the total energy of the atomic configuration.
+    """Get a scalar output for each atomic configuration.
 
-    There are multiple layers in the main model. The contribution of the last layer is
-    passed through an MLP, while the contribution of the other layers is only multiplied
-    a weight matrix. The output is the sum of the contributions of all layers.
+    For a model with multiple layers, the scalar outputs of all layers are passed to
+    this module. This module then computes a final scalar output for each atomic
+    configuration, achieved by the steps:
+    1. The scalar atom feats of each layer (but the last) are multiplied by a weight
+       matrix.
+    2. The scalar atom feats of the last layer are passed through an MLP.
+    3. The scalar atom feats of all layers are summed to get the atom feats.
+    4. The scalar atom feats of each atomic configuration are summed to get the scalar
+       output for each atomic configuration.
 
     Args:
-        num_layers: number of layers in the main model.
-        in_features: the number of input features.
-        hidden_features: the number of hidden features in each layer for the MLP.
-            If a list, it provides the hidden layer sizes of the MLP. If an integer, it
-            is interpreted as the number of hidden layers, and the hidden layer sizes
-            are set to in_features.
-        atomic_energy_shift/scale: the atomic energy shift and scale used to transform
-            the output. The output atomic energy is computed as: e = e*scale + shift.
-            - If atomic_energy_shift/scale is None, then no scale or shift are applied.
-            - If a scalar tensor is provided for atomic_energy_shift/scale, then it is
-              then it is used for all atom types.
-            - If a tensor of shape (n_atom_types,) is provided for atomic_energy_shift/
-              scale, then it is applied to each atom type separately.
+        num_layers: Number of layers in the main model.
+        in_features: Size of the input features.
+        hidden_features: Size of the features for the hidden layers of MLP to process
+            the scalar atom feats of the last layer. If a list, it provides the hidden
+            layer sizes of the MLP. If an integer, it is interpreted as the number of
+            hidden layers, and the hidden layer sizes are set to in_features.
+        atomic_shift: Shift of the output. See `atomic_scale`.
+        atomic_scale: Scale of the output. The atomic shift and scale are used to
+            transform the output. The final output for each atomic configuration is
+            computed as y = x*scale + shift, where x result of the above four steps.
+            If `atomic_shift` and `atomic_scale` is None, no transform is applied.
+            If a scalar tensor is provided for `atomic_shift` and for `atomic_scale`,
+            then it is then it is used for all atom types.
+            If a tensor of shape (n_atom_types,) is provided for `atomic_shift` and
+                `atomic_scale`, then it is applied to each atom type separately.
     """
 
     def __init__(
@@ -48,15 +50,13 @@ class StructureScalar(nn.Module):
         self.num_layers = num_layers
 
         self.register_buffer(
-            "atomic_energy_shift",
-            atomic_shift if atomic_shift is not None else None,
+            "atomic_shift", atomic_shift if atomic_shift is not None else None
         )
         self.register_buffer(
-            "atomic_energy_scale",
-            atomic_scale if atomic_scale is not None else None,
+            "atomic_scale", atomic_scale if atomic_scale is not None else None
         )
 
-        # Single-layer linear mapping for atom features in early layers
+        # Linear mapping for atom features in early layers
         self.out_layers = nn.ModuleList(
             [nn.Linear(in_features, 1) for _ in range(num_layers - 1)]
         )
@@ -82,29 +82,29 @@ class StructureScalar(nn.Module):
         Returns:
             Total energy of each configuration. Shape (n_config,).
         """
-        assert len(atom_feats) == self.num_layers
+        assert len(atom_feats) == self.num_layers, "Number of layers mismatch."
 
         V = torch.zeros(1, dtype=atom_feats[0].dtype, device=atom_feats[0].device)
         for i, fn in enumerate(self.out_layers):
             V = V + fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
-        # normalization
-        if self.atomic_energy_scale is not None:
-            if self.atomic_energy_scale.ndim == 0:
-                V = V * self.atomic_energy_scale
+        # Normalization
+        if self.atomic_scale is not None:
+            if self.atomic_scale.ndim == 0:
+                V = V * self.atomic_scale
             else:
-                V = V * self.atomic_energy_scale[atom_type]
+                V = V * self.atomic_scale[atom_type]
 
-        if self.atomic_energy_shift is not None:
-            if self.atomic_energy_shift.ndim == 0:
-                V = V + self.atomic_energy_shift
+        if self.atomic_shift is not None:
+            if self.atomic_shift.ndim == 0:
+                V = V + self.atomic_shift
             else:
-                V = V + self.atomic_energy_shift[atom_type]
+                V = V + self.atomic_shift[atom_type]
 
-        # Energy of individual configurations; (num_config,)
-        E = scatter(V, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
+        # Output of each configuration; (num_config,)
+        out = scatter(V, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
 
-        return E
+        return out
 
 
 class AtomicVector(nn.Module):

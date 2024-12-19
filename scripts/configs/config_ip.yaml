@@ -32,17 +32,15 @@ model:
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
 
   # angular
-  max_L: 3 # max rank of natural tensor
+  max_L: 2 # max rank of natural tensor
   max_degree: null # max degree of coupling natural tensor, if `null`, equal to max_L
 
   # radial
-  # TODO, this would be better to be smaller than F?
-  radial_mlp_hidden_layers: [16, 16]
+  radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
   # output
-  # TODO, this would be better to be smaller than F?
-  output_mlp_hidden_layers: [16, 16]
+  output_mlp_hidden_layers: 2
 
 loss:
   energy_ratio: 1.0
