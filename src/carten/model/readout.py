@@ -2,6 +2,7 @@
 import torch
 from torch import Tensor, nn
 
+from carten.module.linear import LinearMap
 from carten.module.mlp import MLP
 from carten.module.scatter import scatter
 
@@ -9,8 +10,8 @@ from carten.module.scatter import scatter
 class StructureScalar(nn.Module):
     """Get a scalar output for each atomic configuration.
 
-    For a model with multiple layers, the scalar outputs of all layers are passed to
-    this module. This module then computes a final scalar output for each atomic
+    For a model with multiple layers, the scalar atomic feats of all layers are passed
+    to this module. This module then computes a final scalar output for each atomic
     configuration, achieved by the steps:
     1. The scalar atom feats of each layer (but the last) are multiplied by a weight
        matrix.
@@ -46,8 +47,9 @@ class StructureScalar(nn.Module):
         atomic_scale: Tensor = None,
     ):
         super().__init__()
-
         self.num_layers = num_layers
+        self.in_features = in_features
+        self.hidden_features = hidden_features
 
         self.register_buffer(
             "atomic_shift", atomic_shift if atomic_shift is not None else None
@@ -82,7 +84,7 @@ class StructureScalar(nn.Module):
         Returns:
             Total energy of each configuration. Shape (n_config,).
         """
-        assert len(atom_feats) == self.num_layers, "Number of layers mismatch."
+        assert len(atom_feats) == self.num_layers, "Incorrect number of atom feats."
 
         V = torch.zeros(1, dtype=atom_feats[0].dtype, device=atom_feats[0].device)
         for i, fn in enumerate(self.out_layers):
@@ -107,38 +109,172 @@ class StructureScalar(nn.Module):
         return out
 
 
-class AtomicVector(nn.Module):
-    """Output module to predict a vector quantity for each atom.
+class AtomicTensor(nn.Module):
+    """Get a tensor output for each atomic configuration.
 
-    The shape of the input is (n_u, n_atoms, 3), where n_u denotes the batch dimension
-    of the radial degree u (i.e. feature dimension), for each atom, the feature is
-    (n_u, 3), i.e. a set of 3-vectors, v1, v2, ... v_{n_u}.
+    For a model with multiple layers, the atomic feats of all layers are passed to this
+    module. This module then
+    1. selects the corresponding natural tensors,
+    2. linearly maps them (via the channel dim) to get the atomic natural tensors.
 
-    The output vector v for an atom is obtained via a linear combination of all the
-    vectors, v = LinearCombination(v1, v2, ... v_{n_u})
+
+    Args:
+        num_layers: Number of layers in the main model.
+        in_features: Size of the input features, namely the channel dimension F.
+        hidden_features: Size of the features for the hidden layers of MLP to process
+            the scalar atom feats of the last layer. If a list, it provides the hidden
+            layer sizes of the MLP. If an integer, it is interpreted as the number of
+            hidden layers, and the hidden layer sizes are set to in_features.
+        output_signature: A dictionary {l: n_l} that specifies the natural tensor
+            components to output for each atomic configuration. The key `l` gives
+            the rank of the natural tensor, and the value `n_l` gives the number of
+            rank-l natural tensor to output. For example, a dielectric tensor is a
+            rank-2 tensor, which can be decomposed as 1 rank-0, 1 rank-1, and
+            1 rank-2 natural tensors. To model the dielectric tensor, the
+            output_signature should be {0: 1, 1: 1, 2: 1}. As another example,
+            the elastic tensor is a rank-4 tensor, which can be decomposed as
+            2 rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
+            tensor, the output_signature should be {0: 2, 2: 2, 4: 1}.
+        num_atom_feats: Number of atomic features to expect in the forward pass. If
+            None, it is set to `num_layers`, indicating that the atomic features of
+            all layers are passed to this module.
     """
 
-    def __init__(self, num_layers: int, in_features: int):
+    def __init__(
+        self,
+        num_layers: int,
+        in_features: int,
+        hidden_features: list[int] | int,
+        output_signature: dict[int, int],
+        num_atom_feats: int = None,
+    ):
         super().__init__()
-
         self.num_layers = num_layers
+        self.in_features = in_features
+        self.hidden_features = hidden_features
+        self.num_atom_feats = (
+            num_atom_feats if num_atom_feats is not None else num_layers
+        )
 
-        # last layer
-        self.layer = nn.Linear(in_features, 1, bias=False)
+        # Linear mapping for atom features in early layers
+        self.kernel = nn.ModuleDict()
+        self.slice = dict()
+        for l, n in output_signature.items():
+            self.kernel[str(l)] = LinearMap(
+                in_features * self.num_atom_feats, n, bias=l == 0
+            )
+            start = (3**l - 1) // 2
+            end = (3 ** (l + 1) - 1) // 2
+            self.slice[l] = (start, end)
 
     def forward(
-        self, atom_feats: Tensor, atom_type: Tensor, num_atoms: Tensor
-    ) -> Tensor:
+        self,
+        atom_feats: list[Tensor],
+        atom_type: Tensor,
+        num_atoms: Tensor,
+    ) -> dict[int, Tensor]:
         """
         Args:
-            atom_feats: atomic features of shape (n_u, n_atoms, 3), where n_u
-                denotes the batch dimension of the radial degree u (i.e. feature
-                dimension), and the 3 is the vector dimension.
+            atom_feats: list of atomic features, each of shape (n_atoms, F, T),
+                where `F` is the channel dimension, and `T` is the tensor dimension.
+            atom_type: The atomic type of each atom. Shape (n_atoms,).
+            num_atoms: The number of atoms in each atomic configuration.
+                Shape (n_atoms,)
 
         Returns:
-            Atomic vectors, tensor of shape (n_atoms, 3).
+            Dictionary of natural tensors for each atom. {l: T}, where `l` is the rank
+            of the natural tensor, and `T` is the tensor. T has a shape of
+            (n_atoms, n_l, 3**l), where `n` is the number of rank-l natural tensors.
+            See `output_signature`.
+        """
+        assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
+
+        # Select natural tensors of ranks needed for outputs.
+        # Each obtained by stacking the atomic features of all layers along the channel
+        # dimension. {l: (n_atoms, F*self.num_atom_feats, 3 ** l)}
+        atom_feats = {
+            l: torch.cat([x[..., start:end] for x in atom_feats], dim=1)
+            for l, (start, end) in self.slice.items()
+        }
+
+        # Linear mapping F to n_l output dims for each atom; {l: (n_atoms, n_l, 3**l)}
+        atom_out = {int(l): fn(atom_feats[int(l)]) for l, fn in self.kernel.items()}
+
+        return atom_out
+
+
+class StructureTensor(AtomicTensor):
+    """Get a tensor output for each atomic configuration.
+
+    For a model with multiple layers, the atomic feats of all layers are passed to this
+    module. This module then
+    1. selects the corresponding natural tensors,
+    2. linearly maps them (via the channel dim) to get the atomic natural tensors,
+    3. sums the atomic natural tensors to get the atomic configuration tensor.
+
+
+    Args:
+        num_layers: Number of layers in the main model.
+        in_features: Size of the input features, namely the channel dimension F.
+        hidden_features: Size of the features for the hidden layers of MLP to process
+            the scalar atom feats of the last layer. If a list, it provides the hidden
+            layer sizes of the MLP. If an integer, it is interpreted as the number of
+            hidden layers, and the hidden layer sizes are set to in_features.
+        output_signature: A dictionary {l: n_l} that specifies the natural tensor
+            components to output for each atomic configuration. The key `l` gives
+            the rank of the natural tensor, and the value `n_l` gives the number of
+            rank-l natural tensor to output. For example, a dielectric tensor is a
+            rank-2 tensor, which can be decomposed as 1 rank-0, 1 rank-1, and
+            1 rank-2 natural tensors. To model the dielectric tensor, the
+            output_signature should be {0: 1, 1: 1, 2: 1}. As another example,
+            the elastic tensor is a rank-4 tensor, which can be decomposed as
+            2 rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
+            tensor, the output_signature should be {0: 2, 2: 2, 4: 1}.
+        num_atom_feats: Number of atomic features to expect in the forward pass. If
+            None, it is set to `num_layers`, indicating that the atomic features of
+            all layers are passed to this module.
+    """
+
+    def __init__(
+        self,
+        num_layers: int,
+        in_features: int,
+        hidden_features: list[int] | int,
+        output_signature: dict[int, int],
+        num_atom_feats: int = None,
+    ):
+        super().__init__(
+            num_layers, in_features, hidden_features, output_signature, num_atom_feats
+        )
+
+    def forward(
+        self,
+        atom_feats: list[Tensor],
+        atom_type: Tensor,
+        num_atoms: Tensor,
+    ) -> dict[int, Tensor]:
+        """
+        Args:
+            atom_feats: list of atomic features, each of shape (n_atoms, F, T),
+                where `F` is the channel dimension, and `T` is the tensor dimension.
+            atom_type: The atomic type of each atom. Shape (n_atoms,).
+            num_atoms: The number of atoms in each atomic configuration.
+                Shape (n_atoms,)
+
+        Returns:
+            Dictionary of natural tensors for each atomic configuration.
+            {l: T}, where `l` is the rank of the natural tensor, and `T` is the tensor.
+            T has a shape of (n_config, n_l, 3**l), where `n` is the number of rank-l
+            natural tensors. See `output_signature`.
         """
 
-        V = self.layer(atom_feats.permute(1, 2, 0)).squeeze(-1)  # shape (n_atoms, 3)
+        # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
+        atom_out = super().forward(atom_feats, atom_type, num_atoms)
 
-        return V
+        # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
+        conf_out = {
+            l: scatter(x, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
+            for l, x in atom_out.items()
+        }
+
+        return conf_out
