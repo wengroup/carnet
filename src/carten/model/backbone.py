@@ -13,7 +13,7 @@ class Backbone(nn.Module):
     Args:
         F: Channel dimension.
         max_L: Max rank of the feature tensor. Natural tensors of rank 0, 1, ..., max_L
-            will be included in the output feature tensor.
+            will be used in the tensor product.
         num_atom_types: Number of atom types.
         r_cut: Cutoff radius for the radial basis functions.
         num_layers: Number of layers.
@@ -114,24 +114,28 @@ class Backbone(nn.Module):
         edge_idx: Tensor,
         atom_type: Tensor,
         num_atoms: Tensor,
-        return_all_scalar_feats: bool = False,
-    ) -> tuple[Tensor, list[Tensor]]:
+        return_all: bool = False,
+        scalar_only: bool = False,
+    ) -> list[Tensor]:
         """
         Args:
             edge_vector:
             edge_idx:
             atom_type:
             num_atoms: 1D tensor of the number of atoms in each atomic configuration.
-            return_all_scalar_feats: whether to output all scalar features from all
-                layers.
+            return_all: Whether to return the atom features from all layers.
+            scalar_only: Whether to return only the scalar features.
+
 
         Returns:
-            updated_feats: Updated atomic features after all layers.
-                Shape (..., F, T'), where T' = ((max_out_L + 1)**2 -1))//2 is the total
-                number of tensor components.
-            scalar_feats: If `return_all_scalar_feats` is True, this is a list of scalar
-                features from all layers. Each scalar feature is of shape (..., F, 1).
-                If `return_all_scalar_feats` is False, this is an empty list.
+            atom_feats: Updated atomic features. The output is a list of tensors.
+                `return_all` determines the size of the list. If `False`, the list
+                consists of a single tensor, which is the updated features from the last
+                layer. If `True`, the list contains the updated features from all
+                layers. `scalar_only` determines the shape of the tensors in the list.
+                if `False`, the tensors are of shape (..., F, T'), where
+                T' = (3**(max_out_L + 1) -1))//2 is the total number of tensor
+                components. If `True`, the tensors are of shape (..., F, 1).
         """
         # Embed atom number as scalar features of dim F; (n_atoms, F, 1)
         atom_feats = self.atom_embedding(atom_type).unsqueeze(-1)
@@ -139,10 +143,14 @@ class Backbone(nn.Module):
         # TODO, for the first layer, because atom_feats is special (only scalars), we
         #  might be able to use a more constrained version of AtomicMoment in
         #  `Layer` to save some computation.
-        scalar_feats = []
-        for layer in self.layers:
+        output = []
+        for i, layer in enumerate(self.layers):
             atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
-            if return_all_scalar_feats:
-                scalar_feats.append(atom_feats[..., 0:1])
+            if scalar_only:
+                x = atom_feats[..., 0:1]
+            else:
+                x = atom_feats[..., : (3 ** (self.max_out_L + 1) - 1) // 2]
+            if return_all or i == self.num_layers - 1:
+                output.append(x)
 
-        return atom_feats, scalar_feats
+        return output

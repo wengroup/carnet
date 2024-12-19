@@ -85,8 +85,13 @@ class InteratomicPotenital(nn.Module):
             Total energy of each atomic configuration. Shape (n_config,).
         """
         # Get the scalar feats from all layers
-        _, all_scalar_feats = self.backbone(
-            edge_vector, edge_idx, atom_type, num_atoms, return_all_scalar_feats=True
+        all_scalar_feats = self.backbone(
+            edge_vector,
+            edge_idx,
+            atom_type,
+            num_atoms,
+            return_all=True,
+            scalar_only=True,
         )
 
         # Compute the total energy
