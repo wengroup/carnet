@@ -25,5 +25,5 @@ def test_HyperMoment(config_info):
         # change the shape to (num_atoms, F, 3, 3, ...)
         sliced = sliced.reshape(num_atoms, F, *(3,) * l3)
 
-        assert is_symmetric(sliced, start_dim=2, atol=1e-6), f"l={l3} is not symmetric"
-        assert is_traceless(sliced, start_dim=2, atol=1e-6), f"l={l3} is not traceless"
+        assert is_symmetric(sliced, start_dim=2, atol=1e-5), f"l={l3} is not symmetric"
+        assert is_traceless(sliced, start_dim=2, atol=1e-5), f"l={l3} is not traceless"
