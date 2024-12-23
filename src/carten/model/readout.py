@@ -273,7 +273,7 @@ class StructureTensor(AtomicTensor):
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
-            l: scatter(x, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
+            l: scatter(x, torch.repeat_interleave(num_atoms), reduce="mean", dim=0)
             for l, x in atom_out.items()
         }
 
