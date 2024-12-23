@@ -184,7 +184,7 @@ class AtomicTensor(nn.Module):
         Returns:
             Dictionary of natural tensors for each atom. {l: T}, where `l` is the rank
             of the natural tensor, and `T` is the tensor. T has a shape of
-            (n_atoms, n_l, 3**l), where `n` is the number of rank-l natural tensors.
+            (n_atoms, n_l, 3**l), where `n_l` is the number of rank-l natural tensors.
             See `output_signature`.
         """
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
@@ -264,7 +264,7 @@ class StructureTensor(AtomicTensor):
         Returns:
             Dictionary of natural tensors for each atomic configuration.
             {l: T}, where `l` is the rank of the natural tensor, and `T` is the tensor.
-            T has a shape of (n_config, n_l, 3**l), where `n` is the number of rank-l
+            T has a shape of (n_config, n_l, 3**l), where `n_l` is the number of rank-l
             natural tensors. See `output_signature`.
         """
 

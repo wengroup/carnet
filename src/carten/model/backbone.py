@@ -146,11 +146,11 @@ class Backbone(nn.Module):
         output = []
         for i, layer in enumerate(self.layers):
             atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
-            if scalar_only:
-                x = atom_feats[..., 0:1]
-            else:
-                x = atom_feats[..., : (3 ** (self.max_out_L + 1) - 1) // 2]
             if return_all or i == self.num_layers - 1:
+                if scalar_only:
+                    x = atom_feats[..., 0:1]
+                else:
+                    x = atom_feats[..., : (3 ** (self.max_out_L + 1) - 1) // 2]
                 output.append(x)
 
         return output
