@@ -19,7 +19,7 @@ from carten.data.utils import get_edge_vec
 from ..force_stress import compute_forces
 
 
-class LitModelIP(LightningModule):
+class InteratomicPotentialLitModule(LightningModule):
     def __init__(
         self,
         model: nn.Module,

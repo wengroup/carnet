@@ -96,11 +96,11 @@ def get_git_commit(
 
 if __name__ == "__main__":
     from carten.model.ip import InteratomicPotenital
-    from carten.model.pl.pl_ip import LitModelIP
+    from carten.model.pl.pl_ip import InteratomicPotentialLitModule
 
     lit_model = load_model(
         InteratomicPotenital,
-        LitModelIP,
+        InteratomicPotentialLitModule,
         "/Users/mjwen.admin/Packages/carten/scripts/last_epoch.ckpt",
     )
 

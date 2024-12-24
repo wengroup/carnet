@@ -10,7 +10,7 @@ from torch_geometric.loader.dataloader import DataLoader
 from carten.data.dataset import Dataset
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.ip import InteratomicPotenital
-from carten.model.pl.pl_ip import LitModelIP
+from carten.model.pl.pl_ip import InteratomicPotentialLitModule
 from carten.model.pl.utils import (
     get_args,
     get_git_commit,
@@ -137,7 +137,7 @@ def get_model(
     # m = torch.compile(m)
     # TODO, It should work for tensor predictions
 
-    model = LitModelIP(
+    model = InteratomicPotentialLitModule(
         m,
         loss_hparams=loss_hparams,
         metrics_hparams=metrics_hparams,
@@ -182,7 +182,7 @@ def main(config: dict):
     # load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(InteratomicPotenital, LitModelIP, restore_checkpoint)
+        model = load_model(InteratomicPotenital, InteratomicPotentialLitModule, restore_checkpoint)
     print(model)
 
     # Train

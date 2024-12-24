@@ -18,7 +18,7 @@ from torchmetrics import MeanAbsoluteError, MeanSquaredError
 from carten.data.utils import get_edge_vec
 
 
-class BaseLitModel(LightningModule):
+class BaseLitModule(LightningModule):
     """
     Base lightning model for predicting tensorial properties of materials and molecules.
 
@@ -239,7 +239,7 @@ class BaseLitModel(LightningModule):
     #     self.log_dict(norms, prog_bar=False)
 
 
-class LitModelAtomicTensor(LightningModule):
+class AtomicTensorLitModule(LightningModule):
     def compute_loss(self, pred, ref):
         """
         Total loss:
@@ -262,7 +262,7 @@ class LitModelAtomicTensor(LightningModule):
         return metrics
 
 
-class LitModelStructureTensor(BaseLitModel):
+class StructureTensorLitModule(BaseLitModule):
     def compute_loss(self, pred, ref):
         """
         Total loss:
