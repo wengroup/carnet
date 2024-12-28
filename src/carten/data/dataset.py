@@ -92,7 +92,9 @@ class Dataset(InMemoryDataset):
 
         def process_a_row(row):
             y = {name: np.asarray(row[name]) for name in self.target_names}
-            y["energy"] = y["energy"].reshape(1)
+
+            if "energy" in y:
+                y["energy"] = y["energy"].reshape(1)
 
             if "cell" not in row:
                 cell = None

@@ -212,9 +212,9 @@ class InteratomicPotentialLitModule(LightningModule):
             for Allegro and MACE, it is not quite that. They only divide the total
             forces by the total number of atoms. Not considering individual structures.
 
-        L = 1/K \sum_k^K [
+        L = 1/K sum_k^K [
                 1/N_k^2 (E_pred - E_ref)^2
-              + 1/(3N_k) \sum_i^{N_k} (F_pred - F_ref)^2
+              + 1/(3N_k) sum_i^{N_k} (F_pred - F_ref)^2
               ]
 
         where N_k is the number of atoms in the k-th structure
@@ -247,7 +247,7 @@ class InteratomicPotentialLitModule(LightningModule):
         same number of atoms in each config, i.e. N_k = N for all k.
 
         In this case, the force term is simply:
-            L_f = 1/(3KN) \sum_k \sum_i (F_pred - F_ref)^2
+            L_f = 1/(3KN) sum_k sum_i (F_pred - F_ref)^2
         """
 
         e_loss = self.loss_hparams["energy_ratio"] * nn.functional.mse_loss(
@@ -272,9 +272,9 @@ class InteratomicPotentialLitModule(LightningModule):
             - not normalize energy
             - normalize forces by N_k
 
-            L = 1/K \sum_k^K [
+            L = 1/K sum_k^K [
                 (E_pred - E_ref)^2
-              + 1/(3N_k) \sum_i^{N_k} (F_pred - F_ref)^2
+              + 1/(3N_k) sum_i^{N_k} (F_pred - F_ref)^2
               ]
 
         This is the used in
@@ -336,8 +336,8 @@ class InteratomicPotentialLitModule(LightningModule):
             - normalize energy by N
             - not normalize forces by N
 
-        L = 1/K \sum_k^K [ 1/N_k^2 (E_pred - E_ref)^2 }
-                         + \sum_i^{N_k} (F_pred - F_ref)^2 ]
+        L = 1/K sum_k^K [ 1/N_k^2 (E_pred - E_ref)^2 }
+                         + sum_i^{N_k} (F_pred - F_ref)^2 ]
 
 
         This is used in
@@ -348,14 +348,14 @@ class InteratomicPotentialLitModule(LightningModule):
     def compute_metrics(self, e_pred, f_pred, e_ref, f_ref, num_atoms, mode: str):
         """
         Energy MAE:
-            MAE = \mean_k |E_pred/N_k - E_ref/N_k|
+            MAE = mean_k |E_pred/N_k - E_ref/N_k|
 
             or
 
-            MAE = \mean_k |E_pred - E_ref|
+            MAE = mean_k |E_pred - E_ref|
 
         Forces MAE:
-            MAE = \mean_k 1/(3N_k) \sum_i |F_pred - F_ref|
+            MAE = mean_k 1/(3N_k) sum_i |F_pred - F_ref|
 
 
         """
