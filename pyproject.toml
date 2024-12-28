@@ -16,6 +16,8 @@ dependencies = [
     "torch",
     "opt_einsum",
     "torch-geometric>=2.5.3",
+    "ema-pytorch",
+    "wandb",
     "line_profiler",
 ]
 
