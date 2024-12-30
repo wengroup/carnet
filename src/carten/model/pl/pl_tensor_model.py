@@ -300,6 +300,6 @@ class StructureTensorLitModule(BaseLitModule):
             self.metrics[name](p, r)
 
             # record the metric object to return
-            metrics[f"{mode}/{self.metrics_type}_{rank}"] = self.metrics[name]
+            metrics[f"{mode}/{self.metrics_type}_rank-{rank}"] = self.metrics[name]
 
         return metrics
