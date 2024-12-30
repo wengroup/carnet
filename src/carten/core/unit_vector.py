@@ -17,7 +17,7 @@ from carten.core.utils import (
 def get_nt_from_vector(
     a: Tensor, l: int, normalize: str = "unity", flatten: bool = False
 ) -> Tensor:
-    """
+    r"""
     Create a natural tensor from a unit vector.
 
     X = C \sum_{d=0}^D (-1)^d \frac{(2l-2d-1)!!}{(2l-1)!!}
@@ -102,7 +102,7 @@ def get_nt_from_vector(
 
 
 def get_polyadics_from_vector(a: Tensor, L: int, normalize: str = "unity"):
-    """
+    r"""
     Create polyadic tensors from a unit vector.
 
     A polyadic tensor of rank L from a unit vector is defined as:

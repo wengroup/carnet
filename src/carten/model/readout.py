@@ -1,4 +1,5 @@
 """Readout layer."""
+
 import torch
 from torch import Tensor, nn
 
@@ -129,12 +130,12 @@ class AtomicTensor(nn.Module):
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
             rank-l natural tensor to output. For example, a dielectric tensor is a
-            rank-2 tensor, which can be decomposed as 1 rank-0, 1 rank-1, and
-            1 rank-2 natural tensors. To model the dielectric tensor, the
-            output_signature should be {0: 1, 1: 1, 2: 1}. As another example,
-            the elastic tensor is a rank-4 tensor, which can be decomposed as
-            2 rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
-            tensor, the output_signature should be {0: 2, 2: 2, 4: 1}.
+            symmetric rank-2 tensor, which can be decomposed as 1 rank-0  and 1 rank-2
+            natural tensors. To model the dielectric tensor, the output_signature
+            should be {0: 1, 1: 1, 2: 1}. As another example, the elastic tensor is a
+            rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
+            natural tensors. To model the elastic tensor, the output_signature should
+            be {0: 2, 2: 2, 4: 1}.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.
@@ -224,12 +225,12 @@ class StructureTensor(AtomicTensor):
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
             rank-l natural tensor to output. For example, a dielectric tensor is a
-            rank-2 tensor, which can be decomposed as 1 rank-0, 1 rank-1, and
-            1 rank-2 natural tensors. To model the dielectric tensor, the
-            output_signature should be {0: 1, 1: 1, 2: 1}. As another example,
-            the elastic tensor is a rank-4 tensor, which can be decomposed as
-            2 rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
-            tensor, the output_signature should be {0: 2, 2: 2, 4: 1}.
+            symmetric rank-2 tensor, which can be decomposed as 1 rank-0  and 1 rank-2
+            natural tensors. To model the dielectric tensor, the output_signature
+            should be {0: 1, 1: 1, 2: 1}. As another example, the elastic tensor is a
+            rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
+            natural tensors. To model the elastic tensor, the output_signature should
+            be {0: 2, 2: 2, 4: 1}.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.

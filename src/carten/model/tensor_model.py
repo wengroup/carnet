@@ -44,11 +44,11 @@ class AtomicTensorModel(nn.Module):
                 components to output for each atomic configuration. The key `l` gives
                 the rank of the natural tensor, and the value `n_l` gives the number of
                 rank-l natural tensor to output. For example, a dielectric tensor is a
-                rank-2 tensor, which can be decomposed as 1 rank-0, 1 rank-1, and
-                1 rank-2 natural tensors. To model the dielectric tensor, the
+                symmetric rank-2 tensor, which can be decomposed as 1 rank-0  and 1
+                rank-2 natural tensors. To model the dielectric tensor, the
                 output_signature should be {0: 1, 1: 1, 2: 1}. As another example,
-                the elastic tensor is a rank-4 tensor, which can be decomposed as
-                2 rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
+                the elastic tensor is a rank-4 tensor, which can be decomposed as 2
+                rank-0, 2 rank-2, and 1 rank-4 natural tensors. To model the elastic
                 tensor, the output_signature should be {0: 2, 2: 2, 4: 1}.
             output_from_all_layers: If True, the output is constructed from the
                 atom features of all layers. If False, the output is constructed from
