@@ -182,7 +182,9 @@ def main(config: dict):
     # load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(InteratomicPotenital, InteratomicPotentialLitModule, restore_checkpoint)
+        model = load_model(
+            InteratomicPotenital, InteratomicPotentialLitModule, restore_checkpoint
+        )
     print(model)
 
     # Train
@@ -245,3 +247,6 @@ if __name__ == "__main__":
     config_file = Path(__file__).parent / "configs" / "config_ip.yaml"
     config = get_args(config_file)
     main(config)
+
+    # Remove the processed data directory
+    shutil.rmtree("./processed", ignore_errors=True)
