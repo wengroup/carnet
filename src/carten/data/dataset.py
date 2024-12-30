@@ -91,7 +91,8 @@ class Dataset(InMemoryDataset):
             df = self.atom_featurizer(df)
 
         def process_a_row(row):
-            y = {name: np.asarray(row[name]) for name in self.target_names}
+            y = {name: row[name] for name in self.target_names}
+            y = _to_numpy(y)
 
             if "energy" in y:
                 y["energy"] = y["energy"].reshape(1)
@@ -179,6 +180,19 @@ class Dataset(InMemoryDataset):
         # the `load` method. This ca avoid shape mismatch error we have enforced in
         # the `Config` class.
         fs.torch_save((data.to_dict(), slices), path)
+
+
+def _to_numpy(d):
+    """
+    Convert values to numpy arrays.
+
+    The values can be given as dictionary values, and the dictionary can be nested.
+    """
+
+    if isinstance(d, dict):
+        return {k: _to_numpy(v) for k, v in d.items()}
+    else:
+        return np.asarray(d)
 
 
 if __name__ == "__main__":
