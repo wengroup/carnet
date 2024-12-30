@@ -3,6 +3,7 @@
 This is supposed to be used with the `carten.model.tensor.StructureTensorModel`
 and `carten.model.tensor.AtomicTensorModel` models.
 """
+
 from typing import Any
 
 import torch
@@ -28,7 +29,7 @@ class BaseLitModule(LightningModule):
     def __init__(
         self,
         model: nn.Module,
-        loss_hparams: dict[str, float] = None,
+        loss_hparams: dict[str, Any] = None,
         metrics_hparams: dict[str, float] = None,
         optimizer_hparams: dict[str, Any] = None,
         lr_scheduler_hparams: dict[str, Any] = None,
@@ -62,8 +63,9 @@ class BaseLitModule(LightningModule):
 
         self.metrics = nn.ModuleDict(
             {
-                f"metrics_{mode}": MetricClass()
+                f"metrics_{mode}_{rank}": MetricClass()
                 for mode in ["train", "val", "test", "val_ema", "test_ema"]
+                for rank in self.loss_hparams["target_signature"]
             }
         )
 
@@ -100,7 +102,7 @@ class BaseLitModule(LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        ref = batch.y["target"]
+        ref = batch.y[self.loss_hparams["target_name"]]
         batch_size = batch.num_graphs
 
         pred = self(batch)
@@ -123,13 +125,14 @@ class BaseLitModule(LightningModule):
         self._val_test_step(batch, batch_idx, mode="test")
 
     def _val_test_step(self, batch, batch_idx, mode: str, start_epoch: int = 0):
-        ref = batch.y["target"]
+        ref = batch.y[self.loss_hparams["target_name"]]
         batch_size = batch.num_graphs
 
         # use current model
         if self.current_epoch >= start_epoch:
             pred = self(batch)
         else:
+            # TODO, this needs to be updated as a dict
             # dummy values to skip validation for the first few epochs
             pred = torch.zeros(1, dtype=ref.dtype, device=ref.device)
             ref = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
@@ -147,6 +150,7 @@ class BaseLitModule(LightningModule):
         if self.current_epoch >= start_epoch:
             pred = self.forward_ema(batch)
         else:
+            # TODO, this needs to be updated as a dict
             # dummy values to skip validation for the first few epochs
             pred = torch.zeros(1, dtype=ref.dtype, device=ref.device)
             ref = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
@@ -160,17 +164,17 @@ class BaseLitModule(LightningModule):
             batch_size=batch_size,
         )
 
-    def compute_loss(self, pred, ref):
+    def compute_loss(self, pred: dict, ref: dict):
         """
         Total loss:
             loss_total = loss
         """
         raise NotImplementedError("Subclass must implement this method.")
 
-    def compute_metrics(self, pred, ref, mode: str):
+    def compute_metrics(self, pred: dict, ref: dict, mode: str):
         """
         MAE:
-            MAE = \mean_k |E_pred - E_ref|
+            MAE = mean_k |E_pred - E_ref|
         """
         raise NotImplementedError("Subclass must implement this method.")
 
@@ -239,47 +243,63 @@ class BaseLitModule(LightningModule):
     #     self.log_dict(norms, prog_bar=False)
 
 
-class AtomicTensorLitModule(LightningModule):
-    def compute_loss(self, pred, ref):
-        """
-        Total loss:
-            loss_total = loss
-        """
-        # self.loss_hparams['energy_ratio']
-        loss = nn.functional.mse_loss(pred, ref, reduction="mean")
-        losses = {"train/loss": loss}
-
-        return losses
-
-    def compute_metrics(self, pred, ref, mode: str):
-        """
-        MAE:
-            MAE = \mean_k |E_pred - E_ref|
-        """
-        self.metrics[f"metrics_{mode}"](pred, ref)
-        metrics = {f"{mode}/{self.metrics_type}": self.metrics[f"metrics_{mode}"]}
-
-        return metrics
+# class AtomicTensorLitModule(LightningModule):
+#     def compute_loss(self, pred, ref):
+#         """
+#         Total loss:
+#             loss_total = loss
+#         """
+#         # self.loss_hparams['energy_ratio']
+#         loss = nn.functional.mse_loss(pred, ref, reduction="mean")
+#         losses = {"train/loss": loss}
+#
+#         return losses
+#
+#     def compute_metrics(self, pred: dict, ref: dict, mode: str):
+#         """
+#         MAE:
+#             MAE = mean_k |E_pred - E_ref|
+#         """
+#         self.metrics[f"metrics_{mode}"](pred, ref)
+#         metrics = {f"{mode}/{self.metrics_type}": self.metrics[f"metrics_{mode}"]}
+#
+#         return metrics
 
 
 class StructureTensorLitModule(BaseLitModule):
-    def compute_loss(self, pred, ref):
+    def compute_loss(self, pred: dict, ref: dict):
         """
-        Total loss:
-            loss_total = loss
+        Weighted MSE loss.
         """
-        # self.loss_hparams['energy_ratio']
-        loss = nn.functional.mse_loss(pred, ref, reduction="mean")
-        losses = {"train/loss": loss}
+        losses = {}
+        for rank in pred:
+            p = pred[rank]
+            r = ref[str(rank)]
+
+            ratio = self.loss_hparams["ratio"][rank]
+            losses[f"train/loss_rank-{rank}"] = ratio * nn.functional.mse_loss(
+                p, r, reduction="mean"
+            )
+
+        losses["train/loss_total"] = sum(losses.values())
 
         return losses
 
-    def compute_metrics(self, pred, ref, mode: str):
+    def compute_metrics(self, pred: dict, ref: dict, mode: str):
         """
         MAE:
-            MAE = \mean_k |E_pred - E_ref|
+            MAE = mean_k |E_pred - E_ref|
         """
-        self.metrics[f"metrics_{mode}"](pred, ref)
-        metrics = {f"{mode}/{self.metrics_type}": self.metrics[f"metrics_{mode}"]}
+        metrics = {}
+        for rank in pred:
+            p = pred[rank]
+            r = ref[str(rank)]
+
+            # call the metric object
+            name = f"metrics_{mode}_{rank}"
+            self.metrics[name](p, r)
+
+            # record the metric object to return
+            metrics[f"{mode}/{self.metrics_type}_{rank}"] = self.metrics[name]
 
         return metrics
