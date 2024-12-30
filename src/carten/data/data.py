@@ -1,6 +1,7 @@
 """
 PyG data point to represent an atomic configuration.
 """
+
 from typing import Optional
 
 import numpy as np
@@ -129,7 +130,7 @@ class Config(Data):
                         f"type `{type(v)}`."
                     )
                 tensor_x[k] = v_out
-            self._check_tensor_dict(tensor_x, dict_name="x")
+            self._check_tensor_shape(tensor_x, name="x")
         else:
             tensor_x = None
 
@@ -143,7 +144,7 @@ class Config(Data):
                         f"type `{type(v)}`."
                     )
                 tensor_y[k] = v_out
-            self._check_tensor_dict(tensor_y, dict_name="y")
+            self._check_tensor_shape(tensor_y, name="y")
         else:
             tensor_y = None
 
@@ -157,7 +158,7 @@ class Config(Data):
                     f" `{type(v)}`."
                 )
             tensor_kwargs[k] = v_out
-        self._check_tensor_dict(tensor_kwargs, dict_name="kwargs")
+        self._check_tensor_shape(tensor_kwargs, name="kwargs")
 
         super().__init__(
             pos=pos,
@@ -189,34 +190,38 @@ class Config(Data):
     #     return out
 
     @staticmethod
-    def _check_tensor_dict(d: dict[str, Tensor], dict_name: str = "name_unknown"):
+    def _check_tensor_shape(d, name: str):
         """
-        Check the values of a dict are at least 1D tensors.
+        Check to be at least 1D tensors.
 
-        Args:
-            d: the dict to check
-            dict_name: name of the dictionary
+        The input can be a dictionary, and the dictionary can be nested.
         """
-
-        for k, v in d.items():
+        if isinstance(d, dict):
+            for k, v in d.items():
+                Config._check_tensor_shape(v, name=f"{name}.{k}")
+        else:
             assert isinstance(
-                v, Tensor
-            ), f"Expect `{k}` in dict `{dict_name}` to be a tensor, got `{type(v)}`"
+                d, Tensor
+            ), f"Expect `{name}` to be a tensor, got `{type(d)}`."
 
-            assert len(v.shape) >= 1, (
-                f"Expect `{k}` in dict `{dict_name}` to be a tensor at least 1D, "
-                f"but its shape is `{v.shape}`."
-            )
+            assert (
+                len(d.shape) >= 1
+            ), f"Expect `{name}` to be a tensor at least 1D, got shape `{d.shape}`."
 
     @staticmethod
     def _convert_to_tensor(x):
         """Convert a numpy array or torch tensor to a torch tensor.
 
+        The value can be given in a dictionary, and the dictionary can be nested.
+
         If cannot convert, return None.
         """
         DTYPE = torch.get_default_dtype()
 
-        if isinstance(x, np.ndarray):
+        if isinstance(x, dict):
+            return {k: Config._convert_to_tensor(v) for k, v in x.items()}
+
+        elif isinstance(x, np.ndarray):
             if np.issubdtype(x.dtype, np.floating):
                 return torch.as_tensor(x, dtype=DTYPE)
             elif np.issubdtype(x.dtype, np.integer):
