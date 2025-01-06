@@ -40,7 +40,7 @@ model:
 
   # output
   output_mlp_hidden_layers: 2
-  atomic_moment_mode: variant2 # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
   output_from_all_layers: false
 
 loss:

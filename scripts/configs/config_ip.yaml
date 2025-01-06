@@ -25,7 +25,7 @@ data:
   test_batch_size: 20
 
 model:
-  atomic_moment_mode: variant2 # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
 
   F: 8 # number of channels
   num_layers: 2 # number of layers
