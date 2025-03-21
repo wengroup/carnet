@@ -179,12 +179,10 @@ def main(config: dict):
             other_hparams=config,
         )
 
-    # load from checkpoint
+    # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(
-            InteratomicPotenital, InteratomicPotentialLitModule, restore_checkpoint
-        )
+        model = load_model(InteratomicPotentialLitModule, restore_checkpoint)
     print(model)
 
     # Train
@@ -208,6 +206,11 @@ def main(config: dict):
 
     # Note, passing ckpt_path to trainer.fit() to restore epoch, optimizer state,
     # lr_scheduler state, etc.
+    # See: https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
+    # Note, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
+    # and new values are provided in `config`, they won't be updated in the training
+    # process, since the below `fit` method has `ckpt_path` as an argument, which will
+    # override the hyperparameters from the config file (set in the above line).
     trainer.fit(
         model,
         train_dataloaders=train_loader,

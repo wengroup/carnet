@@ -24,12 +24,11 @@ def get_args(path: Path):
     return config
 
 
-def load_model(model_cls, lit_model_cls, checkpoint: Path, map_location: str = None):
+def load_model(lit_model_cls, checkpoint: Path, map_location: str = None):
     """
     Load the model from checkpoint.
 
     Args:
-        model_cls: the PyTorch model class, e.g. `carten.model.carten_ip.InteratomicPotenital`
         lit_model_cls: the Lightning model class, e.g. `carten.model.pl.pl_ip.LitModel`
         checkpoint: path to the checkpoint
         map_location: device to load the model to
@@ -41,18 +40,11 @@ def load_model(model_cls, lit_model_cls, checkpoint: Path, map_location: str = N
     dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
     torch.set_default_dtype(getattr(torch, dtype))
 
-    # create model
-    model_hparams = d["hyper_parameters"]["other_hparams"]["model"]
-    model = model_cls(**model_hparams)
-
     # create the lit model
-    # `model` is passed here to overwrite default model in the checkpoint. The reason
-    # we do this because LitModel can potentially work with different model_cls.
-    # Although model is provided, its state_dict will be updated from the checkpoint.
-    # note, this will only restore model parameters, not the epoch, optimizer state,
+    # Note, this will only restore model parameters, not the epoch, optimizer state,
     # lr_scheduler state, etc.
     lit_model = lit_model_cls.load_from_checkpoint(
-        checkpoint, map_location=map_location, model=model
+        checkpoint, map_location=map_location
     )
 
     return lit_model

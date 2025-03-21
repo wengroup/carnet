@@ -212,9 +212,7 @@ def main(config: dict):
     # load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(
-            StructureTensorModel, StructureTensorLitModule, restore_checkpoint
-        )
+        model = load_model(StructureTensorLitModule, restore_checkpoint)
     print(model)
 
     # Train
