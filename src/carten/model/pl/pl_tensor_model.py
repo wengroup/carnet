@@ -83,22 +83,33 @@ class BaseLitModule(LightningModule):
         #  atomic/structure tensor models, we can compute the edge_vector in the
         #  collate_fn.
 
+        # Atomic selector only needed for atomic tensor model, not for structure tensor
+        # model.
+        atomic_selector = (
+            None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
+        )
+
         return self.model(
             edge_vector=self._get_edge_vector(batch),
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
+            atomic_selector=atomic_selector,
         )
 
     @profile
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 
+        atomic_selector = (
+            None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
+        )
         return self.ema(
             edge_vector=self._get_edge_vector(batch),
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
+            atomic_selector=atomic_selector,
         )
 
     def training_step(self, batch, batch_idx):
@@ -238,32 +249,10 @@ class BaseLitModule(LightningModule):
     #
     # You might need to increase max_epoch for this to be executed and show up in wandb
     # Compute the 2-norm for each layer
+    #
     # def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int):
     #     norms = grad_norm(self.model, norm_type=2)
     #     self.log_dict(norms, prog_bar=False)
-
-
-# class AtomicTensorLitModule(LightningModule):
-#     def compute_loss(self, pred, ref):
-#         """
-#         Total loss:
-#             loss_total = loss
-#         """
-#         # self.loss_hparams['energy_ratio']
-#         loss = nn.functional.mse_loss(pred, ref, reduction="mean")
-#         losses = {"train/loss": loss}
-#
-#         return losses
-#
-#     def compute_metrics(self, pred: dict, ref: dict, mode: str):
-#         """
-#         MAE:
-#             MAE = mean_k |E_pred - E_ref|
-#         """
-#         self.metrics[f"metrics_{mode}"](pred, ref)
-#         metrics = {f"{mode}/{self.metrics_type}": self.metrics[f"metrics_{mode}"]}
-#
-#         return metrics
 
 
 class StructureTensorLitModule(BaseLitModule):
@@ -303,3 +292,6 @@ class StructureTensorLitModule(BaseLitModule):
             metrics[f"{mode}/{self.metrics_type}_rank-{rank}"] = self.metrics[name]
 
         return metrics
+
+
+AtomicTensorLitModule = StructureTensorLitModule

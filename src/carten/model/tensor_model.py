@@ -34,7 +34,7 @@ class AtomicTensorModel(nn.Module):
         """
         Args:
             output_mlp_hidden_layers: Number of units in each hidden layer of the output
-                MLP, which is applied to the last layer features before outputing.
+                MLP, which is applied to the last layer features before output.
                 If a list of integers, each gives the number of units in the
                 corresponding hidden layer. If an integer, this will be the number of
                 hidden layers, and the number of units in each hidden layer is set to F,
@@ -56,8 +56,8 @@ class AtomicTensorModel(nn.Module):
                 the atom features of the last layer only.
         """
         super().__init__()
-
         self.output_from_all_layers = output_from_all_layers
+
         if output_from_all_layers:
             num_atom_feats = num_layers
         else:
@@ -91,7 +91,19 @@ class AtomicTensorModel(nn.Module):
         edge_idx: Tensor,
         atom_type: Tensor,
         num_atoms: Tensor,
+        atomic_selector: list[bool] = None,
     ) -> Tensor:
+        """
+        Args:
+            edge_vector:
+            edge_idx:
+            atom_type:
+            num_atoms:
+            atomic_selector: A list of boolean values that indicates the features of which
+                atoms to use for later processing. The length of the list should be equal to
+                the number of atoms. If None, the features of all atoms are used.
+        """
+
         # Get the atom feats
         all_atom_feats = self.backbone(
             edge_vector,
@@ -102,8 +114,12 @@ class AtomicTensorModel(nn.Module):
             scalar_only=False,
         )
 
+        # Select the atomic features of the specified atoms
+        if atomic_selector is not None:
+            all_atom_feats = [x[atomic_selector] for x in all_atom_feats]
+
         # Compute the atomic tensor on each atom
-        output = self.readout(all_atom_feats, atom_type, num_atoms)
+        output = self.readout(all_atom_feats, atom_type)
 
         return output
 

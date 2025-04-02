@@ -168,19 +168,12 @@ class AtomicTensor(nn.Module):
             end = (3 ** (l + 1) - 1) // 2
             self.slice[l] = (start, end)
 
-    def forward(
-        self,
-        atom_feats: list[Tensor],
-        atom_type: Tensor,
-        num_atoms: Tensor,
-    ) -> dict[int, Tensor]:
+    def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> dict[int, Tensor]:
         """
         Args:
             atom_feats: list of atomic features, each of shape (n_atoms, F, T),
                 where `F` is the channel dimension, and `T` is the tensor dimension.
             atom_type: The atomic type of each atom. Shape (n_atoms,).
-            num_atoms: The number of atoms in each atomic configuration.
-                Shape (n_atoms,)
 
         Returns:
             Dictionary of natural tensors for each atom. {l: T}, where `l` is the rank
@@ -190,7 +183,7 @@ class AtomicTensor(nn.Module):
         """
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
 
-        # Select natural tensors of ranks needed for outputs.
+        # Select natural tensors of ranks needed for outputs
         # Each obtained by stacking the atomic features of all layers along the channel
         # dimension. {l: (n_atoms, F*self.num_atom_feats, 3 ** l)}
         atom_feats = {
@@ -211,7 +204,7 @@ class StructureTensor(AtomicTensor):
     module. This module then
     1. selects the corresponding natural tensors,
     2. linearly maps them (via the channel dim) to get the atomic natural tensors,
-    3. sums the atomic natural tensors to get the atomic configuration tensor.
+    3. Pool (sum/mean) the atomic natural tensors to get the atomic configuration tensor.
 
 
     Args:
@@ -253,6 +246,7 @@ class StructureTensor(AtomicTensor):
         atom_feats: list[Tensor],
         atom_type: Tensor,
         num_atoms: Tensor,
+        reduce: str = "mean",
     ) -> dict[int, Tensor]:
         """
         Args:
@@ -261,6 +255,8 @@ class StructureTensor(AtomicTensor):
             atom_type: The atomic type of each atom. Shape (n_atoms,).
             num_atoms: The number of atoms in each atomic configuration.
                 Shape (n_atoms,)
+            reduce: Reduction method to use for pooling the atomic natural tensors to
+                get the configuration tensor. Can be "mean" or "sum".
 
         Returns:
             Dictionary of natural tensors for each atomic configuration.
@@ -270,11 +266,11 @@ class StructureTensor(AtomicTensor):
         """
 
         # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
-        atom_out = super().forward(atom_feats, atom_type, num_atoms)
+        atom_out = super().forward(atom_feats, atom_type)
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
-            l: scatter(x, torch.repeat_interleave(num_atoms), reduce="mean", dim=0)
+            l: scatter(x, torch.repeat_interleave(num_atoms), reduce=reduce, dim=0)
             for l, x in atom_out.items()
         }
 

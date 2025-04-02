@@ -8,22 +8,19 @@ data:
   # the natural tensor, and T is the values of the natural tensor. The shape of T
   # should be (1, number, 3**rank), where `number` gives the number of tensors of the
   # corresponding rank.
-  target_name: dielectric_tensor_total_natural
+  target_name: nmr_tensor_natural
   target_signature: # {rank: number} of the natural tensor
-    ## dielectric tensor
+    ## nmr
     0: 1
+    1: 1
     2: 1
-    ## elastic tensor
-    #0: 2
-    #2: 2
-    #4: 1
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/dielectric_tensor/241229/dielectric_tensor_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/dielectric_tensor/241229/dielectric_tensor_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/dielectric_tensor/241229/dielectric_tensor_n20.json
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
   r_cut: 5.0
   train_batch_size: 4
-  val_batch_size: 8
-  test_batch_size: 8
+  val_batch_size: 4
+  test_batch_size: 4
 
 model:
   F: 8 # number of channels
@@ -51,13 +48,10 @@ loss:
   # If `normalize` is true, w_i = w_i/n_i, where n_i = 3**i is the number of elements in natural tensor of rank i.
   # The ranks should be consistent with the `target_signature` given in `data`.
   ratio:
-    # dielectric tensor
-    0: 0.1
-    2: 1.0
     ## elastic tensor
-    #0: 1.0
-    #2: 1.0
-    #4: 1.0
+    0: 1.0
+    1: 1.0
+    2: 1.0
 
   normalize: true # normalize natural tensor of different ranks by the number of elements
 
