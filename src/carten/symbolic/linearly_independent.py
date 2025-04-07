@@ -8,7 +8,6 @@ References:
 2. [AG82] Irreducible fourth-rank Cartesian tensors, https://doi.org/10.1103/PhysRevA.25.2647
 """
 
-
 import itertools
 from collections import Counter, defaultdict
 from fractions import Fraction
@@ -21,6 +20,7 @@ from torch import Tensor
 
 from carten.core.reduce import symmetrize_and_remove_trace
 from carten.core.symmetrize import get_permutations_2
+from carten.core.utils import dij, eijk, is_symmetric, is_traceless, letter_index
 from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,
@@ -32,12 +32,6 @@ from carten.symbolic.symbolic_tensor import (
     simplify_2,
 )
 from carten.symbolic.utils import find_independent_tensors, matrix_inverse
-from carten.core.utils import (
-    dij,
-    eijk,
-    is_symmetric,
-    is_traceless,
-    letter_index, )
 
 
 def get_E(j: int, s_letters: str = None) -> LinearCombination:
@@ -87,7 +81,7 @@ def get_E(j: int, s_letters: str = None) -> LinearCombination:
 
 
 def get_G_even(j: int, n: int) -> list[LinearCombination]:
-    """
+    r"""
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
     G(n|j)^q = E_j \otimes^{n-j} f_{n-j}^q.
@@ -119,7 +113,7 @@ def get_G_even(j: int, n: int) -> list[LinearCombination]:
 
 
 def get_G_odd(j: int, n: int) -> list[LinearCombination]:
-    """
+    r"""
     Mapping operator G to map minimal rank tensor subspaces j onto the space n.
 
 
@@ -167,7 +161,7 @@ def get_h_pq(g_pq: list[list[Fraction]]) -> list[list[Fraction]]:
 def get_H(
     h_pq: list[list[Fraction]], G: list[LinearCombination]
 ) -> list[LinearCombination]:
-    """
+    r"""
     Get the H mapping: H^p = \sum_q h_pq G^q.
     """
     H = []
@@ -213,7 +207,7 @@ def get_E_rules(j: int, t: int, s_letters: str = None) -> list[dict[str : list[s
             A, B, C, etc.
 
     Examples:
-        >>> get_E_rules(3, 1)
+        get_E_rules(3, 1)
         [{'d_rs': ['cC'], 'd_rr': ['ab'], 'd_ss': ['AB']},
          {'d_rs': ['cB'], 'd_rr': ['ab'], 'd_ss': ['AC']},
          {'d_rs': ['cA'], 'd_rr': ['ab'], 'd_ss': ['BC']},
@@ -423,23 +417,31 @@ def get_G_rules_odd_j0(j, n):
 
 
 def shift_index(
-    tensor: CartesianTensor | TensorProduct, shift: int
+    tensor: CartesianTensor | TensorProduct, shift: int, letters: str = None
 ) -> CartesianTensor | TensorProduct:
     """
-    Shift all the index of a tensor by a certain amount.
+    Shift the index of a tensor by a certain amount.
 
-    For example, for T_ijk, and shift=1, the new tensor is T_ijl.
+    For example, for T_ijk, and shift=1, the new tensor is T_jkl.
 
     Args:
         tensor: The tensor to shift the index.
         shift: The amount to shift the index.
+        letters: The letters signifying the indices to shift. If None, shift all the
+            indices. For example, if T_ijAB, and letters = 'AB', then the new tensor
+            would be T_ijCD, where C and D are the new letters.
 
     Returns:
         The new tensor with the shifted index.
     """
 
     def _shift(t: CartesianTensor):
-        indices = "".join([chr(ord(i) + shift) for i in t.indices])
+        if letters is None:
+            indices = "".join([chr(ord(i) + shift) for i in t.indices])
+        else:
+            indices = "".join(
+                [chr(ord(i) + shift) if i in letters else i for i in t.indices]
+            )
         return t.__class__(indices, factor=t.factor, symbol=t.symbol)
 
     if isinstance(tensor, CartesianTensor):
@@ -453,14 +455,16 @@ def shift_index(
         raise ValueError(f"Unknown tensor type: {type(tensor)}")
 
 
-def shift_index_2(tensor: LinearCombination, shift: int) -> LinearCombination:
+def shift_index_2(
+    tensor: LinearCombination, shift: int, letters: str = None
+) -> LinearCombination:
     """
     Shift all the index of a Tensors object by a certain amount.
 
     Returns:
         The new tensor with the shifted index.
     """
-    components = [shift_index(t, shift) for t in tensor]
+    components = [shift_index(t, shift, letters) for t in tensor]
     return LinearCombination(*components)
 
 
@@ -512,6 +516,8 @@ def contract_G(
     return simplified
 
 
+# TODO, this, and the below few functions, has been reimplemented in
+#  TensorProduct.canonize()
 def canonize_delta_indices(
     tensor: CartesianTensor | TensorProduct,
 ) -> CartesianTensor | TensorProduct:
@@ -580,7 +586,9 @@ def order_tp_components_2(tensor: LinearCombination) -> LinearCombination:
 
 def combine_terms(tensor: LinearCombination) -> LinearCombination:
     """
-    Combine terms with the same indices. This currently only works for delta tensors.
+    Combine terms with the same indices.
+
+    TODO, This currently only works for delta tensors.
     """
 
     # def is_delta_tp_equal(tp1: TensorProduct, tp2: TensorProduct) -> bool:
@@ -670,7 +678,7 @@ def scalar_factor(t1: LinearCombination, t2: LinearCombination) -> Fraction | No
 def get_g_pq(
     j: int, n: int, G_p: LinearCombination, G_q: LinearCombination
 ) -> Fraction | None:
-    """
+    r"""
     Compute a single g_pq value, which is defined as
      G^p(n|j} \odot^n G^q(n|j) = g_pq E(j|j).
 
@@ -757,7 +765,7 @@ def get_g_pq_matrix(
 
 
 def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Tensor:
-    """
+    r"""
     Evaluate S(n) = G(n|j) \odot^n X(j).
 
     Recall, in G, lower case indices are for r1, r2, ..., rj, and upper case indices
@@ -818,7 +826,7 @@ def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Ten
 
 
 def extract(H: LinearCombination, T: Tensor = None) -> Tensor:
-    """
+    r"""
     Evaluate X^p,j = H^p(j|n) \odot^n T(n).
 
     Args:
@@ -993,7 +1001,7 @@ if __name__ == "__main__":
 
     def extract_and_embed(j: int, n: int, T: Tensor):
         """
-        Extract the natural tensor X(j) from T(j) and embed it back to space n.
+        Extract the natural tensor X(j) from T(n) and embed it back to get S(n).
 
         Args:
             j: weight
@@ -1001,6 +1009,7 @@ if __name__ == "__main__":
             T: A general tensor in space n.
 
         Returns:
+            All X^p,j tensors, which are the natural tensors in space j.
             All embedding tensors S^p(n), whose corresponding G^p(n|j) are linearly
             independent.
         """
@@ -1012,13 +1021,10 @@ if __name__ == "__main__":
             all_G = get_G_even(j, n)
         else:
             all_G = get_G_odd(j, n)
-
-        # Get S tensors, embedding space j to space n
-        all_S = [embed(j, G) for G in all_G]
-        print("Number of candidate G:", len(all_S))
+        print("Number of candidate G:", len(all_G))
 
         # Determine g_pq for all G
-        # TODO, this block can be removed
+        # TODO, this block can be removed (not needed for selecting the independent ones)
         g_pq = get_g_pq_matrix(j, n, all_G)
         if len(all_G) > 1:
             c, g_pq_int = find_matrix_factorization(g_pq)
@@ -1030,6 +1036,9 @@ if __name__ == "__main__":
         print("matrix:")
         pprint(g_pq_int)
 
+        # Get S tensors, embedding space j to space n
+        all_S = [embed(j, G) for G in all_G]
+
         # Get linearly independent G tensors
         _, independent_indices = find_independent_tensors(all_S)
 
@@ -1037,6 +1046,7 @@ if __name__ == "__main__":
         #  to filter out some of all_G by considering the symmetry of the tensor T.
 
         independent_G = [all_G[i] for i in independent_indices]
+
         print("Number of independent G:", len(independent_G))
         print("Selected independent indices:", independent_indices)
         for p, G in enumerate(independent_G):
@@ -1067,6 +1077,19 @@ if __name__ == "__main__":
             print(H)
 
         ########################################
+        # symbolic S
+        for i, (G, H) in enumerate(zip(independent_G, all_H)):
+            # Shift Upper letters of H to distinguish those from G
+            H = shift_index_2(H, n, letter_index(24, upper_case=True))
+            print("=" * 10)
+            print(f"G={G}")
+            print(f"H={H}")
+            S = multiply_2(G, H)
+            S = simplify_2(S)
+            print(f"S tensor ``S=G \odot^j H`` ({i})", S)
+
+        ########################################
+        # numerical S
 
         # Extracting X from T
         all_X = [extract(H, T) for H in all_H]
@@ -1097,6 +1120,7 @@ if __name__ == "__main__":
 
     sum_S = torch.stack(all_S).sum(dim=0)
 
+    print("=" * 40)
     if torch.allclose(sum_S, T, atol=1e-5, rtol=1e-5):
         print("The sum of S is equal to T")
         print("Sum of diff:", (sum_S - T).sum())

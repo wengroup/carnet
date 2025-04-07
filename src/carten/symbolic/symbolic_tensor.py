@@ -2,6 +2,7 @@
 Calculations with symbolic tensors in 3D space, including operations with the delta and
 epsilon tensors.
 """
+
 import itertools
 from collections import Counter, defaultdict
 from fractions import Fraction
@@ -148,7 +149,7 @@ class Zero(Scalar):
 
 
 class Delta(CartesianTensor):
-    """
+    r"""
     The Kronecker delta tensor \delta.
 
     Args:
@@ -187,7 +188,7 @@ class Delta(CartesianTensor):
 
 
 class Epsilon(CartesianTensor):
-    """
+    r"""
     The Levi-Civita tensor \epsilon.
 
     Args:
@@ -361,10 +362,68 @@ class TensorProduct:
 
         return LinearCombination(*tensor_product)
 
-    def __eq__(self, other: Union[CartesianTensor, "TensorProduct"]):
-        # TODO, we just implement the case that the constituting tensors are the same
-        #  and in the same order. Of course, this is not general.
+    def canonize(self):
+        """
+        Canonicalize the tensor product.
 
+        1. The canonized form will be like: delta_... epsilon_... T_...
+        2. For a delta, the indices will be ordered, e.g. delta_ji -> delta_ij
+        3. For an epsilon, the indices will be shifted such that the first index is the
+           smallest one. e.g. epsilon_jik -> epsilon_ikj, epsilon_jki -> epsilon_ijk,
+           while keeping the relative order of the indices.
+        4. For a general tensor, no ordering of the indices are performed.
+        5. For tensors of the same type (e.g. two delta tensors), they will be ordered
+           by their first indices. For example, delta_ij delta_ab -> delta_ab delta_ij,
+           since a < i. This is similarly for the epsilon tensors and general tensors.
+
+        Returns:
+            A canonized tensor product.
+        """
+        # TODO, this assumes the factor of each component is 1, which may not be true
+        #  in general.
+
+        deltas = []
+        epsilons = []
+        general = []
+        for t in self._tensors:
+            if isinstance(t, Delta):
+                deltas.append(t)
+            elif isinstance(t, Epsilon):
+                epsilons.append(t)
+            else:
+                general.append(t)
+
+        # canonize deltas
+        all_indices = ["".join(sorted(t.indices)) for t in deltas]
+        all_indices = sorted(all_indices)
+        deltas = [Delta(indices) for indices in all_indices]
+
+        # canonize epsilons
+        def sort_circular(s: str):
+            """
+            Shift the three indices of the epsilon tensor such that the first index is
+            the smallest one.
+
+            E.g. kij -> ijk
+            """
+            # Find the index of the smallest character
+            min_index = s.index(min(s))
+            # Rotate the string to bring the smallest character to the front
+            return s[min_index:] + s[:min_index]
+
+        all_indices = [sort_circular(t.indices) for t in epsilons]
+        all_indices = sorted(all_indices)
+        epsilons = [Epsilon(indices) for indices in all_indices]
+
+        # canonize general tensors
+        all_indices = sorted([t.indices for t in general])
+        general = [CartesianTensor(indices) for indices in all_indices]
+
+        # Create the tensor product
+        tensors = deltas + epsilons + general
+        return TensorProduct(*tensors, factor=self.factor)
+
+    def __eq__(self, other: Union[CartesianTensor, "TensorProduct"]):
         if len(self) != len(other):
             return False
 
@@ -372,9 +431,8 @@ class TensorProduct:
             return False
 
         # compare symbol and indices of the constituting tensors
-        for x, y in zip(self._tensors, other._tensors):
-            if x != y:
-                return False
+        if not str(self.canonize()) == str(other.canonize()):
+            return False
 
         return True
 
@@ -395,13 +453,18 @@ class TensorProduct:
         return len(self._tensors)
 
     def __str__(self):
+        rep = self.str_rep_without_factor()
+        return f"({self.factor}){rep}"
+
+    def str_rep_without_factor(self):
+        """Get the string representation of the tensor product without the factor."""
         rep = ""
         for t in self._tensors:
             # scalars will be included in the factor, so we skip them here
             if not isinstance(t, Scalar):
                 rep += f" {t.symbol}_{t.indices}"
 
-        return f"({self.factor}){rep}"
+        return rep
 
 
 class LinearCombination:
@@ -509,7 +572,7 @@ def multiply_2(
     factor: int | Fraction = 1,
 ) -> LinearCombination:
     """
-    Multiple tensors, tensor products, tensors to create a new Tensors object.
+    Multiply tensors, tensor products, linearly combined tensors to create a new Tensors object.
 
     Args:
         *tensors: the tensors or tensor products to multiply.
@@ -536,7 +599,7 @@ def multiply_2(
 
 
 def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTensor:
-    """
+    r"""
     Contract a tensor with a delta tensor.
 
     For example,
@@ -565,7 +628,7 @@ def contract_with_delta(delta: Delta, tensor: CartesianTensor) -> CartesianTenso
 
 
 def contract_with_epsilon(epsilon: Epsilon, tensor: CartesianTensor) -> TensorProduct:
-    """
+    r"""
     Contract a tensor with an epsilon tensor.
 
     \epsilon_aij T_ijk...n
@@ -585,7 +648,7 @@ def contract_with_epsilon(epsilon: Epsilon, tensor: CartesianTensor) -> TensorPr
 
 
 def contract_epsilon_delta(epsilon: Epsilon, delta: Delta):
-    """
+    r"""
     Contract an epsilon tensor with a delta tensor.
 
     For example,
@@ -908,6 +971,8 @@ def simplify_delta(product: TensorProduct) -> tuple[TensorProduct, bool]:
     Evaluate product of a delta tensor with another tensor in a tensor product.
 
     This will contract all possible delta tensors in the product.
+
+    Tensors like delta_ii will evaluated to 3.
     """
     # Positions of delta tensors in the product
     delta_pos = [i for i, t in enumerate(product) if isinstance(t, Delta)]
@@ -925,6 +990,22 @@ def simplify_delta(product: TensorProduct) -> tuple[TensorProduct, bool]:
 
         new_components = components.copy()
 
+        # delta_ii
+        if delta.indices[0] == delta.indices[1]:
+            out = Scalar(3)
+
+            # Remove the delta from the components
+            new_components.pop(i)
+
+            # Add the resulting scalar to the components
+            new_components[n] = out
+
+            performed = True
+            n += 1
+            components = new_components
+            continue
+
+        # delta_ij
         for j, t in components.items():
             if j == i:
                 continue
@@ -944,15 +1025,14 @@ def simplify_delta(product: TensorProduct) -> tuple[TensorProduct, bool]:
                 new_components[n] = out
 
                 # Update delta_pos: if t is a delta tensor, remove it; if the contracted
-                # result is a delta tensor, add it
+                # out is a delta tensor, add it
                 if isinstance(t, Delta):
                     delta_pos.remove(j)
+                if isinstance(out, Delta):
                     delta_pos.append(n)
 
                 performed = True
-
                 n += 1
-
                 break
 
         components = new_components
@@ -983,7 +1063,8 @@ def simplify(tp: TensorProduct) -> LinearCombination:
         new_simplified = []
         performed = []
         for i, tp in enumerate(simplified):
-            # Simplify epsilon first
+
+            # Step 1: simplify epsilon first
             sim, perf = simplify_epsilon(tp)
 
             # Double epsilon contraction will return a LinearCombination
@@ -996,7 +1077,7 @@ def simplify(tp: TensorProduct) -> LinearCombination:
                 double_epsilon_pos = i
                 double_epsilon = sim
 
-            # If no epsilon simplification performed, then simplify delta
+            # Step 2: If no epsilon simplification performed, then simplify delta
             if not perf:
                 sim, perf = simplify_delta(tp)
 
@@ -1021,7 +1102,7 @@ def simplify(tp: TensorProduct) -> LinearCombination:
         performed = any(performed)
         simplified = LinearCombination(*linear_comb)
 
-    # Remove zeros
+    # Step 3: remove zeros
     simplified = LinearCombination(*[t for t in simplified if t.factor != 0])
 
     return simplified
@@ -1031,7 +1112,6 @@ def simplify_2(tensor: LinearCombination) -> LinearCombination:
     """Simplify a linear combination of tensors.
     1. Applying delta and epsilon rules.
     2. Removing zero tensors or tensor products.
-
     """
     simplified = []
     for t in tensor:
@@ -1044,6 +1124,31 @@ def simplify_2(tensor: LinearCombination) -> LinearCombination:
             simplified.extend(out)
         else:
             raise ValueError("Unexpected type")
+
+    # Combine tensor products that are of the same form
+    categorized = defaultdict(list)
+    for t in simplified:
+        if isinstance(t, CartesianTensor):
+            raise ValueError(
+                "@not implemented, should modify the `for tp_list in "
+                "categorized.values()` block too"
+            )
+        elif isinstance(t, TensorProduct):
+            t = t.canonize()
+            rep = t.str_rep_without_factor()
+            categorized[rep].append(t)
+        else:
+            raise ValueError("Unexpected type")
+
+    # TODO, the logic is reimplemented in `combine_terms()`, but it is much
+    #  simple here
+    lin_comb = []
+    for tp_list in categorized.values():
+        factor = sum(tp.factor for tp in tp_list)
+        components = tp_list[0].components
+        tp = TensorProduct(*components, factor=factor)
+        lin_comb.append(tp)
+    simplified = LinearCombination(*lin_comb)
 
     return LinearCombination(*simplified)
 
