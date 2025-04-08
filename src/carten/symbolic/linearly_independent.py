@@ -20,12 +20,17 @@ from torch import Tensor
 
 from carten.core.reduce import symmetrize_and_remove_trace
 from carten.core.symmetrize import get_permutations_2
-from carten.core.utils import (dij, eijk, is_symmetric, is_traceless,
-                               letter_index)
-from carten.symbolic.symbolic_tensor import (CartesianTensor, Delta, Epsilon,
-                                             LinearCombination, Scalar,
-                                             TensorProduct, multiply_2,
-                                             simplify_2)
+from carten.core.utils import dij, eijk, is_symmetric, is_traceless, letter_index
+from carten.symbolic.symbolic_tensor import (
+    CartesianTensor,
+    Delta,
+    Epsilon,
+    LinearCombination,
+    Scalar,
+    TensorProduct,
+    multiply_2,
+    simplify_2,
+)
 from carten.symbolic.utils import find_independent_tensors, matrix_inverse
 
 
