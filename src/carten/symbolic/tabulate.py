@@ -151,9 +151,9 @@ def evaluate_tensors(tensors: LinearCombination, mode: str) -> np.ndarray:
 
 
 def get_G_H_S_of_j(j: int, n: int) -> tuple[
-    LinearCombination,
-    LinearCombination,
-    LinearCombination,
+    list[LinearCombination],
+    list[LinearCombination],
+    list[LinearCombination],
     list[list[Fraction]],
     list[list[Fraction]],
 ]:
@@ -219,7 +219,7 @@ def get_G_H_S_of_j(j: int, n: int) -> tuple[
     return all_G, all_H, all_S, g_pq, h_pq
 
 
-def get_G_H_S(n: int):
+def get_G_H_S(n: int) -> dict:
     """
     Get all the G, H, S tensors of dimension n.
 
@@ -227,9 +227,7 @@ def get_G_H_S(n: int):
         n: dim of the space T is in
 
     Returns:
-        G: of different seniority p
-        H:
-        S:
+        G, H, S, and g_pq, h_pq information.
     """
     out = {}
     for j in range(n + 1):
@@ -247,9 +245,35 @@ def get_G_H_S(n: int):
             eval_G_p = evaluate_tensors(G_p, mode="G")
             eval_H_p = evaluate_tensors(H_p, mode="H")
             eval_S_p = evaluate_tensors(S_p, mode="S")
-            out_j["G"].append({"symbolic": str(G_p), "numerical": eval_G_p})
-            out_j["H"].append({"symbolic": str(H_p), "numerical": eval_H_p})
-            out_j["S"].append({"symbolic": str(S_p), "numerical": eval_S_p})
+
+            lower = letter_index(j)
+            upper = letter_index(n, upper_case=True)
+            upper2 = letter_index(n, start=n, upper_case=True)
+
+            out_j["G"].append(
+                {
+                    "symbolic": str(G_p),
+                    "numerical": eval_G_p,
+                    "rule": (f"{upper}{lower},{lower}->{upper}"),
+                },
+            )
+
+            out_j["H"].append(
+                {
+                    "symbolic": str(H_p),
+                    "numerical": eval_H_p,
+                    "rule": f"{lower}{upper},{upper}->{lower}",
+                }
+            )
+
+            out_j["S"].append(
+                {
+                    "symbolic": str(S_p),
+                    "numerical": eval_S_p,
+                    "rule": f"{upper}{upper2},{upper2}->{upper}",
+                }
+            )
+
         out[f"j={j}"] = out_j
 
     return out
