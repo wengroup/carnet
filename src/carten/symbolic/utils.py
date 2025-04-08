@@ -115,3 +115,31 @@ def matrix_inverse(matrix: list[list[Fraction]]) -> list[list[Fraction]]:
             inverse[i].append(augmented[i][j + n])
 
     return inverse
+
+
+def fraction_matrix(m: list[list[Fraction]]) -> list[list[str]]:
+    """
+    Convert a matrix of Fraction objects to a matrix of strings.
+
+    Each Fraction is represented as a string in the form "numerator/denominator".
+
+    Args:
+        m: List of lists containing Fraction objects
+
+    Returns:
+        List of lists containing strings representing the fractions
+    """
+    return [[str(fraction) for fraction in row] for row in m]
+
+
+def float_matrix(m: list[list[Fraction]]) -> list[list[float]]:
+    """
+    Convert a matrix of Fraction objects to a matrix of floats.
+
+    Args:
+        m: List of lists containing Fraction objects
+
+    Returns:
+        List of lists containing floats
+    """
+    return [[float(fraction) for fraction in row] for row in m]

@@ -816,7 +816,7 @@ def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Ten
             else:
                 raise ValueError("Unexpected type.")
 
-        # TODO, the rules tensor product epsilons and deltas can be precomputed and
+        # TODO, the rules for tensor product epsilons and deltas can be precomputed and
         #  summed up. Then, we only need a single contraction.
         # perform the contraction
         S = float(tp.factor) * torch.einsum(rule, *delta_epsilon, X)
@@ -1056,6 +1056,9 @@ if __name__ == "__main__":
         # Get g_pq matrix for independent G
         g_pq = get_g_pq_matrix(j, n, independent_G)
         if len(independent_G) > 1:
+            # Note, c may not be 1, but g_pq should consist of the factor c
+            # Here we use g_pq_int just for nice printing and visualization.
+            # And we should use g_pq for the actual computation.
             c, g_pq_int = find_matrix_factorization(g_pq)
         else:
             c = 1
@@ -1081,11 +1084,15 @@ if __name__ == "__main__":
         for i, (G, H) in enumerate(zip(independent_G, all_H)):
             # Shift Upper letters of H to distinguish those from G
             H = shift_index_2(H, n, letter_index(24, upper_case=True))
+
+            G = simplify_2(G)
+            H = simplify_2(H)
+            S = multiply_2(G, H)
+            S = simplify_2(S)
+
             print("=" * 10)
             print(f"G={G}")
             print(f"H={H}")
-            S = multiply_2(G, H)
-            S = simplify_2(S)
             print(f"S tensor ``S=G \odot^j H`` ({i})", S)
 
         ########################################
@@ -1113,6 +1120,7 @@ if __name__ == "__main__":
     torch.manual_seed(35)
     T = torch.randn(3**n).reshape([3] * n)
 
+    # check the sum of all extract and embed is equal to the original T
     all_S = []
     for j in range(n + 1):
         S_j = extract_and_embed(j, n, T)
