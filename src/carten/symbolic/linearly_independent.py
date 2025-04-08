@@ -20,17 +20,12 @@ from torch import Tensor
 
 from carten.core.reduce import symmetrize_and_remove_trace
 from carten.core.symmetrize import get_permutations_2
-from carten.core.utils import dij, eijk, is_symmetric, is_traceless, letter_index
-from carten.symbolic.symbolic_tensor import (
-    CartesianTensor,
-    Delta,
-    Epsilon,
-    LinearCombination,
-    Scalar,
-    TensorProduct,
-    multiply_2,
-    simplify_2,
-)
+from carten.core.utils import (dij, eijk, is_symmetric, is_traceless,
+                               letter_index)
+from carten.symbolic.symbolic_tensor import (CartesianTensor, Delta, Epsilon,
+                                             LinearCombination, Scalar,
+                                             TensorProduct, multiply_2,
+                                             simplify_2)
 from carten.symbolic.utils import find_independent_tensors, matrix_inverse
 
 
@@ -149,11 +144,7 @@ def get_h_pq(g_pq: list[list[Fraction]]) -> list[list[Fraction]]:
     """
     Compute h_pq matrix, which is the inverse of g_pq.
     """
-    g_pq_new = []
-    for row in g_pq:
-        g_pq_new.append([i if i is not None else Fraction(0) for i in row])
-
-    h_pq = matrix_inverse(g_pq_new)
+    h_pq = matrix_inverse(g_pq)
 
     return h_pq
 
@@ -759,7 +750,11 @@ def get_g_pq_matrix(
     matrix = [[None] * num for _ in range(num)]
     for p in range(num):
         for q in range(num):
-            matrix[p][q] = get_g_pq(j, n, all_G[p], all_G[q])
+            v = get_g_pq(j, n, all_G[p], all_G[q])
+            # If there is no scalar factor, setting it to 0.
+            if v is None:
+                v = Fraction(0)
+            matrix[p][q] = v
 
     return matrix
 
