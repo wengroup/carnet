@@ -454,7 +454,11 @@ class TensorProduct:
 
     def __str__(self):
         rep = self.str_rep_without_factor()
-        return f"({self.factor}){rep}"
+        if self.factor >= 0:
+            factor = f"+{self.factor}"
+        else:
+            factor = self.factor
+        return f"{factor}{rep}"
 
     def str_rep_without_factor(self):
         """Get the string representation of the tensor product without the factor."""
@@ -535,7 +539,7 @@ class LinearCombination:
     def __str__(self):
         str_rep = self.to_str_list(including_zero=False)
 
-        return "Tensors(\n   " + "\n + ".join(str_rep) + "\n)"
+        return "  ".join(str_rep)
 
 
 def multiply(

@@ -134,7 +134,7 @@ def test_simplify():
 
     tp = TensorProduct(d1, d2)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(4) δ_ik"]
+    assert tp_s.to_str_list() == ["+4 δ_ik"]
 
     tp = TensorProduct(d1, e1)
     tp_s = simplify(tp)
@@ -142,32 +142,32 @@ def test_simplify():
 
     tp = TensorProduct(d1, e2)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(6) ε_jkl"]
+    assert tp_s.to_str_list() == ["+6 ε_jkl"]
 
     tp = TensorProduct(d2, e2)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(6) ε_ijl"]
+    assert tp_s.to_str_list() == ["+6 ε_ijl"]
 
     tp = TensorProduct(e1, e2)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(-18) δ_jl"]
+    assert tp_s.to_str_list() == ["-18 δ_jl"]
 
     tp = TensorProduct(e1, e3)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(9) δ_jl δ_km", "(-9) δ_jm δ_kl"]
+    assert tp_s.to_str_list() == ["+9 δ_jl δ_km", "-9 δ_jm δ_kl"]
 
     tp = TensorProduct(d1, e1, e3)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(18) δ_km δ_il", "(-18) δ_kl δ_im"]
+    assert tp_s.to_str_list() == ["+18 δ_km δ_il", "-18 δ_kl δ_im"]
 
     tp = TensorProduct(d1, T1)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(8) T_jjkl"]
+    assert tp_s.to_str_list() == ["+8 T_jjkl"]
 
     tp = TensorProduct(d1, e1, e2, T1)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(-144) T_ljkl"]
+    assert tp_s.to_str_list() == ["-144 T_ljkl"]
 
     tp = TensorProduct(d1, e1, e3, T1)
     tp_s = simplify(tp)
-    assert tp_s.to_str_list() == ["(72) T_ljml", "(-72) T_mjll"]
+    assert tp_s.to_str_list() == ["+72 T_ljml", "-72 T_mjll"]

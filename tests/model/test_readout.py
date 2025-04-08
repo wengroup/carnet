@@ -55,7 +55,7 @@ def test_AtomicTensor(batched_config_info):
         hidden_features=2,
         output_signature=output_signature,
     )
-    out = module(atom_feats, atom_type, num_atoms)
+    out = module(atom_feats, atom_type)
 
     for l, n in output_signature.items():
         assert out[l].shape == (total_num_atoms, n, 3**l)
