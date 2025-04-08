@@ -108,13 +108,11 @@ def tp_delta_epsilon(tp: TensorProduct, mode: str) -> np.ndarray:
     # Since the tensors only consists of delta and epsilon, the left rule should be OK,
     # but the right rule should be ordered according to the mode.
     right = "".join(delta_rules + epsilon_rules)
-
+    lower = sorted([c for c in right if c.islower()])
+    upper = sorted([c for c in right if c.isupper()])
     if mode == "G" or mode == "S":
-        # indices will be sorted and upper letters come before lower letters
-        right = "".join(sorted(right))
+        right = "".join(upper + lower)
     elif mode == "H":
-        lower = [c for c in right if c.islower()]
-        upper = [c for c in right if c.isupper()]
         right = "".join(lower + upper)
     else:
         raise ValueError(f"Unknown mode: {mode}")
