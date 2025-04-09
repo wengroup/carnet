@@ -6,3 +6,5 @@ The difference is that, here, it is significantly simpler since there is only a 
 way to construct G and H, and we don't need to worry about the linear independence.
 This is due to the symmetry in Z = X \otimes Y, where X and Y are natural tensors.
 """
+
+# TODO, mjwen: I cannot understand the comment above.

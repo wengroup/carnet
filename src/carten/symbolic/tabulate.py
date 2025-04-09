@@ -274,7 +274,7 @@ def get_G_H_S(n: int) -> dict:
                 }
             )
 
-        out[f"j={j}"] = out_j
+        out[j] = out_j
 
     return out
 

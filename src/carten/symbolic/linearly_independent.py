@@ -764,6 +764,9 @@ def get_g_pq_matrix(
     return matrix
 
 
+# TODO, this has been reimplemented in tabulate.py: get_G_H_S(), and there it is
+#  simplier since the the tensor G is sumed up first and then the contraction is done.
+#  Here, we first perform the contraction and then sum up the result.
 def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Tensor:
     r"""
     Evaluate S(n) = G(n|j) \odot^n X(j).
@@ -825,6 +828,7 @@ def embed(j: int, G: LinearCombination, X: Tensor = None, seed: int = 35) -> Ten
     return torch.stack(output).sum(dim=0)
 
 
+# TODO, this has been reimplemented in tabulate.py: get_G_H_S()
 def extract(H: LinearCombination, T: Tensor = None) -> Tensor:
     r"""
     Evaluate X^p,j = H^p(j|n) \odot^n T(n).

@@ -5,21 +5,21 @@ from carten.symbolic.tabulate import get_G_H_S
 
 
 # TODO, n=1 does not work
-@pytest.mark.parametrize("n", [2, 3, 4])
-def test_get_G_H_S(n):
+@pytest.mark.parametrize("rank", [2, 3, 4])
+def test_get_G_H_S(rank):
     """Test the get_G_H_S function.
 
     For a given tensor T, obtain the natural tensors X (using H), and then obtain the
     embedding T' in the original tensor space (using G). We check that we can recover T.
 
     Args:
-        n: rank of the tensor T
+        rank: rank of the tensor T
     """
     np.random.seed(35)
 
-    T = np.random.randn(*[3] * n)
+    T = np.random.randn(*[3] * rank)
 
-    output = get_G_H_S(n)
+    output = get_G_H_S(rank)
 
     all_T_prime = []
     for j, out_j in output.items():
