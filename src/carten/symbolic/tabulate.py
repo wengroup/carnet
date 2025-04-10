@@ -19,6 +19,7 @@ from monty.serialization import dumpfn
 from carten.core.utils import dij, eijk, letter_index
 from carten.symbolic.linearly_independent import (
     embed,
+    find_unique_G_by_symmetry,
     get_G_even,
     get_G_odd,
     get_g_pq_matrix,
@@ -150,7 +151,7 @@ def evaluate_tensors(tensors: LinearCombination, mode: str) -> np.ndarray:
     return sum.tolist()
 
 
-def get_G_H_S_of_j(j: int, n: int) -> tuple[
+def get_G_H_S_of_j(j: int, n: int, symmetry: str = None) -> tuple[
     list[LinearCombination],
     list[LinearCombination],
     list[LinearCombination],
@@ -163,6 +164,7 @@ def get_G_H_S_of_j(j: int, n: int) -> tuple[
     Args:
         j: weight
         n: dim of the space T is in
+        symmetry:
 
     Returns:
         G: independent G tensors of different seniority p
@@ -183,11 +185,12 @@ def get_G_H_S_of_j(j: int, n: int) -> tuple[
     # Get linearly independent S tensors
     _, independent_indices = find_independent_tensors(all_num_S)
 
-    # TODO, for tensors will partial symmetry, we can implement additional rules
-    #  to filter out some of all_G by considering the symmetry of the tensor T.
-
     # Get linearly independent G tensors
     independent_G = [all_G[i] for i in independent_indices]
+
+    # Further down select independent G tensors by symmetry
+    if symmetry is not None:
+        independent_G, _ = find_unique_G_by_symmetry(independent_G, n, symmetry)
 
     # Get g_pq matrix for independent G
     g_pq = get_g_pq_matrix(j, n, independent_G)
@@ -219,19 +222,21 @@ def get_G_H_S_of_j(j: int, n: int) -> tuple[
     return all_G, all_H, all_S, g_pq, h_pq
 
 
-def get_G_H_S(n: int) -> dict:
+def get_G_H_S(n: int, symmetry: str = None, numerical: bool = True) -> dict:
     """
     Get all the G, H, S tensors of dimension n.
 
     Args:
         n: dim of the space T is in
+        symmetry: symmetry of the tensor in space n, if any.
+        numerical: whether to return numerical values of G, H, S.
 
     Returns:
         G, H, S, and g_pq, h_pq information.
     """
     out = {}
     for j in range(n + 1):
-        G, H, S, g, h = get_G_H_S_of_j(j, n)
+        G, H, S, g, h = get_G_H_S_of_j(j, n, symmetry)
         out_j = {
             "g_pq": {"symbolic": fraction_matrix(g), "numerical": float_matrix(g)},
             "h_pq": {"symbolic": fraction_matrix(h), "numerical": float_matrix(h)},
@@ -242,37 +247,31 @@ def get_G_H_S(n: int) -> dict:
 
         # loop over seniority p
         for G_p, H_p, S_p in zip(G, H, S):
-            eval_G_p = evaluate_tensors(G_p, mode="G")
-            eval_H_p = evaluate_tensors(H_p, mode="H")
-            eval_S_p = evaluate_tensors(S_p, mode="S")
 
             lower = letter_index(j)
             upper = letter_index(n, upper_case=True)
             upper2 = letter_index(n, start=n, upper_case=True)
 
+            # G
             out_j["G"].append(
-                {
-                    "symbolic": str(G_p),
-                    "numerical": eval_G_p,
-                    "rule": (f"{upper}{lower},{lower}->{upper}"),
-                },
+                {"symbolic": str(G_p), "rule": (f"{upper}{lower},{lower}->{upper}")},
             )
+            if numerical:
+                out_j["G"][-1]["numerical"] = evaluate_tensors(G_p, mode="G")
 
+            # H
             out_j["H"].append(
-                {
-                    "symbolic": str(H_p),
-                    "numerical": eval_H_p,
-                    "rule": f"{lower}{upper},{upper}->{lower}",
-                }
+                {"symbolic": str(H_p), "rule": f"{lower}{upper},{upper}->{lower}"}
             )
+            if numerical:
+                out_j["H"][-1]["numerical"] = evaluate_tensors(H_p, mode="H")
 
+            # S
             out_j["S"].append(
-                {
-                    "symbolic": str(S_p),
-                    "numerical": eval_S_p,
-                    "rule": f"{upper}{upper2},{upper2}->{upper}",
-                }
+                {"symbolic": str(S_p), "rule": f"{upper}{upper2},{upper2}->{upper}"}
             )
+            if numerical:
+                out_j["S"][-1]["numerical"] = evaluate_tensors(S_p, mode="S")
 
         out[j] = out_j
 
@@ -280,6 +279,16 @@ def get_G_H_S(n: int) -> dict:
 
 
 if __name__ == "__main__":
-    out = get_G_H_S(2)
+
+    # # elastic tensor
+    # j = 4
+    # rank = 4
+    # symmetry = "ijkl=jikl=klij"
+    # get_G_H_S_of_j(j, rank, symmetry)
+
+    ######
+    rank = 4
+    symmetry = "ijkl=jikl=klij"
+    out = get_G_H_S(rank, symmetry, numerical=False)
     pprint(out)
     # dumpfn(out, "out.yaml")

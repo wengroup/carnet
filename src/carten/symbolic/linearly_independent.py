@@ -15,6 +15,7 @@ from functools import reduce
 from math import gcd
 from pprint import pprint
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -31,6 +32,7 @@ from carten.symbolic.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
+from carten.symbolic.symmetrize import symmetrize
 from carten.symbolic.utils import find_independent_tensors, matrix_inverse
 
 
@@ -924,7 +926,70 @@ def find_matrix_factorization(
     return c, B
 
 
+def find_unique_G_by_symmetry(
+    all_G: list[LinearCombination],
+    rank: int,
+    symmetry: str,
+    rtol: float = 1e-5,
+    atol: float = 1e-7,
+) -> tuple[list[LinearCombination], list[int]]:
+    """
+    Find unique G tensors for a given symmetry.
+
+    This is achieved by numerical experiments (although it can be done symbolically):
+    1. Creating a tensor T with the given symmetry.
+    2. For each G, obtain X = G \odot^n T.
+    3. Check X, and remove the ones 1. that are zero, and 2. that are not unique.
+
+    Args:
+        all_G:
+        rank: rank of the tensor
+        symmetry: symmetry specifying the tensor. e.g.
+            - "ij=ji" denotes a rank-2 tensor that is symmetric in the last two indices
+                (e.g. dielectric tensor, stress tensor);
+            - "ijk=ikj" denotes a rank-3 tensor that is symmetric in the last two indices
+                (e.g. piezoelectric tensor).
+            - "ijkl=ijlk=klij" denotes a rank-4 tensor that is symmetric in first two
+            indices, symmetric in last two indices, and symmetric in first-two and
+            last-two indices ( e.g. elastic tensor).
+        rtol: relative tolerance for checking if two tensors are equal.
+        atol: absolute tolerance for checking if two tensors are equal.
+
+     Returns:
+         Independent G tensors that are linearly independent.
+         Indices of the independent G tensors under the given symmetry.
+    """
+    # Create a tensor T with the specified symmetry
+    np.random.seed(35)
+    T = np.random.randn(*([3] * rank))
+    T = symmetrize(T, symmetry)
+    T = torch.tensor(T, dtype=torch.float32)
+
+    all_X = [extract(G, T) for G in all_G]
+
+    unique_indices = []
+    for i, X in enumerate(all_X):
+
+        # 1. Remove zeros
+        if torch.allclose(X, torch.tensor(0.0), rtol=rtol, atol=atol):
+            continue
+
+        # 2. Select unique ones
+        is_unique = True
+        for j in unique_indices:
+            if torch.allclose(X, all_X[j], rtol=rtol, atol=atol):
+                is_unique = False
+                break
+        if is_unique:
+            unique_indices.append(i)
+
+    unique_G = [all_G[i] for i in unique_indices]
+
+    return unique_G, unique_indices
+
+
 if __name__ == "__main__":
+
     # ################################################################################
     # odd n-j
     # j = 2

@@ -27,6 +27,7 @@ def find_independent_tensors(tensors: list[Tensor], tolerance=1e-4):
     return independent_tensors, independent_indices
 
 
+# TODO, delete. This is the same as find_independent_tensors, with info to be printed.
 def find_independent_tensors_2(tensors: list[Tensor], tolerance=1e-4):
     """Find linearly independent tensors using QR decomposition."""
     vectors = [t.flatten() for t in tensors]
@@ -53,9 +54,7 @@ def find_independent_tensors_2(tensors: list[Tensor], tolerance=1e-4):
         # TODO, seems not OK to only check diagonal
         if torch.abs(R[i, i]) > tolerance:
             independent_indices.append(i)
-            print(
-                f"\nVector {i + 1}:           Independent (diagonal element = {R[i, i]:.10f})"
-            )
+            print(f"\nVector {i + 1}: Independent (diagonal element = {R[i, i]:.10f})")
         else:
             print(f"\nVector {i + 1}: Dependent (diagonal element = {R[i, i]:.10f})")
 
