@@ -33,14 +33,14 @@ def symmetrize_via_permutation(
 #  Can we merge them?
 def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
     """
-    Get the unique permutations of the indices for symmetrizing a tensor.
+    Get the unique permutations of the indices to fully symmetrize a tensor.
 
     This works for the case where part or all of the indices are symmetric.
 
     Args:
-        symmetry: A string that describes the symmetry of the indices. For example,
-            `abba` means the first and the fourth indices are symmetric, and the
-            second and the third indices are symmetric. The symmetry only applies to
+        symmetry: A string that describes the symmetry already in the tensor. For
+            example, `abba` means the first and the fourth indices are symmetric, and
+            the second and the third indices are symmetric. The symmetry only applies to
             the indices after the `start_dim`.
         start_dim: the starting dimension to perform the operation. Dimensions before
             `start_dim` will not be used in the operation.
@@ -82,12 +82,18 @@ def get_permutations(symmetry: str, start_dim: int = 0) -> list[list[int]]:
     return unique_perms
 
 
+# TODO, we need to rename this to make it general.
+#  We can call this minor and major symmetries. just like elastic tensor.
+#  T delta_ij delta_kl = T delta_kl delta_ij we have minor symmetry between i and j, \
+#  and between k and l. We have major symmetry between (ij) and (kl).
+#  This is the same as the elastic tensor ((ij)(kl)).
+#  So, we can rename this function to make it more general.
 def get_permutations_delta(
     symmetry: str, delta_indices: str, start_dim: int = 0
 ) -> list[list[int]]:
     """
-    Get unique permutations of the indices for symmetrizing a tensor, that is obtained
-    by tensor product with delta tensors.
+    Get the unique permutations of the indices to fully symmetrize a tensor.
+    that is obtained by tensor product with delta tensors.
 
     For example, `symmetry = xxyyaabb`, and `delta_indices = ab` means:
         1. indices 1 and 2 are symmetric (both associated with `x`), and indices 3 and
@@ -124,8 +130,8 @@ def get_permutations_delta(
 
 
     Args:
-        symmetry: A string that describes the symmetry of the indices. This should be
-            used together with `delta_indices`. See below.
+        symmetry: A string that describes the symmetry already in the tensor. This
+            should be used together with `delta_indices`. See below.
         delta_indices: The indices that are associated with the delta tensors, for which
             need to consider both minor and major symmetries.
         start_dim: the starting dimension to perform the operation. Dimensions before
