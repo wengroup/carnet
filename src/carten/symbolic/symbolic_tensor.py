@@ -529,6 +529,12 @@ class LinearCombination:
     def __add__(self, other: "LinearCombination"):
         return LinearCombination(*self._tensors, *other._tensors)
 
+    def __radd__(self, other: "LinearCombination"):
+        # Handle the sum() case. Note, sum([X]) is expanded as 0 + X
+        if other == 0:
+            return self
+        return self.__add__(other)
+
     def __mul__(self, other: int | Fraction):
         """Multiply the tensor by a scalar."""
         return LinearCombination(*[t * other for t in self._tensors])
