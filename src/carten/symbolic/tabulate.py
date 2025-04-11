@@ -19,12 +19,14 @@ from monty.serialization import dumpfn
 from carten.core.utils import dij, eijk, letter_index
 from carten.symbolic.linearly_independent import (
     embed,
-    find_unique_G_by_symmetry,
     get_G_even,
     get_G_odd,
     get_g_pq_matrix,
     get_H,
-    get_h_pq,
+    get_independent_H_coeff,
+    get_K,
+    group_G_by_symmetry,
+    matrix_inverse,
     shift_index_2,
 )
 from carten.symbolic.symbolic_tensor import (
@@ -188,36 +190,71 @@ def get_G_H_S_of_j(j: int, n: int, symmetry: str = None) -> tuple[
     # Get linearly independent G tensors
     independent_G = [all_G[i] for i in independent_indices]
 
-    # Further down select independent G tensors by symmetry
-    if symmetry is not None:
-        independent_G, _ = find_unique_G_by_symmetry(independent_G, n, symmetry)
-
     # Get g_pq matrix for independent G
     g_pq = get_g_pq_matrix(j, n, independent_G)
 
     # Get h_pq matrix
-    h_pq = get_h_pq(g_pq)
+    h_pq = matrix_inverse(g_pq)
 
     # Get H tensors, corresponding to independent G
     independent_H = get_H(h_pq, independent_G)
 
-    # Find symbolic S = G H
-    all_G = []
-    all_H = []
-    all_S = []
-    for i, (G, H) in enumerate(zip(independent_G, independent_H)):
-        G = simplify_2(G)
+    # Further down select unique G tensors by symmetry
+    if symmetry is None:
+        # Find symbolic S = G H
+        all_G = []
+        all_H = []
+        all_S = []
+        for i, (G, H) in enumerate(zip(independent_G, independent_H)):
+            G = simplify_2(G)
 
-        # Shift Upper letters of H to distinguish those from G
-        H = shift_index_2(H, n, letter_index(24, upper_case=True))
-        H = simplify_2(H)
+            # Shift Upper letters of H to distinguish those from G
+            H = shift_index_2(H, n, letter_index(24, upper_case=True))
+            H = simplify_2(H)
 
-        S = multiply_2(G, H)
-        S = simplify_2(S)
+            S = multiply_2(G, H)
+            S = simplify_2(S)
 
-        all_G.append(G)
-        all_H.append(H)
-        all_S.append(S)
+            all_G.append(G)
+            all_H.append(H)
+            all_S.append(S)
+    else:
+        indices_zero, indices_group = group_G_by_symmetry(independent_G, n, symmetry)
+
+        # All G result in zero
+        if len(indices_group) == 0:
+            all_K = []
+        # Each G form its own group, i.e. all G are independent
+        elif len(indices_group) == len(independent_G):
+            all_K = independent_G
+        # Some G are not unique
+        else:
+            # TODO, These two can be combined as a single function
+            coeff = get_independent_H_coeff(h_pq, indices_group)
+            all_K = get_K(independent_G, coeff, indices_group)
+
+        # We use K as G now, TODO
+        independent_G = all_K
+        independent_H = independent_H[: len(all_K)]
+
+        # TODO, the below is a repeat of the above code, need to be refactored
+        all_G = []
+        all_H = []
+        all_S = []
+
+        for i, (G, H) in enumerate(zip(independent_G, independent_H)):
+            G = simplify_2(G)
+
+            # Shift Upper letters of H to distinguish those from G
+            H = shift_index_2(H, n, letter_index(24, upper_case=True))
+            H = simplify_2(H)
+
+            S = multiply_2(G, H)
+            S = simplify_2(S)
+
+            all_G.append(G)
+            all_H.append(H)
+            all_S.append(S)
 
     return all_G, all_H, all_S, g_pq, h_pq
 

@@ -1,12 +1,25 @@
 import numpy as np
 import pytest
 
+from carten.symbolic.sym import symmetrize
 from carten.symbolic.tabulate import get_G_H_S
 
 
 # TODO, n=1 does not work
-@pytest.mark.parametrize("rank", [2, 3, 4])
-def test_get_G_H_S(rank):
+@pytest.mark.parametrize(
+    "rank,symmetry",
+    [
+        (2, None),
+        (2, "ij=ji"),
+        (3, None),
+        (3, "ijk=ikj"),
+        (3, "ijk=ikj=jik"),
+        (4, None),
+        (4, "ijkl=jikl=klij"),
+        (4, "ijkl=jikl=kjil=ljki"),
+    ],
+)
+def test_get_G_H_S(rank, symmetry):
     """Test the get_G_H_S function.
 
     For a given tensor T, obtain the natural tensors X (using H), and then obtain the
@@ -19,7 +32,11 @@ def test_get_G_H_S(rank):
 
     T = np.random.randn(*[3] * rank)
 
-    output = get_G_H_S(rank)
+    # symmetrize the tensor if `symmetry` is not None
+    if symmetry is not None:
+        T = symmetrize(T, symmetry)
+
+    output = get_G_H_S(rank, symmetry)
 
     all_T_prime = []
     for j, out_j in output.items():
