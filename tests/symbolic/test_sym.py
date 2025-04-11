@@ -2,7 +2,7 @@ import itertools
 
 import numpy as np
 
-from carten.symbolic.symmetrize import check_symmetry, generate_permutations, symmetrize
+from carten.symbolic.sym import check_symmetry, generate_permutations, symmetrize
 
 
 def test_generate_permutations():

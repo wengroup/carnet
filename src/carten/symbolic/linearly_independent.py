@@ -22,6 +22,7 @@ from torch import Tensor
 from carten.core.reduce import symmetrize_and_remove_trace
 from carten.core.symmetrize import get_permutations_2
 from carten.core.utils import dij, eijk, is_symmetric, is_traceless, letter_index
+from carten.symbolic.sym import symmetrize
 from carten.symbolic.symbolic_tensor import (
     CartesianTensor,
     Delta,
@@ -32,7 +33,6 @@ from carten.symbolic.symbolic_tensor import (
     multiply_2,
     simplify_2,
 )
-from carten.symbolic.symmetrize import symmetrize
 from carten.symbolic.utils import (
     find_independent_tensors,
     matrix_inverse,
