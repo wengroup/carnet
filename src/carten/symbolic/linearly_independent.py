@@ -33,7 +33,12 @@ from carten.symbolic.symbolic_tensor import (
     simplify_2,
 )
 from carten.symbolic.symmetrize import symmetrize
-from carten.symbolic.utils import find_independent_tensors, matrix_inverse
+from carten.symbolic.utils import (
+    find_independent_tensors,
+    matrix_inverse,
+    matrix_multiply,
+    matrix_transpose,
+)
 
 
 def get_E(j: int, s_letters: str = None) -> LinearCombination:
@@ -145,15 +150,6 @@ def get_G_odd(j: int, n: int) -> list[LinearCombination]:
         all_G.append(G)
 
     return all_G
-
-
-def get_h_pq(g_pq: list[list[Fraction]]) -> list[list[Fraction]]:
-    """
-    Compute h_pq matrix, which is the inverse of g_pq.
-    """
-    h_pq = matrix_inverse(g_pq)
-
-    return h_pq
 
 
 def get_H(
@@ -926,23 +922,24 @@ def find_matrix_factorization(
     return c, B
 
 
-def find_unique_G_by_symmetry(
+def group_G_by_symmetry(
     all_G: list[LinearCombination],
     rank: int,
     symmetry: str,
     rtol: float = 1e-5,
     atol: float = 1e-7,
-) -> tuple[list[LinearCombination], list[int]]:
+) -> tuple[list[int], list[list[int]]]:
     """
-    Find unique G tensors for a given symmetry.
+    Group the G tensors by their uniqueness for a given symmetry.
 
     This is achieved by numerical experiments (although it can be done symbolically):
     1. Creating a tensor T with the given symmetry.
     2. For each G, obtain X = G \odot^n T.
-    3. Check X, and remove the ones 1. that are zero, and 2. that are not unique.
+    3. Check each X to verify whether a) it is zero, or b) it is unique (i.e. a
+       duplicate of another X), and then label the corresponding G accordingly.
 
     Args:
-        all_G:
+        all_G: linear independent G tensors.
         rank: rank of the tensor
         symmetry: symmetry specifying the tensor. e.g.
             - "ij=ji" denotes a rank-2 tensor that is symmetric in the last two indices
@@ -956,8 +953,10 @@ def find_unique_G_by_symmetry(
         atol: absolute tolerance for checking if two tensors are equal.
 
      Returns:
-         Independent G tensors that are linearly independent.
-         Indices of the independent G tensors under the given symmetry.
+        indices_zero: Indices of zero G.
+        indices_group: Each inner list contains the indices of G tensors that are
+            equivalent to each other, meaning their corresponding X tensors are the
+            same.
     """
     # Create a tensor T with the specified symmetry
     np.random.seed(35)
@@ -967,25 +966,106 @@ def find_unique_G_by_symmetry(
 
     all_X = [extract(G, T) for G in all_G]
 
-    unique_indices = []
+    indices_zero = []
+    indices_group = []
     for i, X in enumerate(all_X):
 
         # 1. Remove zeros
         if torch.allclose(X, torch.tensor(0.0), rtol=rtol, atol=atol):
+            indices_zero.append(i)
             continue
 
-        # 2. Select unique ones
+        # 2. Create groups of equivalent G tensors
         is_unique = True
-        for j in unique_indices:
+        for group in indices_group:
+            j = group[0]
+
             if torch.allclose(X, all_X[j], rtol=rtol, atol=atol):
+                # Equivalent to values in an existing group, then add to the group
+                group.append(i)
                 is_unique = False
                 break
+
+        # Not in existing groups, create a new group
         if is_unique:
-            unique_indices.append(i)
+            indices_group.append([i])
 
-    unique_G = [all_G[i] for i in unique_indices]
+    return indices_zero, indices_group
 
-    return unique_G, unique_indices
+
+def get_independent_H_coeff(
+    h: list[list[Fraction]], indices_group: list[list[int]]
+) -> list[list[Fraction]]:
+    """
+    Construct coefficient matrix to combine independent H tensors to obtain other H.
+
+    This is based on the values of the G:
+    1. For GT=0, we ignore the corresponding h_pq.
+    2. For G1, G2...Gq that gives the same GT values, we sum the corresponding h_pq
+    over q.
+
+    Args:
+        h:
+        indices_group:
+
+    Returns:
+        Each column gives the coefficients of combining independent H to obtain other H.
+
+    """
+    num_ind = len(indices_group)
+
+    u = []
+    for h_p in h:
+        u_p = []
+        for group in indices_group:
+            # sum over the group
+            u_pq = sum(h_p[i] for i in group)
+            u_p.append(u_pq)
+        u.append(u_p)
+
+    # The first num_ind rows of u corresponds to independent H, the rest num_p - num_ind
+    # rows corresponds to dependent H that  can be written as linear combinations of the
+    # first num_group rows.
+    M = u[:num_ind]
+    M = matrix_transpose(M)
+    N = u[num_ind:]
+    N = matrix_transpose(N)
+
+    M_inv = matrix_inverse(M)
+    coeff = matrix_multiply(M_inv, N)
+
+    return coeff
+
+
+def get_K(
+    all_G: list[LinearCombination],
+    coeff: list[list[Fraction]],
+    indices_group: list[list[int]],
+) -> (list)[LinearCombination]:
+    """
+
+    Args:
+        all_G:
+        coeff: Each column gives the coefficients of combining independent H to obtain
+            other H.
+        indices_group: each inner list contains indices of G tensors that are
+            equivalent to each other.
+
+    Returns:
+    """
+
+    num_ind = len(indices_group)
+
+    all_K = []
+
+    for i in range(num_ind):
+        K = all_G[i]
+        for j in range(num_ind, len(all_G)):
+            K += coeff[i][j - num_ind] * all_G[j]
+        # K = simplify_2(K)
+        all_K.append(K)
+
+    return all_K
 
 
 if __name__ == "__main__":
@@ -1138,7 +1218,7 @@ if __name__ == "__main__":
         pprint(g_pq_int)
 
         # Get h_pq matrix
-        h_pq = get_h_pq(g_pq)
+        h_pq = matrix_inverse(g_pq)
         print("h_pq:")
         pprint(h_pq)
 
