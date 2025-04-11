@@ -68,6 +68,7 @@ def find_independent_tensors_2(tensors: list[Tensor], tolerance=1e-4):
 def matrix_inverse(matrix: list[list[Fraction]]) -> list[list[Fraction]]:
     """
     Calculate the inverse of a matrix containing Fraction objects.
+
     Returns the inverse matrix with Fraction elements.
 
     Args:
@@ -114,6 +115,50 @@ def matrix_inverse(matrix: list[list[Fraction]]) -> list[list[Fraction]]:
             inverse[i].append(augmented[i][j + n])
 
     return inverse
+
+
+def matrix_multiply(
+    m1: list[list[Fraction]], m2: list[list[Fraction]]
+) -> list[list[Fraction]]:
+    """Perform matrix multiplication on two matrices containing Fraction objects.
+
+    Args:
+        m1: First matrix
+        m2: Second matrix
+
+    Returns:
+        Resulting matrix as list of lists with Fraction objects
+    """
+    n = len(m1)
+    m = len(m2[0])
+    p = len(m2)
+
+    if len(m1[0]) != p:
+        raise ValueError("Incompatible matrix dimensions for multiplication")
+
+    result = []
+    for i in range(n):
+        row = []
+        for j in range(m):
+            value = Fraction(0)
+            for k in range(p):
+                value += m1[i][k] * m2[k][j]
+            row.append(value)
+        result.append(row)
+
+    return result
+
+
+def matrix_transpose(m: list[list[Fraction]]) -> list[list[Fraction]]:
+    """Transpose a matrix containing Fraction objects.
+
+    Args:
+        m: Matrix to be transposed
+
+    Returns:
+        Transposed matrix as list of lists with Fraction objects
+    """
+    return [[m[j][i] for j in range(len(m))] for i in range(len(m[0]))]
 
 
 def fraction_matrix(m: list[list[Fraction]]) -> list[list[str]]:
