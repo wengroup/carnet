@@ -185,6 +185,9 @@ class StructureTensorModel(nn.Module):
         edge_idx: Tensor,
         atom_type: Tensor,
         num_atoms: Tensor,
+        atomic_selector: list[bool] = None,
+        # `atomic_selector` is not needed; it is added for API uniformity with the
+        # AtomicTensorModel()
     ) -> Tensor:
         # Get the atom feats
         all_atom_feats = self.backbone(

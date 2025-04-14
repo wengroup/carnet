@@ -273,6 +273,8 @@ if __name__ == "__main__":
     shutil.rmtree("./processed", ignore_errors=True)
 
     config_file = Path(__file__).parent / "configs" / "config_dielectric_tensor.yaml"
+    # config_file = Path(__file__).parent / "configs" / "config_elastic_tensor.yaml"
+
     config = get_args(config_file)
     main(config)
 

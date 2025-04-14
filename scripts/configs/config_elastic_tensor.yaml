@@ -14,9 +14,9 @@ data:
     0: 2
     2: 2
     4: 1
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/data/crystal_elasticity_filtered_train.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/data/crystal_elasticity_filtered_val.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/data/crystal_elasticity_filtered_test.json
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
