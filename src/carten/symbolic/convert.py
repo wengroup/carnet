@@ -40,6 +40,8 @@ class Converter(nn.Module):
         self.j_num_p = {}
         for j, out_j in out.items():
             self.j_num_p[j] = len(out_j["G"])
+            # TODO, the tensors of different G_j_p might be batched, which can
+            #  accelerate the computation
             for p, (G, H) in enumerate(zip(out_j["G"], out_j["H"])):
                 self.register_buffer(f"G_{j}_{p}", torch.tensor(G["numerical"]))
                 self.register_buffer(f"H_{j}_{p}", torch.tensor(H["numerical"]))
@@ -47,7 +49,7 @@ class Converter(nn.Module):
                 setattr(self, f"H_{j}_{p}_rule", H["rule"])
 
     # TODO, the looping is very inefficient, need to think about better ways
-    def to_natural_tensor(self, T: Tensor) -> dict[int, list[Tensor]]:
+    def to_natural_tensor(self, T: Tensor) -> dict[int, Tensor]:
         """
         Convert an ordinary cartesian tensor T to natural tensors X.
 
@@ -55,9 +57,11 @@ class Converter(nn.Module):
             T: The tensor to convert.
 
         Returns:
-            A dictionary {j: [X]} where j is the rank of the natural tensor, j=0,1,
-            ...n and X are the natural tensors. For each j, there can be multiple
-            X tensors.
+            A dictionary {j: X} where j is the rank (j=0, 1, ...n) and X is the
+            corresponding natural tensor. The shape of X is (N, 3,...,3) where N is
+            the seniority of rank-j natural tensor, and there are j (rank) of 3s.
+            In other words, the first dim batches natural tensor of the same rank j,
+            but different seniority p.
         """
         out = {}
         for j, num_p in self.j_num_p.items():
@@ -71,16 +75,18 @@ class Converter(nn.Module):
         return out
 
     # TODO, the looping is very inefficient, need to think about better ways
-    def to_ordinary_tensor(self, X: dict[int, list[Tensor]]) -> Tensor:
+    def to_ordinary_tensor(self, X: dict[int, Tensor]) -> Tensor:
         """
         Convert natural tensors X to ordinary cartesian tensor T.
 
         This is the inverse of `to_natural_tensor`.
 
         Args:
-            A dictionary {j: [X]} where j is the rank of the natural tensor, j=0,1,
-            ...n and X are the natural tensors. For each j, there can be multiple
-            X tensors.
+            X: A dictionary {j: X} where j is the rank (j=0, 1, ...n) and X is the
+            corresponding natural tensor. The shape of X is (N, 3,...,3) where N is
+            the seniority of rank-j natural tensor, and there are j (rank) of 3s.
+            In other words, the first dim batches natural tensor of the same rank j,
+            but different seniority p.
 
         Returns:
             An ordinary cartesian tensor T of rank n.

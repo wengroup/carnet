@@ -265,6 +265,11 @@ def get_G_H_S(n: int, symmetry: str = None, numerical: bool = True) -> dict:
     out = {}
     for j in range(n + 1):
         G, H, S, g, h = get_G_H_S_of_j(j, n, symmetry)
+
+        # There is no natural tensor of this rank
+        if len(G) == 0:
+            continue
+
         out_j = {
             "g_pq": {"symbolic": fraction_matrix(g), "numerical": float_matrix(g)},
             "h_pq": {"symbolic": fraction_matrix(h), "numerical": float_matrix(h)},
