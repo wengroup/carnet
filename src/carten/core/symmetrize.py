@@ -1,3 +1,5 @@
+"""Fully symmetrize a (partially symmetric) tensor."""
+
 import itertools
 
 import torch

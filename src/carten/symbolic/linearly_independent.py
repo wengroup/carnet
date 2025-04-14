@@ -380,6 +380,7 @@ def get_G_rules_odd_j0(j, n):
     """
     assert j == 0, f"j must be 0, got {j}"
     assert n % 2 == 1, f"n must be odd, got {n}"
+    assert n >= 3, f"n must be greater than or equal to 3, got {n}"
 
     # All s letters
     letters = letter_index(n, upper_case=True)
@@ -578,6 +579,7 @@ def order_tp_components_2(tensor: LinearCombination) -> LinearCombination:
     return LinearCombination(*out)
 
 
+# TODO, this has been reimplemented in simplify_2()
 def combine_terms(tensor: LinearCombination) -> LinearCombination:
     """
     Combine terms with the same indices.
@@ -736,7 +738,7 @@ def get_g_pq(
     return factor
 
 
-def get_g_pq_matrix(
+def get_g_matrix(
     j: int, n: int, all_G: list[LinearCombination]
 ) -> list[list[Fraction]]:
     """
@@ -929,7 +931,7 @@ def group_G_by_symmetry(
     rtol: float = 1e-5,
     atol: float = 1e-7,
 ) -> tuple[list[int], list[list[int]]]:
-    """
+    r"""
     Group the G tensors by their uniqueness for a given symmetry.
 
     This is achieved by numerical experiments (although it can be done symbolically):
@@ -1148,6 +1150,7 @@ if __name__ == "__main__":
 
     ################################################################################
 
+    # TODO, this function has been reimplemented in tabulate.py: get_G_H_S()
     def extract_and_embed(j: int, n: int, T: Tensor):
         """
         Extract the natural tensor X(j) from T(n) and embed it back to get S(n).
@@ -1174,7 +1177,7 @@ if __name__ == "__main__":
 
         # Determine g_pq for all G
         # TODO, this block can be removed (not needed for selecting the independent ones)
-        g_pq = get_g_pq_matrix(j, n, all_G)
+        g_pq = get_g_matrix(j, n, all_G)
         if len(all_G) > 1:
             c, g_pq_int = find_matrix_factorization(g_pq)
         else:
@@ -1191,9 +1194,6 @@ if __name__ == "__main__":
         # Get linearly independent G tensors
         _, independent_indices = find_independent_tensors(all_S)
 
-        # TODO, for tensors will partial symmetry, we can implement additional rules
-        #  to filter out some of all_G by considering the symmetry of the tensor T.
-
         independent_G = [all_G[i] for i in independent_indices]
 
         print("Number of independent G:", len(independent_G))
@@ -1203,7 +1203,7 @@ if __name__ == "__main__":
             print(G)
 
         # Get g_pq matrix for independent G
-        g_pq = get_g_pq_matrix(j, n, independent_G)
+        g_pq = get_g_matrix(j, n, independent_G)
         if len(independent_G) > 1:
             # Note, c may not be 1, but g_pq should consist of the factor c
             # Here we use g_pq_int just for nice printing and visualization.
@@ -1240,9 +1240,10 @@ if __name__ == "__main__":
             S = simplify_2(S)
 
             print("=" * 10)
-            print(f"G={G}")
-            print(f"H={H}")
-            print(f"S tensor ``S=G \odot^j H`` ({i})", S)
+            print("Seniority:", i)
+            print("G", G)
+            print("H", H)
+            print("S", S)
 
         ########################################
         # numerical S
@@ -1265,7 +1266,7 @@ if __name__ == "__main__":
     ################################################################################
 
     # create a T of rank n
-    n = 3
+    n = 1
     torch.manual_seed(35)
     T = torch.randn(3**n).reshape([3] * n)
 

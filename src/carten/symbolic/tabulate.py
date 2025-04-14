@@ -20,8 +20,8 @@ from carten.core.utils import dij, eijk, letter_index
 from carten.symbolic.linearly_independent import (
     embed,
     get_G_even,
+    get_g_matrix,
     get_G_odd,
-    get_g_pq_matrix,
     get_H,
     get_independent_H_coeff,
     get_K,
@@ -191,7 +191,7 @@ def get_G_H_S_of_j(j: int, n: int, symmetry: str = None) -> tuple[
     independent_G = [all_G[i] for i in independent_indices]
 
     # Get g_pq matrix for independent G
-    g_pq = get_g_pq_matrix(j, n, independent_G)
+    g_pq = get_g_matrix(j, n, independent_G)
 
     # Get h_pq matrix
     h_pq = matrix_inverse(g_pq)
@@ -200,25 +200,7 @@ def get_G_H_S_of_j(j: int, n: int, symmetry: str = None) -> tuple[
     independent_H = get_H(h_pq, independent_G)
 
     # Further down select unique G tensors by symmetry
-    if symmetry is None:
-        # Find symbolic S = G H
-        all_G = []
-        all_H = []
-        all_S = []
-        for i, (G, H) in enumerate(zip(independent_G, independent_H)):
-            G = simplify_2(G)
-
-            # Shift Upper letters of H to distinguish those from G
-            H = shift_index_2(H, n, letter_index(24, upper_case=True))
-            H = simplify_2(H)
-
-            S = multiply_2(G, H)
-            S = simplify_2(S)
-
-            all_G.append(G)
-            all_H.append(H)
-            all_S.append(S)
-    else:
+    if symmetry is not None:
         indices_zero, indices_group = group_G_by_symmetry(independent_G, n, symmetry)
 
         # All G result in zero
@@ -233,28 +215,27 @@ def get_G_H_S_of_j(j: int, n: int, symmetry: str = None) -> tuple[
             coeff = get_independent_H_coeff(h_pq, indices_group)
             all_K = get_K(independent_G, coeff, indices_group)
 
-        # We use K as G now, TODO
+        # We use K as G now
         independent_G = all_K
         independent_H = independent_H[: len(all_K)]
 
-        # TODO, the below is a repeat of the above code, need to be refactored
-        all_G = []
-        all_H = []
-        all_S = []
+    # Get G, H, and S tensors
+    all_G = []
+    all_H = []
+    all_S = []
+    for i, (G, H) in enumerate(zip(independent_G, independent_H)):
+        G = simplify_2(G)
 
-        for i, (G, H) in enumerate(zip(independent_G, independent_H)):
-            G = simplify_2(G)
+        # Shift upper letters of H to distinguish those from G
+        H = shift_index_2(H, n, letter_index(24, upper_case=True))
+        H = simplify_2(H)
 
-            # Shift Upper letters of H to distinguish those from G
-            H = shift_index_2(H, n, letter_index(24, upper_case=True))
-            H = simplify_2(H)
+        S = multiply_2(G, H)
+        S = simplify_2(S)
 
-            S = multiply_2(G, H)
-            S = simplify_2(S)
-
-            all_G.append(G)
-            all_H.append(H)
-            all_S.append(S)
+        all_G.append(G)
+        all_H.append(H)
+        all_S.append(S)
 
     return all_G, all_H, all_S, g_pq, h_pq
 
