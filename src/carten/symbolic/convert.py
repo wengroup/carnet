@@ -17,13 +17,25 @@ class Converter(nn.Module):
 
     Args:
         rank: The rank of the tensor T.
+        symmetry: symmetry of the Cartesian ordinary tensor, if any. For example,
+            - "ij=ji" means that the tensor is a fully symmetric rank-2 tensor (e.g.
+                stress tensor);
+            - "ijk=ikj" means that the tensor is a rank-3 tensor with the last two
+                indices symmetric (e.g. piezoelectric tensor);
+            - "ijk=ikj=jik" means that the tensor is a fully symmetric rank-3 tensor;
+            - "ijkl=jikl=klij" means that the tensor is a rank-4 tensor with both minor
+                symmetry (between i and j, and between k and l) and major symmetry (
+                between ij and kl). For example, the elastic tensor has this symmetry.
+            The number of unique letters gives the rank of the tensor (what letters to
+            use does not matter).
     """
 
-    def __init__(self, rank: int):
+    def __init__(self, rank: int, symmetry: str = None):
         super().__init__()
-
         self.rank = rank
-        out = get_G_H_S(rank)
+        self.symmetry = symmetry
+
+        out = get_G_H_S(rank, symmetry)
 
         self.j_num_p = {}
         for j, out_j in out.items():

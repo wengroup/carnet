@@ -246,7 +246,17 @@ def get_G_H_S(n: int, symmetry: str = None, numerical: bool = True) -> dict:
 
     Args:
         n: dim of the space T is in
-        symmetry: symmetry of the tensor in space n, if any.
+        symmetry: symmetry of the tensor in space n, if any. For example,
+            - "ij=ji" means that the target is a fully symmetric rank-2 tensor (e.g.
+                stress tensor);
+            - "ijk=ikj" means that the target is a rank-3 tensor with the last two
+                indices symmetric (e.g. piezoelectric tensor);
+            - "ijk=ikj=jik" means that the target is a fully symmetric rank-3 tensor;
+            - "ijkl=jikl=klij" means that the target is a rank-4 tensor with both minor
+                symmetry (between i and j, and between k and l) and major symmetry (
+                between ij and kl). For example, the elastic tensor has this symmetry;
+            The number of unique letters gives the rank of the tensor (what letters to
+            use does not matter).
         numerical: whether to return numerical values of G, H, S.
 
     Returns:
