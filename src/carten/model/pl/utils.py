@@ -29,12 +29,14 @@ def load_model(lit_model_cls, model_cls, checkpoint: Path, map_location: str = N
     Load the model from checkpoint.
 
     Args:
-        lit_model_cls: the Lightning model class, e.g. `carten.model.pl.pl_ip.LitModel`
+        lit_model_cls: the Lightning model class, e.g.
+        `carten.model.pl.pl_ip.InteratomicPotentialLitModule`
+        model_cls: the model class, e.g. `carten.model.ip.InteratomicPotential`
         checkpoint: path to the checkpoint
         map_location: device to load the model to
     """
     # create the model to load, using the same hyperparameters saved in the checkpoint
-    d = torch.load(checkpoint, map_location=map_location)
+    d = torch.load(checkpoint, map_location=map_location, weights_only=True)
 
     # dtype
     dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
