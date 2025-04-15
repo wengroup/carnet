@@ -1,4 +1,5 @@
 """CARTEN interatomic potential model."""
+
 from line_profiler import profile
 from torch import Tensor, nn
 
@@ -6,7 +7,7 @@ from .backbone import Backbone
 from .readout import StructureScalar
 
 
-class InteratomicPotenital(nn.Module):
+class InteratomicPotential(nn.Module):
     """
     CARTEN interatomic potential model.
     """

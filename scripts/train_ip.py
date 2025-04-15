@@ -9,7 +9,7 @@ from torch_geometric.loader.dataloader import DataLoader
 
 from carten.data.dataset import Dataset
 from carten.data.transform import ConsecutiveAtomType
-from carten.model.ip import InteratomicPotenital
+from carten.model.ip import InteratomicPotential
 from carten.model.pl.pl_ip import InteratomicPotentialLitModule
 from carten.model.pl.utils import (
     get_args,
@@ -124,7 +124,7 @@ def get_model(
     ema_hparams=None,
     other_hparams: dict = None,
 ):
-    m = InteratomicPotenital(**model_hparams)
+    m = InteratomicPotential(**model_hparams)
 
     # TODO, enable jit
     # m = torch.jit.script(m)
@@ -182,7 +182,9 @@ def main(config: dict):
     # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(InteratomicPotentialLitModule, restore_checkpoint)
+        model = load_model(
+            InteratomicPotentialLitModule, InteratomicPotential, restore_checkpoint
+        )
     print(model)
 
     # Train
