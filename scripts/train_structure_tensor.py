@@ -38,6 +38,7 @@ def get_dataset(
 def get_dataloaders(
     target_name,
     target_signature,
+    atomic_number,
     r_cut,
     trainset_filename,
     valset_filename,
@@ -46,23 +47,35 @@ def get_dataloaders(
     val_batch_size,
     test_batch_size,
 ):
-    # Get all atomic number from trainset
-    df = pd.read_json(trainset_filename)
-    atomic_number = df["atomic_number"].to_list()
-    unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
 
     # TODO, check target in dataframe is consistent with target_signature
 
-    trainset = get_dataset(trainset_filename, target_name, unique_atomic_number, r_cut)
+    trainset = get_dataset(trainset_filename, target_name, atomic_number, r_cut)
     train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
 
-    valset = get_dataset(valset_filename, target_name, unique_atomic_number, r_cut)
+    valset = get_dataset(valset_filename, target_name, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
 
-    testset = get_dataset(testset_filename, target_name, unique_atomic_number, r_cut)
+    testset = get_dataset(testset_filename, target_name, atomic_number, r_cut)
     test_loader = DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
+
+
+def update_data_configs(config: dict) -> dict:
+    """Get atomic number from the train set, so we do not need to provide it in the
+    config file"""
+
+    filename = config["data"]["trainset_filename"]
+    df = pd.read_json(filename)
+    atomic_number = df["atomic_number"].to_list()
+    unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
+
+    config["data"]["atomic_number"] = unique_atomic_number
+
+    print(f"Updated data configs - `atomic_number`: {unique_atomic_number}")
+
+    return config
 
 
 def update_model_configs(config: dict, dataset: Dataset) -> dict:
@@ -188,6 +201,7 @@ def main(config: dict):
     torch.set_default_dtype(getattr(torch, dtype))
 
     # Load data
+    config = update_data_configs(config)
     train_loader, val_loader, test_loader = get_dataloaders(**config["data"])
 
     # Get model
