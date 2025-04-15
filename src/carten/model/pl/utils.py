@@ -24,7 +24,7 @@ def get_args(path: Path):
     return config
 
 
-def load_model(lit_model_cls, checkpoint: Path, map_location: str = None):
+def load_model(lit_model_cls, model_cls, checkpoint: Path, map_location: str = None):
     """
     Load the model from checkpoint.
 
@@ -40,11 +40,15 @@ def load_model(lit_model_cls, checkpoint: Path, map_location: str = None):
     dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
     torch.set_default_dtype(getattr(torch, dtype))
 
+    # create model
+    model_hparams = d["hyper_parameters"]["other_hparams"]["model"]
+    model = model_cls(**model_hparams)
+
     # create the lit model
     # Note, this will only restore model parameters, not the epoch, optimizer state,
     # lr_scheduler state, etc.
     lit_model = lit_model_cls.load_from_checkpoint(
-        checkpoint, map_location=map_location
+        checkpoint, model=model, map_location=map_location
     )
 
     return lit_model
@@ -87,12 +91,12 @@ def get_git_commit(
 
 
 if __name__ == "__main__":
-    from carten.model.ip import InteratomicPotenital
+    from carten.model.ip import InteratomicPotential
     from carten.model.pl.pl_ip import InteratomicPotentialLitModule
 
     lit_model = load_model(
-        InteratomicPotenital,
         InteratomicPotentialLitModule,
+        InteratomicPotential,
         "/Users/mjwen.admin/Packages/carten/scripts/last_epoch.ckpt",
     )
 
