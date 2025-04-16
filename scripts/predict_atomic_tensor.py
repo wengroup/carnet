@@ -101,7 +101,6 @@ def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
             there is no symmetry.
         filename: Path to the file containing the dataset to make predictions.
         checkpoint: Path to the checkpoint file.
-
     """
 
     # Get references
@@ -139,7 +138,7 @@ def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
 
     # Distribution of MAE of each data point
     mae = torch.mean(torch.abs(ref - pred), axis=tuple(range(1, ref.ndim)))
-    plot_hist(mae.detach().numpy(), "MAE of each structure", f"ordinary_MAE")
+    plot_hist(mae.detach().numpy(), "MAE of each structure", "ordinary_MAE")
 
 
 def plot_hist(data, x_label, title: str, filename=None):
