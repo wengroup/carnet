@@ -99,7 +99,7 @@ class Converter(nn.Module):
             The shape is (B, 3, ..., 3), where B represents arbitrary batch dimensions,
             and the number of 3s is, of course, equal to the rank of the tensor.
         """
-        B = X[list(X.keys())[0]].shape[: -self.rank - 1]
+        B = X[list(X.keys())[0]].shape[:-2]
 
         out = []
         # TODO, the looping is very inefficient, need to think about better ways
@@ -107,11 +107,11 @@ class Converter(nn.Module):
             for p in range(num_p):
                 rule = getattr(self, f"G_{l}_{p}_rule")
                 G = getattr(self, f"G_{l}_{p}")
-                X_ = X[l][*B, p, :]
+                X_ = X[l][..., p, :]
 
                 # special rule for scalars
                 if l == 0:
-                    X_ = X_[*B, 0]
+                    X_ = X_[..., 0]
                 else:
                     X_ = X_.reshape(*B, *(3,) * l)
                 out.append(torch.einsum(rule, G, X_))
