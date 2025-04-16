@@ -183,8 +183,8 @@ if __name__ == "__main__":
 
     filename = "/Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json"
 
-    # To generate an example checkpoint, run `train_ip.py` first and then checkout
-    # `./carten_proj` to the checkpoint you want to use.
+    # To generate an example checkpoint, first run `train_atomic_tensor.py` and then
+    # checkout `./carten_proj` to get the checkpoint you want to use.
     checkpoint = "./carten_proj/n228kouh/checkpoints/epoch=1-step=10.ckpt"
 
     rank = 2
