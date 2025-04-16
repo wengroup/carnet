@@ -287,21 +287,27 @@ def get_G_H_S(n: int, symmetry: str = None, numerical: bool = True) -> dict:
 
             # G
             out_j["G"].append(
-                {"symbolic": str(G_p), "rule": (f"{upper}{lower},{lower}->{upper}")},
+                {
+                    "symbolic": str(G_p),
+                    "rule": (f"{upper}{lower},...{lower}->...{upper}"),
+                },
             )
             if numerical:
                 out_j["G"][-1]["numerical"] = evaluate_tensors(G_p, mode="G")
 
             # H
             out_j["H"].append(
-                {"symbolic": str(H_p), "rule": f"{lower}{upper},{upper}->{lower}"}
+                {"symbolic": str(H_p), "rule": f"{lower}{upper},...{upper}->...{lower}"}
             )
             if numerical:
                 out_j["H"][-1]["numerical"] = evaluate_tensors(H_p, mode="H")
 
             # S
             out_j["S"].append(
-                {"symbolic": str(S_p), "rule": f"{upper}{upper2},{upper2}->{upper}"}
+                {
+                    "symbolic": str(S_p),
+                    "rule": f"{upper}{upper2},...{upper2}->...{upper}",
+                }
             )
             if numerical:
                 out_j["S"][-1]["numerical"] = evaluate_tensors(S_p, mode="S")

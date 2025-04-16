@@ -37,44 +37,50 @@ class Converter(nn.Module):
 
         out = get_G_H_S(rank, symmetry)
 
-        self.j_num_p = {}
-        for j, out_j in out.items():
-            self.j_num_p[j] = len(out_j["G"])
+        self.l_num_p = {}
+        for l, out_l in out.items():
+            self.l_num_p[l] = len(out_l["G"])
             # TODO, the tensors of different G_j_p might be batched, which can
             #  accelerate the computation
-            for p, (G, H) in enumerate(zip(out_j["G"], out_j["H"])):
-                self.register_buffer(f"G_{j}_{p}", torch.tensor(G["numerical"]))
-                self.register_buffer(f"H_{j}_{p}", torch.tensor(H["numerical"]))
-                setattr(self, f"G_{j}_{p}_rule", G["rule"])
-                setattr(self, f"H_{j}_{p}_rule", H["rule"])
+            for p, (G, H) in enumerate(zip(out_l["G"], out_l["H"])):
+                self.register_buffer(f"G_{l}_{p}", torch.tensor(G["numerical"]))
+                self.register_buffer(f"H_{l}_{p}", torch.tensor(H["numerical"]))
+                setattr(self, f"G_{l}_{p}_rule", G["rule"])
+                setattr(self, f"H_{l}_{p}_rule", H["rule"])
 
-    # TODO, the looping is very inefficient, need to think about better ways
     def to_natural_tensor(self, T: Tensor) -> dict[int, Tensor]:
         """
         Convert an ordinary cartesian tensor T to natural tensors X.
 
         Args:
-            T: The tensor to convert.
+            T: The tensor to convert. Shape (B, 3, ..., 3), where B represents arbitrary
+                batch dimensions, and the number of 3s is, of course, equal to the rank
+                of the tensor.
 
         Returns:
-            A dictionary {j: X} where j is the rank (j=0, 1, ...n) and X is the
-            corresponding natural tensor. The shape of X is (N, 3,...,3) where N is
-            the seniority of rank-j natural tensor, and there are j (rank) of 3s.
-            In other words, the first dim batches natural tensor of the same rank j,
-            but different seniority p.
+            Natural tensors {l: X}, where l is the rank (l=0, 1, ...n) and X is the
+            corresponding tensor value. The shape of X is (B, F, 3^l) where B represents
+            arbitrary batch dimensions, F is the number of natural tensors of rank l,
+            and 3^l is the flattened dimension of the tensor. The second dimension F
+            batches natural tensors of the same rank l, but different seniority p.
         """
+        B = T.shape[: -self.rank]
+
+        # TODO, the looping is very inefficient, need to think about better ways
         out = {}
-        for j, num_p in self.j_num_p.items():
-            out[j] = [
-                torch.einsum(
-                    getattr(self, f"H_{j}_{p}_rule"), getattr(self, f"H_{j}_{p}"), T
-                )
-                for p in range(num_p)
-            ]
+        for l, num_p in self.l_num_p.items():
+            out[l] = torch.stack(
+                [
+                    torch.einsum(
+                        getattr(self, f"H_{l}_{p}_rule"), getattr(self, f"H_{l}_{p}"), T
+                    ).reshape(*B, 3**l)
+                    for p in range(num_p)
+                ],
+                dim=-2,  # stack to create the new F dimension
+            )
 
         return out
 
-    # TODO, the looping is very inefficient, need to think about better ways
     def to_ordinary_tensor(self, X: dict[int, Tensor]) -> Tensor:
         """
         Convert natural tensors X to ordinary cartesian tensor T.
@@ -82,27 +88,33 @@ class Converter(nn.Module):
         This is the inverse of `to_natural_tensor`.
 
         Args:
-            X: A dictionary {j: X} where j is the rank (j=0, 1, ...n) and X is the
-            corresponding natural tensor. The shape of X is (N, 3,...,3) where N is
-            the seniority of rank-j natural tensor, and there are j (rank) of 3s.
-            In other words, the first dim batches natural tensor of the same rank j,
-            but different seniority p.
+            X: Natural tensors {l: X}, where l is the rank (l=0, 1, ...n) and X is the
+            corresponding tensor value. The shape of X is (B, F, 3^l) where B represents
+            arbitrary batch dimensions, F is the number of natural tensors of rank l,
+            and 3^l is the flattened dimension of the tensor. The second dimension F
+            batches natural tensors of the same rank l, but different seniority p.
 
         Returns:
-            An ordinary cartesian tensor T of rank n.
+            An ordinary cartesian tensor T corresponding to the natural tensors X.
+            The shape is (B, 3, ..., 3), where B represents arbitrary batch dimensions,
+            and the number of 3s is, of course, equal to the rank of the tensor.
         """
+        B = X[list(X.keys())[0]].shape[: -self.rank - 1]
+
         out = []
-        for j, num_p in self.j_num_p.items():
-            out.extend(
-                [
-                    torch.einsum(
-                        getattr(self, f"G_{j}_{p}_rule"),
-                        getattr(self, f"G_{j}_{p}"),
-                        X[j][p],
-                    )
-                    for p in range(num_p)
-                ]
-            )
+        # TODO, the looping is very inefficient, need to think about better ways
+        for l, num_p in self.l_num_p.items():
+            for p in range(num_p):
+                rule = getattr(self, f"G_{l}_{p}_rule")
+                G = getattr(self, f"G_{l}_{p}")
+                X_ = X[l][*B, p, :]
+
+                # special rule for scalars
+                if l == 0:
+                    X_ = X_[*B, 0]
+                else:
+                    X_ = X_.reshape(*B, *(3,) * l)
+                out.append(torch.einsum(rule, G, X_))
 
         out = torch.sum(torch.stack(out), dim=0)
 
