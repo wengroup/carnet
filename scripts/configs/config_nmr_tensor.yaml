@@ -14,9 +14,9 @@ data:
     0: 1
     1: 1
     2: 1
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/nmr_tensor_n20.json
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
   r_cut: 5.0
   train_batch_size: 4
   val_batch_size: 4
