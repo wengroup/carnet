@@ -10,9 +10,7 @@ data:
   # corresponding rank.
   target_name: nmr_tensor_natural
   target_signature: # {rank: number} of the natural tensor
-    ## nmr
     0: 1
-    1: 1
     2: 1
   trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
   valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
@@ -48,9 +46,8 @@ loss:
   # If `normalize` is true, w_i = w_i/n_i, where n_i = 3**i is the number of elements in natural tensor of rank i.
   # The ranks should be consistent with the `target_signature` given in `data`.
   ratio:
-    ## elastic tensor
+    ## NMR tensor
     0: 1.0
-    1: 1.0
     2: 1.0
 
   normalize: true # normalize natural tensor of different ranks by the number of elements

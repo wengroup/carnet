@@ -126,7 +126,7 @@ def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
         # and seniority dim, but not over data point dim
         mae = torch.mean(torch.abs(v_r - v_p), axis=tuple(range(1, v_r.ndim)))
         plot_hist(
-            mae.detach().numpy(), "MAE of each structure", f"natural_MAE_rank" f"={k}"
+            mae.detach().numpy(), "MAE of each structure", "natural_MAE_rank" f"={k}"
         )
 
     # Metrics on ordinary tensors
