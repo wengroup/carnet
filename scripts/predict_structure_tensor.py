@@ -84,6 +84,8 @@ def predict(
     for batch in tqdm.tqdm(loader):
         batch = batch.to(model.device)
         out = model(batch)
+        # detach to save memory
+        out = {k: v.detach() for k, v in out.items()}
         output.append(out)
 
     output = process_dict(output)

@@ -75,8 +75,8 @@ def predict(
         batch = batch.to(model.device)
         e_pred, f_pred = model(batch)
 
-        energy.extend(e_pred.cpu().detach())
-        forces.extend(f_pred.cpu().detach())
+        energy.extend(e_pred.detach())
+        forces.extend(f_pred.detach())
 
     return torch.stack(energy), torch.stack(forces)
 
