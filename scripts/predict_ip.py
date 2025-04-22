@@ -73,7 +73,7 @@ def predict(
         batch.pos.requires_grad_(True)
 
         batch = batch.to(model.device)
-        e_pred, f_pred = model(batch)
+        e_pred, f_pred = model.forward_ema(batch)
 
         energy.extend(e_pred.detach())
         forces.extend(f_pred.detach())

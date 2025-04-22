@@ -83,7 +83,7 @@ def predict(
     output = []
     for batch in tqdm.tqdm(loader):
         batch = batch.to(model.device)
-        out = model(batch)
+        out = model.forward_ema(batch)
         # detach to save memory
         out = {k: v.detach() for k, v in out.items()}
         output.append(out)
