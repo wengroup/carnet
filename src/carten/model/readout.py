@@ -222,7 +222,7 @@ class AtomicTensor(nn.Module):
         return atom_out
 
 
-class StructureTensor(AtomicTensor):
+class StructureTensor(nn.Module):
     """Get a tensor output for each atomic configuration.
 
     For a model with multiple layers, the atomic feats of all layers are passed to this
@@ -248,6 +248,13 @@ class StructureTensor(AtomicTensor):
             should be {0: 1, 1: 1, 2: 1}. As another example, the elastic tensor is a
             rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
             natural tensors. To model the elastic tensor, the output_signature should
+         target_shift: A dictionary {l: shift} that specifies the shift to apply to
+            the output of the model before computing the loss. Used together with
+            target_scale.
+        target_scale: A dictionary {l: scale} that specifies the scale to apply to
+            the output of the model before computing the loss. Used together with
+            target_shift. y = scale*z + shift, where z is the output of the
+            network, and y is the predicted target.
             be {0: 2, 2: 2, 4: 1}.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
@@ -260,10 +267,19 @@ class StructureTensor(AtomicTensor):
         in_features: int,
         hidden_features: list[int] | int,
         output_signature: dict[int, int],
+        target_shift: dict[int, Tensor] = None,
+        target_scale: dict[int, Tensor] = None,
         num_atom_feats: int = None,
     ):
-        super().__init__(
-            num_layers, in_features, hidden_features, output_signature, num_atom_feats
+        super().__init__()
+        self.atomic_tensor_model = AtomicTensor(
+            num_layers,
+            in_features,
+            hidden_features,
+            output_signature,
+            target_shift,
+            target_scale,
+            num_atom_feats,
         )
 
     def forward(
@@ -291,7 +307,7 @@ class StructureTensor(AtomicTensor):
         """
 
         # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
-        atom_out = super().forward(atom_feats, atom_type)
+        atom_out = self.atomic_tensor_model(atom_feats, atom_type)
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {

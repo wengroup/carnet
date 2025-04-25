@@ -106,6 +106,18 @@ def update_model_configs(config: dict, dataset: Dataset) -> dict:
     # params determined from dataset
     # If not provided or set to "auto" in the config file, use the values determined
     # from the dataset
+    shift = config["model"].pop("target_shift", None)
+    scale = config["model"].pop("target_scale", None)
+
+    if (isinstance(shift, str) and shift.lower() == "auto") or (
+        isinstance(scale, str) and scale.lower() == "auto"
+    ):
+        shift_tmp, scale_tmp = dataset.get_shift_and_scale_tensors()
+        if isinstance(shift, str) and shift.lower() == "auto":
+            shift = shift_tmp
+        if isinstance(scale, str) and scale.lower() == "auto":
+            scale = scale_tmp
+
     num_average_neigh = config["model"].pop("num_average_neigh", None)
     if num_average_neigh is None:
         num_average_neigh = "auto"
@@ -116,11 +128,15 @@ def update_model_configs(config: dict, dataset: Dataset) -> dict:
     config["model"]["num_atom_types"] = num_atom_types
     config["model"]["r_cut"] = r_cut
     config["model"]["output_signature"] = output_signature
+    config["model"]["target_shift"] = shift
+    config["model"]["target_scale"] = scale
     config["model"]["num_average_neigh"] = num_average_neigh
 
     print(f"Updated model configs - `num_atom_types`: {num_atom_types}")
     print(f"Updated model configs - `r_cut`: {r_cut}")
     print(f"Updated model configs - `output_signature`: {output_signature}")
+    print(f"Updated model configs - `target_shift`: {shift}")
+    print(f"Updated model configs - `target_scale`: {scale}")
     print(f"Updated model configs - `num_average_neigh`: {num_average_neigh}")
 
     return config

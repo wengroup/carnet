@@ -164,9 +164,6 @@ class Dataset(InMemoryDataset):
 
         return rms
 
-    # TODO, this only works for tensors with a single seniority at each j. For tensors
-    #  with multiple values at the same j, e.g. j=0 for elastic tensor, we might need
-    #  to reimplement it.
     def get_shift_and_scale_tensors(
         self,
     ) -> tuple[dict[int, Tensor], dict[int, Tensor]]:

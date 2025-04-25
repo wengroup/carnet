@@ -156,6 +156,8 @@ class StructureTensorModel(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
+        target_shift: dict[str, Tensor] = None,
+        target_scale: dict[str, Tensor] = None,
         atomic_moment_mode: str = "vanilla",
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
@@ -187,6 +189,8 @@ class StructureTensorModel(nn.Module):
             in_features=F,
             hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
+            target_shift=target_shift,
+            target_scale=target_scale,
             num_atom_feats=num_atom_feats,
         )
 
