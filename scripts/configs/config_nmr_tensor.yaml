@@ -12,9 +12,9 @@ data:
   target_signature: # {rank: number} of the natural tensor
     0: 1
     2: 1
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
   r_cut: 5.0
   train_batch_size: 4
   val_batch_size: 4
@@ -37,6 +37,8 @@ model:
   output_mlp_hidden_layers: 2
   atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
   output_from_all_layers: false
+  target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
+  target_scale: auto # scale dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
 
 loss:
   # ratio of the loss for each rank of natural tensor

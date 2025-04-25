@@ -164,6 +164,59 @@ class Dataset(InMemoryDataset):
 
         return rms
 
+    # TODO, this only works for tensors with a single seniority at each j. For tensors
+    #  with multiple values at the same j, e.g. j=0 for elastic tensor, we might need
+    #  to reimplement it.
+    def get_shift_and_scale_tensors(
+        self,
+    ) -> tuple[dict[int, Tensor], dict[int, Tensor]]:
+        """Get the shift and scale of tensors.
+
+        Shift is only defined for rank-0 tensors, and it is computed as the mean of
+        the rank-0 tensors.
+
+        Scale are computed for all tensors. For rank-0 tensor, it is the standard
+        deviation. For tensors of rank > 0, it is the root-mean-square of the tensor
+        elements.
+
+        Returns:
+            shifts: {rank, value} shift for tensor. Currently, only rank-0 tensors have
+                shift.
+            scales: {rank: value}, scale for tensors.
+        """
+        # Checking that there is only one target name, without  considering
+        # `atomic_selector`.
+        target_names = [n for n in self.target_names if n != "atomic_selector"]
+        if len(target_names) != 1:
+            raise ValueError("Only one target name is allowed.")
+        else:
+            name = self.target_names[0]
+
+        # Note, the key of y[name] is an integer given in a string
+        rank_0_vals = []
+        scales = {rank: 0 for rank, _ in self[0].y[name].items() if rank != "0"}
+
+        for config in self:
+            d = config.y[name]
+            for rank, val in d.items():
+                if rank == "0":
+                    rank_0_vals.append(val)
+                else:
+                    scales[rank] += val.pow(2).sum()
+
+        rank_0_vals = torch.stack(rank_0_vals)
+
+        # Scale of tensors of rank > 0
+        scales = {int(rank): (val / len(self)).sqrt() for rank, val in scales.items()}
+
+        # Scale of rank 0 tensor
+        scales[0] = torch.std(rank_0_vals)
+
+        # Currently, only computing the shift for rank 0 tensors
+        shifts = {0: torch.mean(rank_0_vals)}
+
+        return shifts, scales
+
     @classmethod
     def save(cls, data_list: Sequence[BaseData], path: str) -> None:
         r"""Saves a list of data objects to the file path :obj:`path`."""

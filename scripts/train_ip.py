@@ -53,18 +53,18 @@ def get_dataloaders(
     return train_loader, val_loader, test_loader
 
 
-def update_model_configs(config, dataset) -> dict:
+def update_model_configs(config: dict, dataset: Dataset) -> dict:
     """Update the model configs in the config file.
 
     A couple of internally determined parameters are added to the `model` section of
     the config file.
 
     Args:
-        config (dict): The entire config file.
-        dataset (Dataset): The dataset object.
+        config: The entire config file.
+        dataset: The dataset object.
 
     Returns:
-        dict: Update config dict.
+        Update config dict.
     """
     # params already provided in the `data` section of the config file
     num_atom_types = len(config["data"]["atomic_number"])

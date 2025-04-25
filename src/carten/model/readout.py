@@ -136,6 +136,13 @@ class AtomicTensor(nn.Module):
             rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
             natural tensors. To model the elastic tensor, the output_signature should
             be {0: 2, 2: 2, 4: 1}.
+        target_shift: A dictionary {l: shift} that specifies the shift to apply to
+            the output of the model before computing the loss. Used together with
+            target_scale.
+        target_scale: A dictionary {l: scale} that specifies the scale to apply to
+            the output of the model before computing the loss. Used together with
+            target_shift. y = scale*z + shift, where z is the output of the
+            network, and y is the predicted target.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.
@@ -147,6 +154,8 @@ class AtomicTensor(nn.Module):
         in_features: int,
         hidden_features: list[int] | int,
         output_signature: dict[int, int],
+        target_shift: dict[int, Tensor] = None,
+        target_scale: dict[int, Tensor] = None,
         num_atom_feats: int = None,
     ):
         super().__init__()
@@ -156,6 +165,10 @@ class AtomicTensor(nn.Module):
         self.num_atom_feats = (
             num_atom_feats if num_atom_feats is not None else num_layers
         )
+
+        # TODO, register them as buffers
+        self.target_shift = target_shift if target_shift is not None else None
+        self.target_scale = target_scale if target_scale is not None else None
 
         # Linear mapping for atom features in early layers
         self.kernel = nn.ModuleDict()
@@ -193,6 +206,18 @@ class AtomicTensor(nn.Module):
 
         # Linear mapping F to n_l output dims for each atom; {l: (n_atoms, n_l, 3**l)}
         atom_out = {int(l): fn(atom_feats[int(l)]) for l, fn in self.kernel.items()}
+
+        # Normalization
+        # Note, in a typical case, all ranks l will have a scale, but only rank-0 tensor
+        # will have a shift. This is because the rank-0 tensor is a scalar, and we can
+        # shift it to match the target.
+        if self.target_scale is not None:
+            for l, scale in self.target_scale.items():
+                atom_out[l] = atom_out[l] * scale
+
+        if self.target_shift is not None:
+            for l, shift in self.target_shift.items():
+                atom_out[l] = atom_out[l] + shift
 
         return atom_out
 

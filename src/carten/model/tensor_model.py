@@ -27,6 +27,8 @@ class AtomicTensorModel(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
+        target_shift: dict[str, Tensor] = None,
+        target_scale: dict[str, Tensor] = None,
         atomic_moment_mode: str = "vanilla",
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
@@ -39,6 +41,13 @@ class AtomicTensorModel(nn.Module):
                 corresponding hidden layer. If an integer, this will be the number of
                 hidden layers, and the number of units in each hidden layer is set to F,
                 the channel dimension of the feature tensor.
+            target_shift: A dictionary {l: shift} that specifies the shift to apply to
+                the output of the model before computing the loss. Used together with
+                target_scale.
+            target_scale: A dictionary {l: scale} that specifies the scale to apply to
+                the output of the model before computing the loss. Used together with
+                target_shift. y = scale*z + shift, where z is the output of the
+                network, and y is the predicted target.
             atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
                 or `variant2`.
             output_signature: A dictionary {l: n_l} that specifies the natural tensor
@@ -82,6 +91,8 @@ class AtomicTensorModel(nn.Module):
             in_features=F,
             hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
+            target_shift=target_shift,
+            target_scale=target_scale,
             num_atom_feats=num_atom_feats,
         )
 
