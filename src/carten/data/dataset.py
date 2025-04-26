@@ -176,20 +176,33 @@ class Dataset(InMemoryDataset):
         deviation. For tensors of rank > 0, it is the root-mean-square of the tensor
         elements.
 
+        Tensors in self.y of different ranks all have the same shape: (B, F, T), where:
+        `B` is batch dimension, which is always 1 for all the tensors.
+        `F` number of natural tensors (namely seniority) of the tensor decomposition.
+        `T` is the number of tensor elements, and T = 3^l, where l is the rank of the
+        natural tensor.
+        For example, an elastic tensor can be decomposed to two rank-0 natural tensors,
+        two rank-2 natural tensors, and one rank-4 natural tensor. Then F=2,
+        T = 1 for rank-0 tensors; F=2, T = 9 for rank-2 tensors; F=1, T=81 for rank-4
+        tensors.
+
+        In this function, we compute the shift/scale separately for each dim in `F`,
+        and the statistics are computed from the `T` dimension.
+
         Returns:
-            shifts: {rank, value} shift for tensor. Currently, only rank-0 tensors have
-                shift.
-            scales: {rank: value}, scale for tensors.
+            shifts: {rank, value}. Currently, only rank-0 tensors have shift. The shape
+                of the value tensor is  (F, 1).
+            scales: {rank: value}. The shape of the value tensor is (F, 1).
         """
-        # Checking that there is only one target name, without  considering
+        # Checking that there is only one target name, without considering
         # `atomic_selector`.
         target_names = [n for n in self.target_names if n != "atomic_selector"]
         if len(target_names) != 1:
-            raise ValueError("Only one target name is allowed.")
+            raise RuntimeError("Only one target name is allowed.")
         else:
             name = self.target_names[0]
 
-        # Note, the key of y[name] is an integer given in a string
+        # Note, the key of y[name] is an integer that is represented as a string
         rank_0_vals = []
         scales = {rank: 0 for rank, _ in self[0].y[name].items() if rank != "0"}
 
@@ -199,18 +212,21 @@ class Dataset(InMemoryDataset):
                 if rank == "0":
                     rank_0_vals.append(val)
                 else:
-                    scales[rank] += val.pow(2).sum()
+                    scales[rank] += val.pow(2).sum(dim=(0, -1))
 
-        rank_0_vals = torch.stack(rank_0_vals)
+        rank_0_vals = torch.cat(rank_0_vals)
 
         # Scale of tensors of rank > 0
-        scales = {int(rank): (val / len(self)).sqrt() for rank, val in scales.items()}
+        scales = {
+            int(rank): (val / (len(self) * 3 ** int(rank))).sqrt().unsqueeze(-1)
+            for rank, val in scales.items()
+        }
 
         # Scale of rank 0 tensor
-        scales[0] = torch.std(rank_0_vals)
+        scales[0] = torch.std(rank_0_vals, dim=0)
 
         # Currently, only computing the shift for rank 0 tensors
-        shifts = {0: torch.mean(rank_0_vals)}
+        shifts = {0: torch.mean(rank_0_vals, dim=0)}
 
         return shifts, scales
 
