@@ -47,7 +47,6 @@ def get_dataloaders(
     val_batch_size,
     test_batch_size,
 ):
-
     # TODO, check target in dataframe is consistent with target_signature
 
     trainset = get_dataset(trainset_filename, target_name, atomic_number, r_cut)
@@ -66,14 +65,16 @@ def update_data_configs(config: dict) -> dict:
     """Get atomic number from the train set, so we do not need to provide it in the
     config file"""
 
-    filename = config["data"]["trainset_filename"]
-    df = pd.read_json(filename)
-    atomic_number = df["atomic_number"].to_list()
-    unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
+    atomic_number = config["data"].get("atomic_number", None)
+    if atomic_number is None:
+        filename = config["data"]["trainset_filename"]
+        df = pd.read_json(filename)
+        atomic_number = df["atomic_number"].to_list()
+        unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
 
-    config["data"]["atomic_number"] = unique_atomic_number
+        config["data"]["atomic_number"] = unique_atomic_number
 
-    print(f"Updated data configs - `atomic_number`: {unique_atomic_number}")
+        print(f"Updated data configs - `atomic_number`: {unique_atomic_number}")
 
     return config
 
@@ -92,7 +93,7 @@ def update_model_configs(config: dict, dataset: Dataset) -> dict:
         Update config dict.
     """
     # params already provided in the `data` section of the config file
-    num_atom_types = len(dataset.get_atomic_number())
+    num_atom_types = len(config["data"]["atomic_number"])
     r_cut = config["data"]["r_cut"]
     output_signature = config["data"]["target_signature"]
 
@@ -239,7 +240,7 @@ def main(config: dict):
             other_hparams=config,
         )
 
-    # load from checkpoint
+    # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
         model = load_model(
