@@ -1,7 +1,9 @@
+import itertools
 import shutil
 from pathlib import Path
 
 import lightning as L
+import pandas as pd
 import torch
 from lightning import Trainer
 from line_profiler import profile
@@ -41,6 +43,7 @@ def get_dataloaders(
     val_batch_size,
     test_batch_size,
 ):
+
     trainset = get_dataset(trainset_filename, atomic_number, r_cut)
     train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
 
@@ -51,6 +54,24 @@ def get_dataloaders(
     test_loader = DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
+
+
+def update_data_configs(config: dict) -> dict:
+    """Get atomic number from the train set, so we do not need to provide it in the
+    config file"""
+
+    atomic_number = config["data"].get("atomic_number", None)
+    if atomic_number is None:
+        filename = config["data"]["trainset_filename"]
+        df = pd.read_json(filename)
+        atomic_number = df["atomic_number"].to_list()
+        unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
+
+        config["data"]["atomic_number"] = unique_atomic_number
+
+        print(f"Updated data configs - `atomic_number`: {unique_atomic_number}")
+
+    return config
 
 
 def update_model_configs(config: dict, dataset: Dataset) -> dict:
@@ -159,6 +180,7 @@ def main(config: dict):
     torch.set_default_dtype(getattr(torch, dtype))
 
     # Load data
+    config = update_data_configs(config)
     train_loader, val_loader, test_loader = get_dataloaders(**config["data"])
 
     # Get model
