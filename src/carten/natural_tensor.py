@@ -7,6 +7,11 @@ from carten.core.utils import check_shape
 from carten.signature import Signature
 
 
+# TODO, this is a bit too complex, and not used for building the models currently,
+#  because we require tensors of all ranks to have the same multiplicity.
+#  We might want to use it if relax this constraint in the future.
+#  Honestly, we might want to do it to speed up the calculations and reduce the
+#  memory footprint: we can use smaller multiplicity for higher rank tensors.
 class NaturalTensors:
     """A sequence of natural tensors.
 
