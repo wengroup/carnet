@@ -3,9 +3,8 @@
 import itertools
 
 import torch
+from natt.utils import letter_index, repeat_double_index
 from torch import Tensor
-
-from carten.core.utils import letter_index, repeat_double_index
 
 # TODO, most of the functionality are present in `natt.symmetrize`. So, reuse.
 

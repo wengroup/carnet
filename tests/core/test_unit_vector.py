@@ -1,4 +1,5 @@
 import torch
+from natt.utils import is_symmetric_traceless, letter_index
 
 from carten.core.legendre import legendre
 from carten.core.unit_vector import (
@@ -6,7 +7,6 @@ from carten.core.unit_vector import (
     get_nt_from_vector_rule,
     get_polyadics_from_vector,
 )
-from carten.core.utils import is_symmetric_traceless, letter_index
 
 
 def test_get_nt_from_vector_rule():

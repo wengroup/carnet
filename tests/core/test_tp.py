@@ -1,14 +1,9 @@
 import torch
+from natt.utils import is_symmetric, is_traceless
 
 from carten.core.legendre import legendre
-from carten.core.tp import (
-    get_tp_even_rule,
-    get_tp_odd_rule,
-    tp_even,
-    tp_odd,
-)
+from carten.core.tp import get_tp_even_rule, get_tp_odd_rule, tp_even, tp_odd
 from carten.core.unit_vector import get_nt_from_vector, letter_index
-from carten.core.utils import is_symmetric, is_traceless
 
 
 def test_tp_rule_even():

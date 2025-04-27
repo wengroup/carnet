@@ -1,4 +1,5 @@
 import torch
+from natt.utils import is_symmetric, is_traceless
 
 from carten.core.reduce import (
     get_contraction_with_delta_rules,
@@ -7,7 +8,6 @@ from carten.core.reduce import (
     remove_trace_rule,
     symmetrize,
 )
-from carten.core.utils import is_symmetric, is_traceless
 from carten.natural_tensor import NaturalTensors
 
 

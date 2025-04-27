@@ -1,4 +1,5 @@
-from carten.core.utils import is_symmetric, is_traceless
+from natt.utils import is_symmetric, is_traceless
+
 from carten.module.layer import Layer
 
 from ..conftest import create_feature_tensors

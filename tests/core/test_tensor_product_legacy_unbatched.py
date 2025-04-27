@@ -1,4 +1,5 @@
 import torch
+from natt.utils import eijk, is_symmetric, is_traceless
 
 from carten.core.reduce import symmetrize, symmetrize_and_remove_trace
 from carten.core.tensor_product_legacy_unbatched import (
@@ -10,7 +11,6 @@ from carten.core.tensor_product_legacy_unbatched import (
     get_sym_rules_3,
     tp,
 )
-from carten.core.utils import eijk, is_symmetric, is_traceless
 
 
 def test_get_delta_contraction_rule():

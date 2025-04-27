@@ -1,7 +1,6 @@
 import torch
+from natt.utils import dij, double_index, eijk, letter_index
 from torch import Tensor
-
-from carten.core.utils import dij, double_index, eijk, letter_index
 
 
 # TODO, whether this is needed? Can we simply embed using rank-T.ndim identity?

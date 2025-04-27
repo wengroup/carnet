@@ -1,17 +1,11 @@
 """Natural tensors constructed from unit vectors."""
 
 import torch
+from natt.utils import dij, double_index, letter_index, repeat_double_index
 from torch import Tensor
 
 from carten.core.symmetrize import get_permutations_delta, symmetrize_via_permutation
-from carten.core.utils import (
-    dij,
-    double_factorial,
-    double_index,
-    factorial,
-    letter_index,
-    repeat_double_index,
-)
+from carten.core.utils import double_factorial, factorial
 
 
 def get_nt_from_vector(

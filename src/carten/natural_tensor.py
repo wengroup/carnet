@@ -1,8 +1,9 @@
 import torch
+from natt.utils import is_symmetric_traceless
 from torch import Tensor
 
 from carten import SETTINGS
-from carten.core.utils import check_shape, is_symmetric_traceless
+from carten.core.utils import check_shape
 from carten.signature import Signature
 
 

@@ -6,22 +6,16 @@ Ref:
 [LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
 http://dx.doi.org/10.1063/1.528515
 """
+
 from typing import Optional
 
 import torch
 from line_profiler import profile
+from natt.utils import dij, double_index, eijk, letter_index, repeat_double_index
 from torch import Tensor
 
 from carten.core.symmetrize import get_permutations_delta, symmetrize_via_permutation
-from carten.core.utils import (
-    dij,
-    double_factorial,
-    double_index,
-    eijk,
-    factorial,
-    letter_index,
-    repeat_double_index,
-)
+from carten.core.utils import double_factorial, factorial
 
 
 @profile

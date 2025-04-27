@@ -5,10 +5,10 @@ Tensor product between two natural tensors, without considering batching dimensi
 import itertools
 
 import torch
+from natt.utils import dij, eijk, letter_index
 from torch import Tensor
 
 from carten.core.reduce import remove_trace
-from carten.core.utils import dij, eijk, letter_index
 from carten.natural_tensor import NaturalTensors
 
 
