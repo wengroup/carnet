@@ -4,10 +4,11 @@ into natural tensors."""
 import itertools
 
 import torch
-from natt.utils import dij, double_index, eijk, letter_index, repeat_double_index
+from natt.symmetrize import get_permutations, get_permutations_2
+from natt.utils import (dij, double_index, eijk, letter_index,
+                        repeat_double_index)
 from torch import Tensor
 
-from carten.core.symmetrize import get_permutations, get_permutations_2
 from carten.natural_tensor import NaturalTensors
 
 # TODO, the functions in this file should be completely reworked.
