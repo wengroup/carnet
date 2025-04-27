@@ -11,6 +11,7 @@ class Converter(nn.Module):
     """
     Convertor to map between ordinary cartesian tensor T and natural tensors X.
 
+
     The conversion is done as follows:
     X = H T
     T'= G T
