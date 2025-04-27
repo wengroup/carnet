@@ -929,7 +929,7 @@ def group_G_by_symmetry(
     rank: int,
     symmetry: str,
     rtol: float = 1e-5,
-    atol: float = 1e-7,
+    atol: float = 1e-6,
 ) -> tuple[list[int], list[list[int]]]:
     r"""
     Group the G tensors by their uniqueness for a given symmetry.

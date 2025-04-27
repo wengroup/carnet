@@ -5,6 +5,8 @@ from typing import Optional
 import torch
 from torch import Tensor
 
+# TODO, most of the functionality are present in `natt.utils`. So, reuse.
+
 
 def letter_index(n: int, start: int = 0, upper_case: bool = False) -> str:
     """
@@ -58,7 +60,7 @@ def repeat_double_index(n: int, start: int = 0, upper_case: bool = False) -> lis
     indices = letter_index(n, start, upper_case)
 
     # TorchScript does not allow `s*2`
-    return [s+s for s in indices]
+    return [s + s for s in indices]
 
 
 def dij(device: Optional[torch.device] = None) -> Tensor:

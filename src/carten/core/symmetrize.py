@@ -7,6 +7,8 @@ from torch import Tensor
 
 from carten.core.utils import letter_index, repeat_double_index
 
+# TODO, most of the functionality are present in `natt.symmetrize`. So, reuse.
+
 
 def symmetrize_via_permutation(
     t: Tensor, perms: list[list[int]], mode: str = "sum"

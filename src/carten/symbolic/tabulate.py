@@ -326,6 +326,8 @@ if __name__ == "__main__":
     # get_G_H_S_of_j(j, rank, symmetry)
 
     ######
+    # rank = 2
+    # symmetry = "ij=ji"
     rank = 4
     symmetry = "ijkl=jikl=klij"
     out = get_G_H_S(rank, symmetry, numerical=False)

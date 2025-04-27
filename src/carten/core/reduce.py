@@ -1,5 +1,6 @@
 """Helper functions to decompose the special tensors or tensor product of two tensors
 into natural tensors."""
+
 import itertools
 
 import torch
@@ -11,6 +12,8 @@ from carten.natural_tensor import NaturalTensors
 
 # TODO, the functions in this file should be completely reworked.
 # Try not using NaturalTensors
+
+# TODO, most of the functionaity are present in `natt.symmetrize`. So, reuse.
 
 
 def reduce_tensor(
