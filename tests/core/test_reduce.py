@@ -1,13 +1,8 @@
 import torch
+from natt.symmetrize import symmetrize
 from natt.utils import is_symmetric, is_traceless
 
-from carten.core.reduce import (
-    get_contraction_with_delta_rules,
-    reduce_symmetric_tensor,
-    remove_trace,
-    remove_trace_rule,
-    symmetrize,
-)
+from carten.core.reduce import reduce_symmetric_tensor
 from carten.natural_tensor import NaturalTensors
 
 
@@ -37,113 +32,3 @@ def test_reduce_symmetric_tensor(T3, T4):
     for t in t3_b_out:
         assert is_symmetric(t, atol=1e-4, start_dim=1)
         assert is_traceless(t, atol=1e-4, start_dim=1)
-
-
-def test_symmetrize(T2, T3, T4):
-    for t in [T2, T3, T4]:
-        for start_dim in range(2):
-            sym = symmetrize(t, start_dim)
-            is_symmetric(sym, start_dim)
-
-
-def test_remove_trace_rule():
-    rule = remove_trace_rule(5, 2)
-    assert rule == "...aabbc,de,fg->...cdefg"
-
-
-def test_remove_trace(T2, T3, T4):
-    """
-    Test traceless part, not the symmetric part.
-    """
-    # second rank tensor
-    t2 = symmetrize(T2)
-    t2_1 = remove_trace(t2, start_dim=0)
-    assert torch.einsum("ii", t2_1) == 0.0
-
-    t2_2 = t2.reshape(1, 1, 3, 3)
-    t2_tl = remove_trace(t2_2, start_dim=2)
-    assert t2_tl.shape == t2_2.shape
-
-    assert torch.einsum("...ii", t2_tl) == 0.0
-
-    # third rank tensor
-    t3 = symmetrize(T3)
-    t3 = t3.reshape(1, 1, 3, 3, 3)
-    t3_tl = remove_trace(t3, start_dim=2)
-    assert t3_tl.shape == t3.shape
-
-    for rule in ["...iij", "...iji", "...jii"]:
-        out = torch.einsum(rule, t3_tl)
-        assert torch.allclose(out, torch.zeros(3), atol=1e-5)
-
-    # fourth rank tensor
-    t4 = symmetrize(T4)
-    t4 = t4.reshape(1, 1, 3, 3, 3, 3)
-    t4_tl = remove_trace(t4, start_dim=2)
-    assert t4_tl.shape == t4.shape
-
-    for rule in ["...iijk", "...ijik", "...ijki", "...jiik", "...jiki", "...jkii"]:
-        out = torch.einsum(rule, t4_tl)
-        assert torch.allclose(out, torch.zeros(3, 3), atol=1e-4)
-
-
-def test_get_contraction_with_delta_rules():
-    out = get_contraction_with_delta_rules(3, 1)
-    assert out == ["abc,bc->a", "abc,ac->b", "abc,ab->c"]
-
-    out = get_contraction_with_delta_rules(4, 1)
-    assert set(out) == {
-        "abcd,cd->ab",
-        "abcd,bd->ac",
-        "abcd,bc->ad",
-        "abcd,ad->bc",
-        "abcd,ac->bd",
-        "abcd,ab->cd",
-    }
-
-    out = get_contraction_with_delta_rules(4, 2)
-    assert set(out) == {
-        "abcd,ab,cd->",
-        "abcd,ac,bd->",
-        "abcd,ad,bc->",
-    }
-
-    out = get_contraction_with_delta_rules(5, 1)
-    assert set(out) == {
-        "abcde,ab->cde",
-        "abcde,ac->bde",
-        "abcde,ad->bce",
-        "abcde,ae->bcd",
-        #
-        "abcde,bc->ade",
-        "abcde,bd->ace",
-        "abcde,be->acd",
-        #
-        "abcde,cd->abe",
-        "abcde,ce->abd",
-        #
-        "abcde,de->abc",
-    }
-
-    out = get_contraction_with_delta_rules(5, 2)
-    assert set(out) == {
-        "abcde,bc,de->a",
-        "abcde,bd,ce->a",
-        "abcde,be,cd->a",
-        #
-        "abcde,ac,de->b",
-        "abcde,ad,ce->b",
-        "abcde,ae,cd->b",
-        #
-        "abcde,ab,de->c",
-        "abcde,ad,be->c",
-        "abcde,ae,bd->c",
-        #
-        "abcde,ab,ce->d",
-        "abcde,ac,be->d",
-        "abcde,ae,bc->d",
-        #
-        "abcde,ab,cd->e",
-        "abcde,ac,bd->e",
-        "abcde,ad,bc->e",
-    }

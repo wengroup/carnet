@@ -1,7 +1,7 @@
 import pytest
 import torch
+from natt.symmetrize import symmetrize_and_remove_trace
 
-from carten.core.reduce import symmetrize_and_remove_trace
 from carten.data.utils import get_edge_vec
 
 
