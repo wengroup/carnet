@@ -7,12 +7,12 @@ import tqdm
 from torch import Tensor
 from torch_geometric.loader.dataloader import DataLoader
 
+from carten.core.convert import Converter
 from carten.data.dataset import Dataset
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.pl.pl_tensor_model import AtomicTensorLitModule
 from carten.model.pl.utils import load_model
 from carten.model.tensor_model import AtomicTensorModel
-from carten.symbolic.convert import Converter
 
 
 def get_dataloader(

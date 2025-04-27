@@ -1,8 +1,7 @@
 import pytest
 import torch
-
-from carten.symbolic.convert import Converter
-from carten.symbolic.sym import symmetrize
+from natt.convert import Converter
+from natt.sym import symmetrize
 
 
 @pytest.mark.parametrize(
@@ -21,15 +20,13 @@ from carten.symbolic.sym import symmetrize
 def test_Converter(rank, symmetry):
 
     torch.manual_seed(35)
+    T = torch.randn(*[3] * rank)
 
     converter = Converter(rank, symmetry)
-
-    T = torch.randn(*[3] * rank)
 
     # symmetrize the tensor if `symmetry` is not None
     if symmetry is not None:
         T = symmetrize(T, symmetry)
-        T = torch.from_numpy(T)
 
     X = converter.to_natural_tensor(T)
     T_2 = converter.to_ordinary_tensor(X)

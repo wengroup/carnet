@@ -2,15 +2,13 @@
 
 import torch
 import torch.nn as nn
+from natt.tabulate import get_G_H_S
 from torch import Tensor
-
-from carten.symbolic.tabulate import get_G_H_S
 
 
 class Converter(nn.Module):
     """
     Convertor to map between ordinary cartesian tensor T and natural tensors X.
-
 
     The conversion is done as follows:
     X = H T
