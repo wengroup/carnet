@@ -6,6 +6,7 @@ from torch import Tensor, nn
 from carten.module.linear import LinearMap
 from carten.module.mlp import MLP
 from carten.module.scatter import scatter
+from carten.utils import BufferDict
 
 
 class StructureScalar(nn.Module):
@@ -166,9 +167,15 @@ class AtomicTensor(nn.Module):
             num_atom_feats if num_atom_feats is not None else num_layers
         )
 
-        # TODO, register them as buffers
-        self.target_shift = target_shift if target_shift is not None else None
-        self.target_scale = target_scale if target_scale is not None else None
+        # Register buffers for target shift and scale
+        if target_shift is not None:
+            self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
+        else:
+            self.register_buffer("target_shift", None)
+        if target_scale is not None:
+            self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
+        else:
+            self.register_buffer("target_scale", None)
 
         # Linear mapping for atom features in early layers
         self.kernel = nn.ModuleDict()
@@ -213,11 +220,11 @@ class AtomicTensor(nn.Module):
         # shift it to match the target.
         if self.target_scale is not None:
             for l, scale in self.target_scale.items():
-                atom_out[l] = atom_out[l] * scale
+                atom_out[int(l)] = atom_out[int(l)] * scale
 
         if self.target_shift is not None:
             for l, shift in self.target_shift.items():
-                atom_out[l] = atom_out[l] + shift
+                atom_out[int(l)] = atom_out[int(l)] + shift
 
         return atom_out
 
