@@ -1,4 +1,5 @@
 """Hyper moment constructed as the tensor product of multiple atomic moments."""
+
 import torch
 from line_profiler import profile
 from torch import Tensor, nn
@@ -114,6 +115,8 @@ class HyperMoment(nn.Module):
         # Shape of each element is (..., F, T'), where T' is the size above
         out_H = [x[..., :size]]
 
+        # TODO, given that we only need :size componment, is it possible to enforce
+        #  this in fn (namely TensorProduct)? This will make it more efficient.
         H_tmp = x
         for fn in self.tp:
             product = fn(H_tmp, x)

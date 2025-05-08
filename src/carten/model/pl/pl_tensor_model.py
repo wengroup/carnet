@@ -112,6 +112,7 @@ class BaseLitModule(LightningModule):
             atomic_selector=atomic_selector,
         )
 
+    @profile
     def training_step(self, batch, batch_idx):
         ref = batch.y[self.loss_hparams["target_name"]]
         batch_size = batch.num_graphs
@@ -127,11 +128,13 @@ class BaseLitModule(LightningModule):
 
         return losses["train/loss_total"]
 
+    @profile
     def validation_step(self, batch, batch_idx):
         self._val_test_step(
             batch, batch_idx, mode="val", start_epoch=self.validation_start_epoch
         )
 
+    @profile
     def test_step(self, batch, batch_idx):
         self._val_test_step(batch, batch_idx, mode="test")
 
@@ -189,6 +192,7 @@ class BaseLitModule(LightningModule):
         """
         raise NotImplementedError("Subclass must implement this method.")
 
+    @profile
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
         self.ema.update()
