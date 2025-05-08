@@ -17,7 +17,7 @@ from torch import Tensor
 
 from carten.core.utils import double_factorial, factorial
 
-# CACHE to speed up calculation, they will filled when the functions are called
+# CACHE to speed up calculation, they will be filled when the functions are called
 TP_EVEN_RULE_CACHE = {}
 TP_ODD_RULE_CACHE = {}
 PERMUTATIONS_DELTA_CACHE = {}
@@ -94,7 +94,7 @@ def tp_even(
 
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
-        Z = Z + coeff * prod
+        Z += coeff * prod
 
     # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
     Z = Z.view(leading_dims + (-1,))
@@ -106,7 +106,7 @@ def tp_even(
             COEFF_C_CACHE[(l1, l2, l3)] = c
         else:
             c = COEFF_C_CACHE[(l1, l2, l3)]
-        Z = c * Z
+        Z *= c
     elif normalize == "none":
         pass
     else:
@@ -185,7 +185,7 @@ def tp_odd(
 
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
-        Z = Z + coeff * prod
+        Z += coeff * prod
 
     # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
     Z = Z.view(leading_dims + (-1,))
@@ -197,7 +197,7 @@ def tp_odd(
             COEFF_D_CACHE[(l1, l2, l3)] = c
         else:
             c = COEFF_D_CACHE[(l1, l2, l3)]
-        Z = c * Z
+        Z *= c
     elif normalize == "none":
         pass
     else:

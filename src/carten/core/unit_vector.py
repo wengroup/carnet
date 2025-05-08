@@ -56,7 +56,7 @@ def get_nt_from_vector(
 
     D = l // 2
 
-    out = torch.zeros([3] * l, dtype=a.dtype, device=a.device)
+    out = torch.zeros(batch_dims + (3,) * l, dtype=a.dtype, device=a.device)
     coeff = 1.0
     for d in range(D + 1):
         rule, symmetry, delta_indices = get_nt_from_vector_rule(l, d)
@@ -76,14 +76,14 @@ def get_nt_from_vector(
         perms = get_permutations_delta(symmetry, delta_indices, start_dim=a.ndim - 1)
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
-        out = out + coeff * prod
+        out += coeff * prod
 
         # Update the coefficient
         # coeff = (-1) ** d / double_factorial(2 * l - 1, 2 * l - 2 * d - 1 + 2)
         coeff = -coeff / (2 * l - 2 * d - 1)
 
     if normalize == "unity":
-        out = double_factorial(2 * l - 1) / factorial(l) * out
+        out *= double_factorial(2 * l - 1) / factorial(l)
     elif normalize == "none":
         pass
     else:

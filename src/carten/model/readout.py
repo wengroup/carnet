@@ -90,20 +90,20 @@ class StructureScalar(nn.Module):
 
         V = torch.zeros(1, dtype=atom_feats[0].dtype, device=atom_feats[0].device)
         for i, fn in enumerate(self.out_layers):
-            V = V + fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
+            V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
         # Normalization
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
-                V = V * self.atomic_scale
+                V *= self.atomic_scale
             else:
-                V = V * self.atomic_scale[atom_type]
+                V *= self.atomic_scale[atom_type]
 
         if self.atomic_shift is not None:
             if self.atomic_shift.ndim == 0:
-                V = V + self.atomic_shift
+                V += self.atomic_shift
             else:
-                V = V + self.atomic_shift[atom_type]
+                V += self.atomic_shift[atom_type]
 
         # Output of each configuration; (num_config,)
         out = scatter(V, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
