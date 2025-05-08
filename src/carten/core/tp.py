@@ -17,6 +17,13 @@ from torch import Tensor
 
 from carten.core.utils import double_factorial, factorial
 
+# CACHE to speed up calculation, they will filled when the functions are called
+TP_EVEN_RULE_CACHE = {}
+TP_ODD_RULE_CACHE = {}
+PERMUTATIONS_DELTA_CACHE = {}
+COEFF_C_CACHE = {}
+COEFF_D_CACHE = {}
+
 
 @profile
 def tp_even(
@@ -65,14 +72,26 @@ def tp_even(
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry, delta_indices = get_tp_even_rule(l1, l2, k, t)
+        global TP_EVEN_RULE_CACHE
+        if (l1, l2, k, t) not in TP_EVEN_RULE_CACHE:
+            rule, symmetry, delta_indices = get_tp_even_rule(l1, l2, k, t)
+            TP_EVEN_RULE_CACHE[(l1, l2, k, t)] = (rule, symmetry, delta_indices)
+        else:
+            rule, symmetry, delta_indices = TP_EVEN_RULE_CACHE[(l1, l2, k, t)]
 
         # Get one tensor product
         operands = [X, Y] + [d] * t
         prod = torch.einsum(rule, operands)
 
         # Symmetrize by summing over all unique permutations
-        perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
+        global PERMUTATIONS_DELTA_CACHE
+        nd = len(leading_dims)
+        if (symmetry, delta_indices, nd) not in PERMUTATIONS_DELTA_CACHE:
+            perms = get_permutations_delta(symmetry, delta_indices, nd)
+            PERMUTATIONS_DELTA_CACHE[(symmetry, delta_indices, nd)] = perms
+        else:
+            perms = PERMUTATIONS_DELTA_CACHE[(symmetry, delta_indices, nd)]
+
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         Z = Z + coeff * prod
@@ -81,7 +100,13 @@ def tp_even(
     Z = Z.view(leading_dims + (-1,))
 
     if normalize == "unity":
-        Z = coeff_C(l1, l2, l3) * Z
+        global COEFF_C_CACHE
+        if (l1, l2, l3) not in COEFF_C_CACHE:
+            c = coeff_C(l1, l2, l3, device=device)
+            COEFF_C_CACHE[(l1, l2, l3)] = c
+        else:
+            c = COEFF_C_CACHE[(l1, l2, l3)]
+        Z = c * Z
     elif normalize == "none":
         pass
     else:
@@ -138,14 +163,26 @@ def tp_odd(
             2 * l3 - 1, 2 * l3 - 2 * t - 1 + 2, device=device
         )
 
-        rule, symmetry, delta_indices = get_tp_odd_rule(l1, l2, k, t)
+        global TP_ODD_RULE_CACHE
+        if (l1, l2, k, t) not in TP_ODD_RULE_CACHE:
+            rule, symmetry, delta_indices = get_tp_odd_rule(l1, l2, k, t)
+            TP_ODD_RULE_CACHE[(l1, l2, k, t)] = (rule, symmetry, delta_indices)
+        else:
+            rule, symmetry, delta_indices = TP_ODD_RULE_CACHE[(l1, l2, k, t)]
 
         # Get one tensor product
         operands = [epsilon, X, Y] + [d] * t
         prod = torch.einsum(rule, operands)
 
         # Symmetrize by summing over all unique permutations
-        perms = get_permutations_delta(symmetry, delta_indices, len(leading_dims))
+        global PERMUTATIONS_DELTA_CACHE
+        nd = len(leading_dims)
+        if (symmetry, delta_indices, nd) not in PERMUTATIONS_DELTA_CACHE:
+            perms = get_permutations_delta(symmetry, delta_indices, nd)
+            PERMUTATIONS_DELTA_CACHE[(symmetry, delta_indices, nd)] = perms
+        else:
+            perms = PERMUTATIONS_DELTA_CACHE[(symmetry, delta_indices, nd)]
+
         prod = symmetrize_via_permutation(prod, perms, mode="sum")
 
         Z = Z + coeff * prod
@@ -154,7 +191,13 @@ def tp_odd(
     Z = Z.view(leading_dims + (-1,))
 
     if normalize == "unity":
-        Z = coeff_D(l1, l2, l3) * Z
+        global COEFF_D_CACHE
+        if (l1, l2, l3) not in COEFF_D_CACHE:
+            c = coeff_D(l1, l2, l3, device=device)
+            COEFF_D_CACHE[(l1, l2, l3)] = c
+        else:
+            c = COEFF_D_CACHE[(l1, l2, l3)]
+        Z = c * Z
     elif normalize == "none":
         pass
     else:
