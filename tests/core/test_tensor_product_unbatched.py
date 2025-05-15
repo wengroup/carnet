@@ -1,5 +1,5 @@
 import torch
-from natt.utils import is_symmetric, is_traceless
+from natt.utils import is_symmetric, is_traceless, letter_index
 
 from carten.core.legendre import legendre
 from carten.core.tensor_product_unbatched import (
@@ -8,7 +8,7 @@ from carten.core.tensor_product_unbatched import (
     tp_even,
     tp_odd,
 )
-from carten.core.unit_vector import get_nt_from_vector, letter_index
+from carten.core.unit_vector import get_nt_from_vector
 
 
 def test_tp_rule_even():
