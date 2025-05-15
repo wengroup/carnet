@@ -7,6 +7,10 @@ Ref:
 http://dx.doi.org/10.1063/1.528515
 """
 
+# get XY, then get GXY
+# - using sparse G
+# - using mm
+
 from typing import Optional
 
 import torch
@@ -21,8 +25,6 @@ from carten.core.utils import double_factorial, factorial
 
 # CACHE to speed up calculation, they will be filled when the functions are called
 TP_EVEN_G_CACHE = {}
-TP_EVEN_XY_RULE_CACHE = {}
-TP_EVEN_Z_RULE_CACHE = {}
 
 TP_ODD_RULE_CACHE = {}
 PERMUTATIONS_DELTA_CACHE = {}
@@ -70,40 +72,52 @@ def tp_even(
         Z = X * Y
     else:
 
-        # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
-        X = X.view(leading_dims + (3,) * l1)
-        Y = Y.view(leading_dims + (3,) * l2)
+        # # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
+        # X = X.view(leading_dims + (3,) * l1)
+        # Y = Y.view(leading_dims + (3,) * l2)
 
         global TP_EVEN_G_CACHE
-        global TP_EVEN_XY_RULE_CACHE
-        global TP_EVEN_Z_RULE_CACHE
         if (l1, l2, l3) not in TP_EVEN_G_CACHE:
             G, _, _, _, _ = get_G_H_S_of_j_natural(l1, l2, l3)
             G = evaluate_tensors(G, mode="G")
             G = G.to(X.device)
 
-            X_indices = letter_index(l1)
-            Y_indices = letter_index(l2, start=l1)
-            XY_indices = X_indices + Y_indices
-            XY_rule = f"...{X_indices},...{Y_indices}->...{XY_indices}"
-
-            Z_indices = letter_index(l3, upper_case=True)
-            Z_rule = f"...{Z_indices}{XY_indices},...{XY_indices}->...{Z_indices}"
+            # TODO, test
+            G = G.view(3**l3, 3 ** (l1 + l2))  # (3**l3, 3**(l1+l2))
+            G = G.to_sparse()
 
             # cache
             TP_EVEN_G_CACHE[(l1, l2, l3)] = G
-            TP_EVEN_XY_RULE_CACHE[(l1, l2, l3)] = XY_rule
-            TP_EVEN_Z_RULE_CACHE[(l1, l2, l3)] = Z_rule
 
         else:
             G = TP_EVEN_G_CACHE[(l1, l2, l3)]
-            XY_rule = TP_EVEN_XY_RULE_CACHE[(l1, l2, l3)]
-            Z_rule = TP_EVEN_Z_RULE_CACHE[(l1, l2, l3)]
 
-        # TODO, these should be combined
+        # We want G * X * Y: 'aij, mi, mj -> ma' be implemented as matrix multiplication
+        # This can be done by:
+        # 1. permute the indices of G to be `jia`, and then view it as (j, ia)
+        # 2. multipy Y and G to get Z: (m, j), (j, ia) -> (m, ia)
+        # 4.
+        # . bmm X and Z: (m, i), (m, ia) -> (m, a)
+        # Get the tensor product
+        # Z = torch.einsum(rule, G, X, Y)
+        # X = X.reshape(-1, 3**l1)
+        # Y = Y.reshape(-1, 3**l2).transpose(0, 1)
+        #
+        # Z = torch.sparse.mm(G, Y)
+        # Z = torch.sparse.mm(X, Z)
+
+        ### TODO, new
+        XY_rule = f"...a,...b->...ab"
         XY = torch.einsum(XY_rule, X, Y)
-        Z = torch.einsum(Z_rule, G, XY)
 
+        XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3**(l1+l2), -1)
+
+        Z = torch.sparse.mm(G, XY)  # (3**l3, -1)
+
+        Z = Z.transpose(0, 1)  # (-1, 3**l3)
+        Z = Z.view(leading_dims + (3**l3,))  # (leading, 3**l3)
+
+        ##############
         # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
         Z = Z.view(leading_dims + (-1,))
 

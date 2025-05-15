@@ -7,6 +7,9 @@ Ref:
 http://dx.doi.org/10.1063/1.528515
 """
 
+# no loop. get XY and then get GXY
+# - use einsum
+
 from typing import Optional
 
 import torch

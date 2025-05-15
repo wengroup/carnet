@@ -7,6 +7,9 @@ Ref:
 http://dx.doi.org/10.1063/1.528515
 """
 
+# No loop, get GXY in one run
+# using einsum
+
 from typing import Optional
 
 import torch
