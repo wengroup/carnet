@@ -81,14 +81,16 @@ class StructureScalar(nn.Module):
                 where `F` is the channel dimension.
             atom_type: The atomic type of each atom. Shape (n_atoms,).
             num_atoms: The number of atoms in each atomic configuration.
-                Shape (n_atoms,)
+                Shape (n_config,)
 
         Returns:
             Total energy of each configuration. Shape (n_config,).
         """
         assert len(atom_feats) == self.num_layers, "Incorrect number of atom feats."
 
-        V = torch.zeros(1, dtype=atom_feats[0].dtype, device=atom_feats[0].device)
+        V = torch.zeros(
+            torch.sum(num_atoms), dtype=atom_feats[0].dtype, device=atom_feats[0].device
+        )
         for i, fn in enumerate(self.out_layers):
             V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
