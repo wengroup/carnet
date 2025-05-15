@@ -9,7 +9,6 @@ http://dx.doi.org/10.1063/1.528515
 
 # get XY, then get GXY
 # - using mm
-# - using sparse G, otherwise, the same as tp_new_1.py
 
 from typing import Optional
 
@@ -84,7 +83,6 @@ def tp_even(
 
             # TODO, test
             G = G.view(3**l3, 3 ** (l1 + l2))  # (3**l3, 3**(l1+l2))
-            G = G.to_sparse()
 
             # cache
             TP_EVEN_G_CACHE[(l1, l2, l3)] = G
