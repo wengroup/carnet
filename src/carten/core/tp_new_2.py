@@ -78,6 +78,7 @@ def tp_even(
         if (l1, l2, l3) not in TP_EVEN_G_CACHE:
             G, _, _, _, _ = get_G_H_S_of_j_natural(l1, l2, l3)
             G = evaluate_tensors(G, mode="G")
+            G = G.to(X.device)
 
             X_indices = letter_index(l1)
             Y_indices = letter_index(l2, start=l1)
