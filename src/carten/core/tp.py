@@ -110,7 +110,10 @@ def tp_even(
     elif normalize == "none":
         pass
     else:
-        raise ValueError(f"Unknown normalization method: {normalize}")
+        supported = ["unity", "none"]
+        raise ValueError(
+            f"Unknown normalization method: {normalize}. Supported are: {supported}"
+        )
 
     return Z
 
