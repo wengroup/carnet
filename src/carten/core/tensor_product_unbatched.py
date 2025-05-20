@@ -7,10 +7,16 @@ http://dx.doi.org/10.1063/1.528515
 
 import torch
 from natt.symmetrize import get_permutations_delta, symmetrize_via_permutation
-from natt.utils import dij, double_index, eijk, letter_index, repeat_double_index
+from natt.utils import (
+    dij,
+    double_factorial,
+    double_index,
+    eijk,
+    factorial,
+    letter_index,
+    repeat_double_index,
+)
 from torch import Tensor
-
-from carten.core.utils import double_factorial, factorial
 
 
 def tp_even(X: Tensor, Y: Tensor, out_rank: int, normalize: str = "unity") -> Tensor:

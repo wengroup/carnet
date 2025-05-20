@@ -17,10 +17,16 @@ from line_profiler import profile
 from natt.evaluate import evaluate_tensors
 from natt.GHS import get_G_H_S_of_j_natural
 from natt.symmetrize import get_permutations_delta, symmetrize_via_permutation
-from natt.utils import dij, double_index, eijk, letter_index, repeat_double_index
+from natt.utils import (
+    dij,
+    double_factorial,
+    double_index,
+    eijk,
+    factorial,
+    letter_index,
+    repeat_double_index,
+)
 from torch import Tensor
-
-from carten.core.utils import double_factorial, factorial
 
 # CACHE to speed up calculation, they will be filled when the functions are called
 TP_EVEN_G_CACHE = {}

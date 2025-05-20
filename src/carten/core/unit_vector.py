@@ -2,10 +2,15 @@
 
 import torch
 from natt.symmetrize import get_permutations_delta, symmetrize_via_permutation
-from natt.utils import dij, double_index, letter_index, repeat_double_index
+from natt.utils import (
+    dij,
+    double_factorial,
+    double_index,
+    factorial,
+    letter_index,
+    repeat_double_index,
+)
 from torch import Tensor
-
-from carten.core.utils import double_factorial, factorial
 
 
 def get_nt_from_vector(
