@@ -93,9 +93,6 @@ def tp_even(
 
         Z += coeff * prod
 
-    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
-    Z = Z.view(leading_dims + (-1,))
-
     if normalize == "unity":
         global COEFF_C_CACHE
         if (l1, l2, l3) not in COEFF_C_CACHE:
@@ -111,6 +108,9 @@ def tp_even(
         raise ValueError(
             f"Unknown normalization method: {normalize}. Supported are: {supported}"
         )
+
+    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
+    Z = Z.view(leading_dims + (-1,))
 
     return Z
 
@@ -189,9 +189,6 @@ def tp_odd(
 
         Z += coeff * prod
 
-    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
-    Z = Z.view(leading_dims + (-1,))
-
     if normalize == "unity":
         global COEFF_D_CACHE
         if (l1, l2, l3) not in COEFF_D_CACHE:
@@ -205,6 +202,9 @@ def tp_odd(
     else:
         raise ValueError(f"Unknown normalization method: {normalize}")
 
+    # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
+    Z = Z.view(leading_dims + (-1,))
+
     return Z
 
 
@@ -213,9 +213,11 @@ if __name__ == "__main__":
 
     l1 = 4
     l2 = 4
-    l3 = 2
+    l3 = 4
+    l4 = 3
 
     X = get_random_natural_tensor(l1, seed=1).view(-1)
     Y = get_random_natural_tensor(l2, seed=2).view(-1)
 
     tp_even(X, Y, l1, l2, l3)
+    tp_odd(X, Y, l1, l2, l4)
