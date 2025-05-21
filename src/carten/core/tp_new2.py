@@ -7,7 +7,7 @@ Ref:
 http://dx.doi.org/10.1063/1.528515
 """
 
-# no loop. get XY and then get GXY
+# no loop. get XY and then get HXY, note we use H, not G
 # - use einsum
 
 from typing import Optional
@@ -87,38 +87,30 @@ def tp_even(
         global TP_EVEN_XY_RULE_CACHE
         global TP_EVEN_Z_RULE_CACHE
         if (l1, l2, l3) not in TP_EVEN_G_CACHE:
-            # TODO,
-            #  Q: wait, should we use H instead of G?
-            #  The same for tp_new_1.py and tp_new_2.py
-            #  A: Well, given that we only have one G and H for natural tensors. They
-            #  will be the same here.
-            G, _, _, _, _ = get_G_H_S_of_j_natural(l1, l2, l3)
-            G = evaluate_tensors(G, mode="G")
-            G = G.to(X.device)
+            _, H, _, _, _ = get_G_H_S_of_j_natural(l1, l2, l3)
+            H = evaluate_tensors(H, mode="H")
+            H = H.to(X.device)
 
-            X_indices = letter_index(l1)
-            Y_indices = letter_index(l2, start=l1)
+            X_indices = letter_index(l1, upper_case=True)
+            Y_indices = letter_index(l2, start=l1, upper_case=True)
             XY_indices = X_indices + Y_indices
             XY_rule = f"...{X_indices},...{Y_indices}->...{XY_indices}"
 
-            Z_indices = letter_index(l3, upper_case=True)
-            # TODO, why it is OK to do the below? Does the order of X indices and Y
-            #  indices matter?
+            Z_indices = letter_index(l3)
             Z_rule = f"...{Z_indices}{XY_indices},...{XY_indices}->...{Z_indices}"
 
             # cache
-            TP_EVEN_G_CACHE[(l1, l2, l3)] = G
+            TP_EVEN_G_CACHE[(l1, l2, l3)] = H
             TP_EVEN_XY_RULE_CACHE[(l1, l2, l3)] = XY_rule
             TP_EVEN_Z_RULE_CACHE[(l1, l2, l3)] = Z_rule
 
         else:
-            G = TP_EVEN_G_CACHE[(l1, l2, l3)]
+            H = TP_EVEN_G_CACHE[(l1, l2, l3)]
             XY_rule = TP_EVEN_XY_RULE_CACHE[(l1, l2, l3)]
             Z_rule = TP_EVEN_Z_RULE_CACHE[(l1, l2, l3)]
 
-        # TODO, these should be combined
         XY = torch.einsum(XY_rule, X, Y)
-        Z = torch.einsum(Z_rule, G, XY)
+        Z = torch.einsum(Z_rule, H, XY)
 
         # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
         Z = Z.view(leading_dims + (-1,))
