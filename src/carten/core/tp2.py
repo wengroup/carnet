@@ -61,7 +61,14 @@ def tp_even(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H_and_rule = H_TENSOR_AND_RULE[f"{l1}-{l2}-{l3}-{normalize}"]
+    key = f"{l1}-{l2}-{l3}-{normalize}"
+    try:
+        H_and_rule = H_TENSOR_AND_RULE[key]
+    except KeyError:
+        raise RuntimeError(
+            f"Pre-computed H tensor and einsum rule not found for {key}."
+            "You can generate them using the `generate_H.py` file."
+        )
     rule = H_and_rule["rule"]
     H = H_and_rule["H"].to(X.device)
 
@@ -106,7 +113,14 @@ def tp_odd(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H_and_rule = H_TENSOR_AND_RULE[f"{l1}-{l2}-{l3}-{normalize}"]
+    key = f"{l1}-{l2}-{l3}-{normalize}"
+    try:
+        H_and_rule = H_TENSOR_AND_RULE[key]
+    except KeyError:
+        raise RuntimeError(
+            f"Pre-computed H tensor and einsum rule not found for {key}."
+            "You can generate them using the `generate_H.py` file."
+        )
     rule = H_and_rule["rule"]
     H = H_and_rule["H"].to(X.device)
 

@@ -3,6 +3,8 @@ from natt.utils import is_symmetric, is_traceless
 
 from carten.core.legendre import legendre
 from carten.core.tp import get_tp_even_rule, get_tp_odd_rule, tp_even, tp_odd
+from carten.core.tp2 import tp_even as tp_even_2
+from carten.core.tp2 import tp_odd as tp_odd_2
 from carten.core.unit_vector import get_nt_from_vector, letter_index
 
 
@@ -58,6 +60,11 @@ def test_tp_even(NT3, NT4):
         out = tp_even(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
+        # check tp_even_2 gives the same result
+        if l3 <= 4:  # we only precompute the H tensors for l3 <= 4
+            out2 = tp_even_2(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
+            assert torch.allclose(out, out2)
+
         # check the two batch elements are the same
         assert torch.allclose(out[0], out[1])
 
@@ -69,6 +76,11 @@ def test_tp_even(NT3, NT4):
         out = tp_even(NT4, NT4, l1=4, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
+        # check tp_even_2 gives the same result
+        if l3 <= 4:  # we only precompute the H tensors for l3 <= 4
+            out2 = tp_even_2(NT4, NT4, l1=4, l2=4, l3=l3, normalize="unity")
+            assert torch.allclose(out, out2)
+
         # check the two batch elements are the same
         assert torch.allclose(out[0], out[1])
 
@@ -76,7 +88,7 @@ def test_tp_even(NT3, NT4):
         assert is_traceless(out[0], atol=1e-5), f"Not traceless for {l3}"
 
 
-def test_tp_odd(NT2, NT3, NT4):
+def test_tp_odd(NT2, NT3, NT4, rtol=1e-5, atol=1e-6):
     # add batch dims
     NT2 = torch.stack([NT2, NT2])
     NT3 = torch.stack([NT3, NT3])
@@ -90,6 +102,11 @@ def test_tp_odd(NT2, NT3, NT4):
         out = tp_odd(NT2, NT4, l1=2, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
+        # check tp_odd_2 gives the same result
+        if l3 <= 4:  # we only precompute the H tensors for l3 <= 4
+            out2 = tp_odd_2(NT2, NT4, l1=2, l2=4, l3=l3, normalize="unity")
+            assert torch.allclose(out, out2, rtol, atol)
+
         # check the two batch elements are the same
         assert torch.allclose(out[0], out[1])
 
@@ -99,6 +116,11 @@ def test_tp_odd(NT2, NT3, NT4):
     for l3 in [2, 4, 6]:
         out = tp_odd(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
+
+        # check tp_odd_2 gives the same result
+        if l3 <= 4:  # we only precompute the H tensors for l3 <= 4
+            out2 = tp_odd_2(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
+            assert torch.allclose(out, out2)
 
         # get one of them
         out1 = out[0, 0]
