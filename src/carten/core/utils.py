@@ -17,7 +17,7 @@ def check_shape(T: Tensor, n: int = 3) -> bool:
 
 
 def load_H_tensor_and_rule(
-    filename: Path = "./H_tensor_and_rule.json.gz",
+    filename: Path = "./H_tensor_and_rule.json.gz", sparse: bool = False
 ) -> dict[str, dict[str, Tensor]]:
     """
     Load H tensors and the einsum rules for tensor products from a JSON file.
@@ -27,6 +27,8 @@ def load_H_tensor_and_rule(
 
     Args:
         filename: The path to the JSON file containing the H tensors and rules.
+        sparse: If `True`, the H tensors will be converted to sparse tensors.
+
 
     Returns:
         dict[str, dict[str, Tensor]]: A dictionary containing the H tensors and rules.
@@ -35,6 +37,14 @@ def load_H_tensor_and_rule(
 
     # Convert the H tensors from lists to PyTorch tensors
     for key, value in data.items():
-        data[key]["H"] = torch.tensor(value["H"], dtype=torch.get_default_dtype())
+        t = torch.tensor(value["H"], dtype=torch.get_default_dtype())
+
+        if sparse:
+            l1, l2, l3, _ = key.split("-")
+            l1, l2, l3 = int(l1), int(l2), int(l3)
+            # Reshape to (3^l3, 3^(l1+l2)) so we can use it on matrix multiplication
+            t = t.view(3**l3, 3 ** (l1 + l2)).to_sparse()
+
+        data[key]["H"] = t
 
     return data
