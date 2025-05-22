@@ -11,10 +11,17 @@ Ref:
 http://dx.doi.org/10.1063/1.528515
 """
 
+from pathlib import Path
+
 import torch
 from line_profiler import profile
 from natt.H_tp import get_H_numerical_even, get_H_numerical_odd
 from torch import Tensor
+
+from carten.core.utils import load_H_tensor_and_rule
+
+filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
+H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename)
 
 
 @profile
@@ -46,16 +53,18 @@ def tp_even(
 
     leading_dims = X.shape[:-1]  # including the feature dimension
 
-    # TODO, correct the dtype and device of H
-    dtype = X.dtype
-    device = X.device
-
     # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
     X = X.view(leading_dims + (3,) * l1)
     Y = Y.view(leading_dims + (3,) * l2)
 
-    # Performing tensor product
-    H, rule = get_H_numerical_even(l1, l2, l3, normalize)
+    # Get H tensor and einsum rule:
+    # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
+    # We use the pre-computed H tensor and rule for efficiency
+    H_and_rule = H_TENSOR_AND_RULE[f"{l1}-{l2}-{l3}-{normalize}"]
+    rule = H_and_rule["rule"]
+    H = H_and_rule["H"].to(X.device)
+
+    # Perform tensor product
     Z = torch.einsum(rule, H, X, Y)
 
     # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
@@ -88,16 +97,18 @@ def tp_odd(
 
     leading_dims = X.shape[:-1]  # including the feature dimension
 
-    # TODO, correct the dtype and device of H
-    dtype = X.dtype
-    device = X.device
-
     # Expand the tensors dims: (..., 3^l1) -> (..., 3, 3, ..., 3)
     X = X.view(leading_dims + (3,) * l1)
     Y = Y.view(leading_dims + (3,) * l2)
 
-    # Performing tensor product
-    H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
+    # Get H tensor and einsum rule:
+    # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
+    # We use the pre-computed H tensor and rule for efficiency
+    H_and_rule = H_TENSOR_AND_RULE[f"{l1}-{l2}-{l3}-{normalize}"]
+    rule = H_and_rule["rule"]
+    H = H_and_rule["H"].to(X.device)
+
+    # Perform tensor product
     Z = torch.einsum(rule, H, X, Y)
 
     # Combine the tensor dims: (..., 3, 3, ..., 3) -> (..., 3^l3)
