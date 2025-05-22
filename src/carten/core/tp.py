@@ -46,7 +46,7 @@ def tp_even(
         A natural tensor of rank l3. Shape: (..., F, 3^l3), where F is the number of
         features.
     """
-
+    assert abs(l1 - l2) <= l3 <= l1 + l2, "l3 must be in the range of |l1-l2| and l1+l2"
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
 
     leading_dims = X.shape[:-1]  # including the feature dimension
@@ -139,7 +139,7 @@ def tp_odd(
         A natural tensor of rank l3. Shape: (..., F, 3^l3), where F is the number of
         features.
     """
-
+    assert abs(l1 - l2) <= l3 <= l1 + l2, "l3 must be in the range of |l1-l2| and l1+l2"
     assert (l1 + l2 - l3) % 2 == 1, "l1 + l2 - l3 must be odd"
 
     leading_dims = X.shape[:-1]
