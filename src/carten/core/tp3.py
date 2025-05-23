@@ -52,7 +52,7 @@ def tp_even(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
     H = H.view(3**l3, 3 ** (l1 + l2))
 
@@ -93,7 +93,7 @@ def tp_odd(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
     H = H.view(3**l3, 3 ** (l1 + l2))
 
@@ -107,7 +107,9 @@ def tp_odd(
     return Z
 
 
-def get_H_and_rule(l1: int, l2: int, l3: int, normalize: str):
+def get_H_and_rule(
+    l1: int, l2: int, l3: int, normalize: str, device: torch.device = None
+):
 
     key = f"{l1}-{l2}-{l3}-{normalize}"
 
@@ -121,7 +123,8 @@ def get_H_and_rule(l1: int, l2: int, l3: int, normalize: str):
                 "You can generate them using the `generate_H.py` file."
             )
 
-        H_and_rule["H"] = H_and_rule["H"].to(X.device)
+        # Move to device
+        H_and_rule["H"] = H_and_rule["H"].to(device)
         H_TENSOR_AND_RULE_ON_DEVICE.add(key)
 
     # Get H and einsum rule
