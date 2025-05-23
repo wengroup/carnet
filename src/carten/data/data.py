@@ -12,6 +12,7 @@ from torch_geometric.data import Data
 
 from carten._dtype import DTYPE_BOOL, DTYPE_INT, TORCH_FLOATS, TORCH_INTS
 from carten.data.neighbor import get_neigh
+from carten.data.utils import get_edge_vec
 
 
 class Config(Data):
@@ -103,6 +104,19 @@ class Config(Data):
         else:
             num_edges = None
 
+        # TODO, shift vec is needed for IP, because we need to compute edge_vector as
+        #  of the pos to properly compute stress. However, is stress is not needed,
+        #  we can directly use edge_vector here.
+        #  Also, for structure property prediction model, we don't need any derivative
+        #  w.r.t. pos, so we can ignore the shift_vec and directly use edge_vector.
+        #  Here, we add both.
+        #  But we need to make this optionally using one.
+        #  For IP, when training without stress, we can use edge_vector.
+        #  When predicting using stress e.g. in MD, we can use shift_vec.
+        #  For structure tensor, we can use edge_vector.
+        #  This can boost the efficiency of the model per the profiling test, where
+        #  computing the edge_vector is expensive.
+        edge_vec = None
         if shift_vec is not None:
             shift_vec = torch.tensor(shift_vec, dtype=DTYPE)
             if shift_vec.shape[0] != num_edges:
@@ -110,6 +124,13 @@ class Config(Data):
                     f"Expect `shift_vec` to be of shape (num_edges, 3), got "
                     f"{shift_vec.shape}."
                 )
+            edge_vec = get_edge_vec(
+                pos,
+                shift_vec,
+                cell,
+                edge_index,
+                torch.zeros(num_atoms, dtype=DTYPE_INT),
+            )
 
         if num_neigh is not None:
             num_neigh = torch.as_tensor(num_neigh, dtype=DTYPE_INT)
@@ -165,7 +186,8 @@ class Config(Data):
             atomic_number=atomic_number,
             cell=cell,
             edge_index=edge_index,
-            shift_vec=shift_vec,
+            shift_vector=shift_vec,
+            edge_vector=edge_vec,
             x=tensor_x,
             y=tensor_y,
             num_atoms=num_atoms,

@@ -16,8 +16,6 @@ from line_profiler import profile
 from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
-from carten.data.utils import get_edge_vec
-
 
 class BaseLitModule(LightningModule):
     """
@@ -90,7 +88,7 @@ class BaseLitModule(LightningModule):
         )
 
         return self.model(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=batch.edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -105,7 +103,7 @@ class BaseLitModule(LightningModule):
             None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
         )
         return self.ema(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=batch.edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -228,22 +226,6 @@ class BaseLitModule(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {"scheduler": scheduler, "monitor": monitor},
             }
-
-    @staticmethod
-    def _get_edge_vector(batch):
-        try:
-            cell = batch.cell
-            shift_vec = batch.shift_vec
-        except AttributeError:
-            # this happens for molecules, no pbc needed, and no cell
-            cell = None
-            shift_vec = None
-
-        edge_vector = get_edge_vec(
-            batch.pos, shift_vec, cell, batch.edge_index, batch.batch
-        )
-
-        return edge_vector
 
     ## TODO, for DEBUG only, should be commented out
     # Grad norm computation should be called after `configure_gradient_clipping()` in

@@ -422,7 +422,7 @@ class InteratomicPotentialLitModule(LightningModule):
     def _get_edge_vector(batch):
         try:
             cell = batch.cell
-            shift_vec = batch.shift_vec
+            shift_vec = batch.shift_vector
         except AttributeError:
             # this happens for molecules, no pbc needed, and no cell
             cell = None
