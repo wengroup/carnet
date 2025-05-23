@@ -2,6 +2,9 @@
 
 Batching and feature dimensions of the tensors are supported.
 
+This is the reference implementation of the tensor product, which can used to verify the
+performance of the optimized implementations in `tp2.py`, `tp3.py` and `tp4.py`.
+
 Ref:
 [LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
 http://dx.doi.org/10.1063/1.528515

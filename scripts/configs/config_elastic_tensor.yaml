@@ -91,6 +91,7 @@ ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   include_online_model: false
 
 trainer:
+  profiler: simple
   max_epochs: 2
   accelerator: cpu
   num_nodes: 1

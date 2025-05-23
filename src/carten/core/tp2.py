@@ -5,10 +5,6 @@ Batching and feature dimensions of the tensors are supported.
 This implements the formula such that Z = H:XY, where H is an operator composed of
 delta and Levi-Civita tensors. Unlike `tp.py`, this reformulation does not require
 loop to compute the tensor product.
-
-Ref:
-[LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
-http://dx.doi.org/10.1063/1.528515
 """
 
 from pathlib import Path
