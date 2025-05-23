@@ -17,6 +17,9 @@ from carten.core.utils import load_H_tensor_and_rule
 filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
 H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, sparse=True)
 
+# On device cache for efficiency
+H_TENSOR_AND_RULE_ON_DEVICE = set()
+
 
 @profile
 def tp_even(
@@ -50,15 +53,7 @@ def tp_even(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    key = f"{l1}-{l2}-{l3}-{normalize}"
-    try:
-        H_and_rule = H_TENSOR_AND_RULE[key]
-    except KeyError:
-        raise RuntimeError(
-            f"Pre-computed H tensor and einsum rule not found for {key}."
-            "You can generate them using the `generate_H.py` file."
-        )
-    H = H_and_rule["H"].to(X.device)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize)
 
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
     XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3^(l1+l2), -1)
@@ -97,15 +92,7 @@ def tp_odd(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    key = f"{l1}-{l2}-{l3}-{normalize}"
-    try:
-        H_and_rule = H_TENSOR_AND_RULE[key]
-    except KeyError:
-        raise RuntimeError(
-            f"Pre-computed H tensor and einsum rule not found for {key}."
-            "You can generate them using the `generate_H.py` file."
-        )
-    H = H_and_rule["H"].to(X.device)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize)
 
     # Perform tensor product
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
@@ -115,6 +102,30 @@ def tp_odd(
     Z = Z.transpose(0, 1).view(*leading_dims, 3**l3)  # (leading_dims, 3^l3)
 
     return Z
+
+
+def get_H_and_rule(l1: int, l2: int, l3: int, normalize: str):
+
+    key = f"{l1}-{l2}-{l3}-{normalize}"
+
+    global H_TENSOR_AND_RULE_ON_DEVICE
+    if key not in H_TENSOR_AND_RULE_ON_DEVICE:
+        try:
+            H_and_rule = H_TENSOR_AND_RULE[key]
+        except KeyError:
+            raise RuntimeError(
+                f"Pre-computed H tensor and einsum rule not found for {key}."
+                "You can generate them using the `generate_H.py` file."
+            )
+
+        H_and_rule["H"] = H_and_rule["H"].to(X.device)
+        H_TENSOR_AND_RULE_ON_DEVICE.add(key)
+
+    # Get H and einsum rule
+    H = H_TENSOR_AND_RULE[key]["H"]
+    rule = H_TENSOR_AND_RULE[key]["rule"]
+
+    return H, rule
 
 
 if __name__ == "__main__":
