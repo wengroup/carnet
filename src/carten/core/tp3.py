@@ -14,7 +14,7 @@ from carten.core.utils import load_H_tensor_and_rule
 
 # Load the pre-computed H tensor and einsum rule
 filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
-H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename)
+H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, mode="mm")
 
 # On device cache for efficiency
 H_TENSOR_AND_RULE_ON_DEVICE = set()
@@ -52,15 +52,14 @@ def tp_even(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    #
+    # Shape of H: (3^(l1+l2), 3^l3)
+    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
-    H = H.view(3**l3, 3 ** (l1 + l2))
+    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
+    XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
 
-    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
-    XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3^(l1+l2), -1)
-
-    Z = torch.mm(H, XY)  # (3**l3, -1)
-    Z = Z.transpose(0, 1).view(*leading_dims, 3**l3)  # (leading_dims, 3^l3)
+    Z = torch.matmul(XY, H)  # (leading_dims, 3**l3)
 
     return Z
 
@@ -93,16 +92,14 @@ def tp_odd(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    #
+    # Shape of H: (3^(l1+l2), 3^l3)
+    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
-    H = H.view(3**l3, 3 ** (l1 + l2))
+    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
+    XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
 
-    # Perform tensor product
-    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
-    XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3^(l1+l2), -1)
-
-    Z = torch.mm(H, XY)  # (3**l3, -1)
-    Z = Z.transpose(0, 1).view(*leading_dims, 3**l3)  # (leading_dims, 3^l3)
+    Z = torch.matmul(XY, H)  # (leading_dims, 3**l3)
 
     return Z
 

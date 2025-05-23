@@ -17,7 +17,7 @@ def check_shape(T: Tensor, n: int = 3) -> bool:
 
 
 def load_H_tensor_and_rule(
-    filename: Path = "./H_tensor_and_rule.json.gz", sparse: bool = False
+    filename: Path = "./H_tensor_and_rule.json.gz", mode: str = None
 ) -> dict[str, dict[str, Tensor]]:
     """
     Load H tensors and the einsum rules for tensor products from a JSON file.
@@ -27,7 +27,13 @@ def load_H_tensor_and_rule(
 
     Args:
         filename: The path to the JSON file containing the H tensors and rules.
-        sparse: If `True`, the H tensors will be converted to sparse tensors.
+        mode: How to represent the H tensor.
+            If None, the H tensor is as is, of shape (3,3,...,3), a total number of
+            l3+l2+l1 dimensions.
+            If `mm`, the H tensor is reshaped to (3^l3, 3^(l1+l2)) and then transposed
+            to (3^(l1+l2), 3^l3) so we can do matrix multiplication with mm(...XY, H).
+            if `sparse`, the H tensor is reshaped to (3^l3, 3^(l1+l2)) and then
+            transposed to (3^(l1+l2), 3^l3) and converted to a sparse tensor.
 
 
     Returns:
@@ -37,13 +43,29 @@ def load_H_tensor_and_rule(
 
     # Convert the H tensors from lists to PyTorch tensors
     for key, value in data.items():
+        # shape (3,3,...,3), a total number of l3+l2+l1 dimensions
         t = torch.tensor(value["H"], dtype=torch.get_default_dtype())
 
-        if sparse:
+        if mode in ["mm", "sparse"]:
             l1, l2, l3, _ = key.split("-")
             l1, l2, l3 = int(l1), int(l2), int(l3)
-            # Reshape to (3^l3, 3^(l1+l2)) so we can use it on matrix multiplication
-            t = t.view(3**l3, 3 ** (l1 + l2)).to_sparse()
+
+            t = t.reshape(3**l3, 3 ** (l1 + l2))
+
+            if mode == "mm":
+                # Reshape H to (3^(l1+l3), 3^l3), we we can do mm(...XY, H)
+                t = t.transpose(0, 1)
+            elif mode == "sparse":
+                # We can only do mm(H, XY) since we need gradients w.r.t. X and Y. And
+                # sparse tensor do not support gradients.
+                t = t.to_sparse()
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
+
+        elif mode is None:
+            pass
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
 
         data[key]["H"] = t
 

@@ -15,7 +15,7 @@ from carten.core.utils import load_H_tensor_and_rule
 
 # Load the pre-computed H tensor and einsum rule
 filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
-H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, sparse=True)
+H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, mode="sparse")
 
 # On device cache for efficiency
 H_TENSOR_AND_RULE_ON_DEVICE = set()
@@ -53,7 +53,9 @@ def tp_even(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    #
+    # Shape of H: (3^(l1+l2), 3^l3)
+    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
     XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3^(l1+l2), -1)
@@ -92,9 +94,10 @@ def tp_odd(
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    #
+    # Shape of H: (3^(l1+l2), 3^l3)
+    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
-    # Perform tensor product
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^(l1+l2))
     XY = XY.reshape(-1, 3 ** (l1 + l2)).transpose(0, 1)  # (3^(l1+l2), -1)
 
