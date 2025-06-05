@@ -53,7 +53,7 @@ def load_H_tensor_and_rule(
             t = t.reshape(3**l3, 3 ** (l1 + l2))
 
             if mode == "mm":
-                # Reshape H to (3^(l1+l3), 3^l3), we we can do mm(...XY, H)
+                # Reshape H to (3^(l1+l2), 3^l3), we we can do mm(...XY, H)
                 t = t.transpose(0, 1)
             elif mode == "sparse":
                 # We can only do mm(H, XY) since we need gradients w.r.t. X and Y. And
@@ -61,6 +61,31 @@ def load_H_tensor_and_rule(
                 t = t.to_sparse()
             else:
                 raise ValueError(f"Unknown mode: {mode}")
+
+        elif mode == "flatten":
+            l1, l2, l3, _ = key.split("-")
+            l1, l2, l3 = int(l1), int(l2), int(l3)
+
+            t = t.reshape(3**l3, 3**l1, 3**l2)
+
+            rule = value["rule"]
+
+            if l1 != 0:
+                r_l1 = "A"
+            else:
+                r_l1 = ""
+            if l2 != 0:
+                r_l2 = "B"
+            else:
+                r_l2 = ""
+            if l3 != 0:
+                r_l3 = "a"
+            else:
+                r_l3 = ""
+
+            rule_new = f"{r_l3}{r_l1}{r_l2},...{r_l1},...{r_l2}->...{r_l3}"
+
+            data[key]["rule"] = rule_new
 
         elif mode is None:
             pass
