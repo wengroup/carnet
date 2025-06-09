@@ -2,7 +2,7 @@
 
 import torch
 import torch.nn as nn
-from natt.ghs import get_G_H_S
+from natt.GHS import get_G_H_S
 from torch import Tensor
 
 
