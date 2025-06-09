@@ -51,7 +51,7 @@ if __name__ == "__main__":
     M = get_voigt_projection_tensor()
     T_v = torch.einsum("ijkl,ijklab->ab", T, M).numpy()
 
-    # Get vligt tensor using pymatgen
+    # Get voigt tensor using pymatgen
     from pymatgen.analysis.elasticity.elastic import ElasticTensor
 
     ET = ElasticTensor(T)
