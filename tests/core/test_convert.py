@@ -1,28 +1,31 @@
 import pytest
 import torch
-from natt.convert import Converter
 from natt.sym import symmetrize
+
+from carten.core.convert import Converter
 
 
 @pytest.mark.parametrize(
-    "rank,symmetry",
+    "symmetry",
     [
-        (2, None),
-        (2, "ij=ji"),
-        (3, None),
-        (3, "ijk=ikj"),
-        (3, "ijk=ikj=jik"),
-        (4, None),
-        (4, "ijkl=jikl=klij"),
-        (4, "ijkl=jikl=kjil=ljki"),
+        "ij",
+        "ij=ji",
+        "ijk",
+        "ijk=ikj",
+        "ijk=ikj=jik",
+        "ijkl",
+        "ijkl=jikl=klij",
+        "ijkl=jikl=kjil=ljki",
     ],
 )
-def test_Converter(rank, symmetry):
+def test_Converter(symmetry):
 
     torch.manual_seed(35)
+
+    rank = len(set(symmetry.replace("=", "").replace(" ", "")))
     T = torch.randn(*[3] * rank)
 
-    converter = Converter(rank, symmetry)
+    converter = Converter(symmetry)
 
     # symmetrize the tensor if `symmetry` is not None
     if symmetry is not None:

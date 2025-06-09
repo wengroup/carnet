@@ -15,8 +15,8 @@ class Converter(nn.Module):
     T'= G T
 
     Args:
-        rank: The rank of the tensor T.
-        symmetry: symmetry of the Cartesian ordinary tensor, if any. For example,
+        symmetry: symmetry of the Cartesian ordinary tensor. For example,
+            - "ij" means a rank-2 tensor without any symmetry;
             - "ij=ji" means that the tensor is a fully symmetric rank-2 tensor (e.g.
                 stress tensor);
             - "ijk=ikj" means that the tensor is a rank-3 tensor with the last two
@@ -29,12 +29,16 @@ class Converter(nn.Module):
             use does not matter).
     """
 
-    def __init__(self, rank: int, symmetry: str = None):
+    def __init__(self, symmetry: str):
         super().__init__()
-        self.rank = rank
-        self.symmetry = symmetry
+        self.rank = len(set(symmetry.replace("=", "").replace(" ", "")))
 
-        out = get_G_H_S(rank, symmetry)
+        if "=" not in symmetry:
+            self.symmetry = None
+        else:
+            self.symmetry = symmetry
+
+        out = get_G_H_S(self.rank, symmetry)
 
         self.l_num_p = {}
         for l, out_l in out.items():
