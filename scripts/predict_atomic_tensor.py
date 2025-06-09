@@ -93,12 +93,11 @@ def predict(
     return output
 
 
-def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
+def compute_metrics(target_name, symmetry, filename, checkpoint):
     """Compute the metrics using the predictions and references.
 
     Args:
         target_name: Name of the target to predict.
-        rank: Rank of the tensor prediction.
         symmetry: Symmetry of the target tensor. e.g. None for NMR tensor, meaning
             there is no symmetry.
         filename: Path to the file containing the dataset to make predictions.
@@ -131,7 +130,7 @@ def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
         )
 
     # Metrics on ordinary tensors
-    converter = Converter(rank, symmetry)
+    converter = Converter(symmetry)
     ref = converter.to_ordinary_tensor(ref)
     pred = converter.to_ordinary_tensor(pred)
 
@@ -182,12 +181,11 @@ if __name__ == "__main__":
 
     target_name = "nmr_tensor_natural"
 
-    filename = "/Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250402/nmr_tensor_n20.json"
+    filename = "/Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json"
 
     # To generate an example checkpoint, first run `train_atomic_tensor.py` and then
     # checkout `./carten_proj` to get the checkpoint you want to use.
     checkpoint = "./carten_proj/n228kouh/checkpoints/epoch=1-step=10.ckpt"
 
-    rank = 2
-    symmetry = None  # for NMR tensor
-    compute_metrics(target_name, rank, symmetry, filename, checkpoint)
+    symmetry = "ij"  # for NMR tensor
+    compute_metrics(target_name, symmetry, filename, checkpoint)

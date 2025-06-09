@@ -93,7 +93,7 @@ def predict(
     return output
 
 
-def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
+def compute_metrics(target_name, symmetry, filename, checkpoint):
     """Compute the metrics using the predictions and references.
 
     Args:
@@ -132,7 +132,7 @@ def compute_metrics(target_name, rank, symmetry, filename, checkpoint):
         )
 
     # Metrics on ordinary tensors
-    converter = Converter(rank, symmetry)
+    converter = Converter(symmetry)
     ref = converter.to_ordinary_tensor(ref)
     pred = converter.to_ordinary_tensor(pred)
 
@@ -187,8 +187,7 @@ if __name__ == "__main__":
 
     # To generate an example checkpoint, first run `train_structure_tensor.py` and then
     # checkout `./carten_proj` to get the checkpoint you want to use.
-    checkpoint = "./carten_proj/t7q4ovhe/checkpoints/epoch=1-step=6.ckpt"
+    checkpoint = "./carten_proj/uusbks8w/checkpoints/epoch=1-step=6.ckpt"
 
-    rank = 4
     symmetry = "ijkl=jikl=klij"  # for elastic tensor
-    compute_metrics(target_name, rank, symmetry, filename, checkpoint)
+    compute_metrics(target_name, symmetry, filename, checkpoint)
