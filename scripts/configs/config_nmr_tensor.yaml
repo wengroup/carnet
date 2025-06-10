@@ -8,10 +8,15 @@ data:
   # the natural tensor, and T is the values of the natural tensor. The shape of T
   # should be (1, number, 3**rank), where `number` gives the number of tensors of the
   # corresponding rank.
-  target_name: nmr_tensor_natural
+  #
+  #  NOTE, in the dataset file, the tensor should be given with the name
+  #  `[target_name]_[target_mode]`, e.g. `elastic_tensor_natural`
+  target_name: nmr_tensor
+  target_mode: natural # natural, symmetric, antisymmetric, or mixed
   target_signature: # {rank: number} of the natural tensor
     0: 1
     2: 1
+  target_symmetry: ij=ji # this is only needed when target_mode is `full` or `voigt`
   trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
   valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
   testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json

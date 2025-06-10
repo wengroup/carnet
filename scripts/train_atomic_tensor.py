@@ -9,7 +9,7 @@ from lightning import Trainer
 from line_profiler import profile
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import Dataset
+from carten.data.dataset import DatasetTensor
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.pl.pl_tensor_model import AtomicTensorLitModule
 from carten.model.pl.utils import (
@@ -22,11 +22,11 @@ from carten.model.tensor_model import AtomicTensorModel
 
 
 def get_dataset(
-    filename: Path, target_name: str, atomic_number: list[int], r_cut: float
+    filename: Path, target_names: list[str], atomic_number: list[int], r_cut: float
 ):
-    dataset = Dataset(
+    dataset = DatasetTensor(
         filename=filename,
-        target_names=(target_name, "atomic_selector"),
+        target_names=target_names,
         r_cut=r_cut,
         transform=ConsecutiveAtomType(atomic_number),
         log=False,
@@ -37,7 +37,9 @@ def get_dataset(
 
 def get_dataloaders(
     target_name,
+    target_mode,
     target_signature,
+    target_symmetry,
     atomic_number,
     r_cut,
     trainset_filename,
@@ -49,13 +51,21 @@ def get_dataloaders(
 ):
     # TODO, check target in dataframe is consistent with target_signature
 
-    trainset = get_dataset(trainset_filename, target_name, atomic_number, r_cut)
+    names = [target_name + "_natural", "atomic_selector"]  # Always add natural target
+    if target_mode == "natural":
+        pass
+    elif target_mode in ["full", "voigt"]:
+        names.append(target_name + "_" + target_mode)
+    else:
+        raise ValueError(f"Unknown target mode: {target_mode}.")
+
+    trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
     train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
 
-    valset = get_dataset(valset_filename, target_name, atomic_number, r_cut)
+    valset = get_dataset(valset_filename, names, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
 
-    testset = get_dataset(testset_filename, target_name, atomic_number, r_cut)
+    testset = get_dataset(testset_filename, names, atomic_number, r_cut)
     test_loader = DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
@@ -79,7 +89,7 @@ def update_data_configs(config: dict) -> dict:
     return config
 
 
-def update_model_configs(config: dict, dataset: Dataset) -> dict:
+def update_model_configs(config: dict, dataset: DatasetTensor) -> dict:
     """Update the model configs in the config file.
 
     A couple of internally determined parameters are added to the `model` section of
@@ -152,8 +162,10 @@ def update_loss_configs(config: dict) -> dict:
     """
     target_name = config["data"]["target_name"]
     target_signature = config["data"]["target_signature"]
+    target_mode = config["data"]["target_mode"]
+    target_symmetry = config["data"].get("target_symmetry", None)
 
-    for name in ["target_name", "target_signature"]:
+    for name in ["target_name", "target_mode", "target_signature", "target_symmetry"]:
         if name in config["loss"]:
             raise ValueError(
                 f"Parameter {name} already provided in the `data` section of the "
@@ -166,10 +178,14 @@ def update_loss_configs(config: dict) -> dict:
     ), "target_signature and loss.ratio have inconsistent ranks"
 
     config["loss"]["target_name"] = target_name
+    config["loss"]["target_mode"] = target_mode
     config["loss"]["target_signature"] = target_signature
+    config["loss"]["target_symmetry"] = target_symmetry
 
     print(f"Updated loss configs - `target_name`: {target_name}")
+    print(f"Updated loss configs - `target_mode`: {target_mode}")
     print(f"Updated loss configs - `target_signature`: {target_signature}")
+    print(f"Updated loss configs - `target_symmetry`: {target_symmetry}")
 
     return config
 
@@ -240,7 +256,7 @@ def main(config: dict):
             other_hparams=config,
         )
 
-    # load from checkpoint
+    # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
         model = load_model(AtomicTensorLitModule, AtomicTensorModel, restore_checkpoint)
@@ -300,6 +316,7 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
+
     # Remove the processed data directory
     shutil.rmtree("./processed", ignore_errors=True)
 

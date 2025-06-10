@@ -8,14 +8,19 @@ data:
   # the natural tensor, and T is the values of the natural tensor. The shape of T
   # should be (1, number, 3**rank), where `number` gives the number of tensors of the
   # corresponding rank.
-  target_name: elastic_tensor_natural
+  #
+  #  NOTE, in the dataset file, the tensor should be given with the name
+  #  `[target_name]_[target_mode]`, e.g. `elastic_tensor_natural`
+  target_name: elastic_tensor
+  target_mode: voigt # options: `natural`, `full`, `voigt`
   target_signature: # {rank: number} of the natural tensor
     0: 2
     2: 2
     4: 1
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json
+  target_symmetry: ijkl=jikl=klij # this is only needed when target_mode is `full` or `voigt`
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
