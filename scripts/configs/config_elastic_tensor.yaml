@@ -75,7 +75,7 @@ optimizer:
 
 lr_scheduler:
   # TODO, use combination metric of all ranks
-  monitor: val/mae_rank-0
+  monitor: val_ema/mae_cartesian
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -120,14 +120,14 @@ trainer:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_cartesian
         mode: min
         save_top_k: 3
         verbose: false
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_cartesian
         mode: min
         patience: 200
         verbose: true
