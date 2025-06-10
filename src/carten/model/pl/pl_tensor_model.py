@@ -13,8 +13,11 @@ from lightning.pytorch.cli import instantiate_class
 from lightning.pytorch.utilities import grad_norm
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from line_profiler import profile
-from torch import nn
+from torch import Tensor, nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
+
+from carten.core.convert import Converter
+from carten.model.elastic import get_voigt_projection_tensor
 
 
 class BaseLitModule(LightningModule):
@@ -59,6 +62,7 @@ class BaseLitModule(LightningModule):
             "validation_start_epoch", 0
         )
 
+        # metrics for natural tensors
         self.metrics = nn.ModuleDict(
             {
                 f"metrics_{mode}_{rank}": MetricClass()
@@ -67,19 +71,50 @@ class BaseLitModule(LightningModule):
             }
         )
 
+        #
+        # The below is only needed for cartesian tensors
+        #
+
+        # metrics for cartesian tensors
+        self.target_mode = self.loss_hparams.get("target_mode", "natural")
+
+        if self.target_mode == "natural":
+            self.register_buffer("metrics_cartesian", None)
+            self.register_buffer("converter", None)
+        elif self.target_mode in ["full", "voigt"]:
+            self.metrics_cartesian = nn.ModuleDict(
+                {
+                    f"metrics_{mode}_cartesian": MetricClass()
+                    for mode in ["train", "val", "test", "val_ema", "test_ema"]
+                }
+            )
+
+            # values needed to convert natural tensors to cartesian tensors
+            symmetry = self.loss_hparams.get("target_symmetry")
+            if symmetry is None:
+                raise ValueError('"target_symmetry" must be provided in loss_hparams.')
+            self.converter = Converter(symmetry)
+
+        else:
+            raise ValueError(f"Unknown target mode: {self.target_mode}")
+
+        # values needed to convert cartesian tensors to Voigt tensors
+        if self.target_mode == "voigt":
+            # TODO, this is hard coded for elastic tensor
+            # C_ab = M_ijkl^ab C_ijkl
+            M = get_voigt_projection_tensor()
+
+            # Reshape it to M_xy, where x represents ijkl and y represents ab,
+            # so we can do multiplication
+            M = M.reshape(-1, 6 * 6)
+
+            self.register_buffer("M", M)
+        else:
+            self.register_buffer("M", None)
+
     @profile
     def forward(self, batch):
         """Compute model output."""
-        # Note, it is tempting to compute the edge_vector in the collate_fn of the
-        # dataloader. However, this will not work will pytorch lightning, internally
-        # it does something to the batch, modifying both pos and edge_index. As a
-        # result, the edge_vector is not directly derived from pos, and thus we won't
-        # be able to compute the forces.
-        # This is why we compute the edge_vector here.
-        #
-        # TODO, the above comments only applies to interatomic potentials. For
-        #  atomic/structure tensor models, we can compute the edge_vector in the
-        #  collate_fn.
 
         # Atomic selector only needed for atomic tensor model, not for structure tensor
         # model.
@@ -112,12 +147,29 @@ class BaseLitModule(LightningModule):
 
     @profile
     def training_step(self, batch, batch_idx):
-        ref = batch.y[self.loss_hparams["target_name"]]
         batch_size = batch.num_graphs
 
-        pred = self(batch)
-        losses = self.compute_loss(pred, ref)
-        metrics = self.compute_metrics(pred, ref, "train")
+        ref_nat = batch.y[self.loss_hparams["target_name"] + "_natural"]
+        pred_nat = self(batch)
+
+        # Get predictions
+        if self.target_mode == "natural":
+            losses = self.compute_loss_nat(pred_nat, ref_nat)
+            metrics = self.compute_metrics(pred_nat, ref_nat, mode="train")
+
+        elif self.target_mode in ["full", "voigt"]:
+            pred = self.to_cartesian(pred_nat)
+            ref = batch.y[
+                self.loss_hparams["target_name"]
+                + "_"
+                + self.loss_hparams["target_mode"]
+            ]
+
+            losses = self.compute_loss_cart(pred, ref)
+            metrics = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode="train")
+        else:
+            raise ValueError(f"Unknown target mode: {self.target_mode}")
+
         d = {**losses, **metrics}
 
         self.log_dict(
@@ -137,37 +189,49 @@ class BaseLitModule(LightningModule):
         self._val_test_step(batch, batch_idx, mode="test")
 
     def _val_test_step(self, batch, batch_idx, mode: str, start_epoch: int = 0):
-        ref = batch.y[self.loss_hparams["target_name"]]
         batch_size = batch.num_graphs
+
+        ref_nat = batch.y[self.loss_hparams["target_name"] + "_natural"]
+        ref = batch.y[
+            self.loss_hparams["target_name"] + "_" + self.loss_hparams["target_mode"]
+        ]
 
         # use current model
         if self.current_epoch >= start_epoch:
-            pred = self(batch)
+            pred_nat = self(batch)
+
+            if self.target_mode in ["full", "voigt"]:
+                pred = self.to_cartesian(pred_nat)
+            else:
+                pred = None
+
         else:
             # TODO, this needs to be updated as a dict
             # dummy values to skip validation for the first few epochs
-            pred = torch.zeros(1, dtype=ref.dtype, device=ref.device)
-            ref = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
+            pred = pred_nat = torch.zeros(1, dtype=ref_nat.dtype, device=ref_nat.device)
+            ref = ref_nat = 1e10 * torch.ones(
+                1, dtype=ref_nat.dtype, device=ref_nat.device
+            )
 
-        metrics = self.compute_metrics(pred, ref, mode)
-        self.log_dict(
-            metrics,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            batch_size=batch_size,
-        )
+        metrics = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode)
 
         # use EMA model
         if self.current_epoch >= start_epoch:
-            pred = self.forward_ema(batch)
+            pred_nat = self.forward_ema(batch)
+
+            if self.target_mode in ["full", "voigt"]:
+                pred = self.to_cartesian(pred_nat)
+            else:
+                pred = None
         else:
             # TODO, this needs to be updated as a dict
             # dummy values to skip validation for the first few epochs
-            pred = torch.zeros(1, dtype=ref.dtype, device=ref.device)
-            ref = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
+            pred = pred_nat = torch.zeros(1, dtype=ref.dtype, device=ref.device)
+            ref = ref_nat = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
 
-        metrics = self.compute_metrics(pred, ref, mode + "_ema")
+        metrics_eam = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode + "_ema")
+        metrics.update(metrics_eam)
+
         self.log_dict(
             metrics,
             on_step=False,
@@ -176,18 +240,40 @@ class BaseLitModule(LightningModule):
             batch_size=batch_size,
         )
 
-    def compute_loss(self, pred: dict, ref: dict):
+    def compute_loss_nat(self, pred: dict, ref: dict):
         """
         Total loss:
             loss_total = loss
         """
         raise NotImplementedError("Subclass must implement this method.")
 
-    def compute_metrics(self, pred: dict, ref: dict, mode: str):
+    def compute_loss_cart(self, pred: Tensor, ref: Tensor):
+        raise NotImplementedError("Subclass must implement this method.")
+
+    def compute_metrics(
+        self,
+        pred_nat: dict,
+        ref_nat: dict,
+        pred_cart: Tensor = None,
+        ref_cart: Tensor = None,
+        mode: str = "train",
+    ):
+
+        metrics = self.compute_metrics_nat(pred_nat, ref_nat, mode)
+        if self.target_mode in ["full", "voigt"]:
+            metrics_cart = self.compute_metrics_cart(pred_cart, ref_cart, mode)
+            metrics.update(metrics_cart)
+
+        return metrics
+
+    def compute_metrics_nat(self, pred: dict, ref: dict, mode: str):
         """
         MAE:
             MAE = mean_k |E_pred - E_ref|
         """
+        raise NotImplementedError("Subclass must implement this method.")
+
+    def compute_metrics_cart(self, pred: Tensor, ref: Tensor, mode: str):
         raise NotImplementedError("Subclass must implement this method.")
 
     @profile
@@ -227,6 +313,23 @@ class BaseLitModule(LightningModule):
                 "lr_scheduler": {"scheduler": scheduler, "monitor": monitor},
             }
 
+    def to_cartesian(self, pred: dict):
+        """
+        Convert the predicted tensors to Cartesian tensors.
+        """
+
+        # Convert to Voigt tensor if needed
+        if self.M is not None:
+            # Convert natural tensors to Cartesian tensors (n_configs, 3**rank)
+            pred = self.converter.to_ordinary_tensor(pred, flatten_tensor_dim=True)
+            # shape (n_configs, 6*6)
+            pred = torch.matmul(pred, self.M)
+        else:
+            # Convert natural tensors to Cartesian tensors (n_configs, 3,3,...,3)
+            pred = self.converter.to_ordinary_tensor(pred, flatten_tensor_dim=False)
+
+        return pred
+
     ## TODO, for DEBUG only, should be commented out
     # Grad norm computation should be called after `configure_gradient_clipping()` in
     # case we are clipping the gradients and wand to show the clipped gradients.
@@ -242,7 +345,7 @@ class BaseLitModule(LightningModule):
 
 
 class StructureTensorLitModule(BaseLitModule):
-    def compute_loss(self, pred: dict, ref: dict):
+    def compute_loss_nat(self, pred: dict, ref: dict):
         """
         Weighted MSE loss.
         """
@@ -260,7 +363,10 @@ class StructureTensorLitModule(BaseLitModule):
 
         return losses
 
-    def compute_metrics(self, pred: dict, ref: dict, mode: str):
+    def compute_loss_cart(self, pred: Tensor, ref: Tensor):
+        return {"train/loss_total": nn.functional.mse_loss(pred, ref, reduction="mean")}
+
+    def compute_metrics_nat(self, pred: dict, ref: dict, mode: str):
         """
         MAE:
             MAE = mean_k |E_pred - E_ref|
@@ -278,6 +384,12 @@ class StructureTensorLitModule(BaseLitModule):
             metrics[f"{mode}/{self.metrics_type}_rank-{rank}"] = self.metrics[name]
 
         return metrics
+
+    def compute_metrics_cart(self, pred: Tensor, ref: Tensor, mode: str):
+        name = f"metrics_{mode}_cartesian"
+        self.metrics_cartesian[name](pred, ref)
+
+        return {f"{mode}/{self.metrics_type}_cartesian": self.metrics_cartesian[name]}
 
 
 AtomicTensorLitModule = StructureTensorLitModule

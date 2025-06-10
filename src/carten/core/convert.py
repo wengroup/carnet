@@ -84,7 +84,9 @@ class Converter(nn.Module):
 
         return out
 
-    def to_ordinary_tensor(self, X: dict[int, Tensor]) -> Tensor:
+    def to_ordinary_tensor(
+        self, X: dict[int, Tensor], flatten_tensor_dim: bool = False
+    ) -> Tensor:
         """
         Convert natural tensors X to ordinary cartesian tensor T.
 
@@ -92,15 +94,20 @@ class Converter(nn.Module):
 
         Args:
             X: Natural tensors {l: X}, where l is the rank (l=0, 1, ...n) and X is the
-            corresponding tensor value. The shape of X is (B, F, 3^l) where B represents
-            arbitrary batch dimensions, F is the number of natural tensors of rank l,
-            and 3^l is the flattened dimension of the tensor. The second dimension F
-            batches natural tensors of the same rank l, but different seniority p.
+                corresponding tensor value. The shape of X is (B, F, 3^l) where B
+                represents arbitrary batch dimensions, F is the number of natural
+                tensors of rank l, and 3^l is the flattened dimension of the tensor.
+                The second dimension F batches natural tensors of the same rank l,
+                but different seniority p.
+            flatten_tensor_dim: If True, the output tensor will have the last dimension
+                `rank` tensor flattened to a single dimension of size `3**rank`.
 
         Returns:
             An ordinary cartesian tensor T corresponding to the natural tensors X.
             The shape is (B, 3, ..., 3), where B represents arbitrary batch dimensions,
             and the number of 3s is, of course, equal to the rank of the tensor.
+            If `flatten_tensor_dim` is True, the tensor dim will be flattened to a
+            single dimension of size `3**rank`.
         """
         B = X[list(X.keys())[0]].shape[:-2]
 
@@ -117,7 +124,13 @@ class Converter(nn.Module):
                     X_ = X_[..., 0]
                 else:
                     X_ = X_.reshape(*B, *(3,) * l)
-                out.append(torch.einsum(rule, G, X_))
+
+                prod = torch.einsum(rule, G, X_)
+
+                if flatten_tensor_dim:
+                    prod = prod.reshape(*B, 3**self.rank)
+
+                out.append(prod)
 
         out = torch.sum(torch.stack(out), dim=0)
 
