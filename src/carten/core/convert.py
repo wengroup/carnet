@@ -38,7 +38,13 @@ class Converter(nn.Module):
         else:
             self.symmetry = symmetry
 
+        # Use float64 for higher precision for the G,H,S tensors
+        dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.float64)
         out = get_G_H_S(self.rank, symmetry)
+
+        # Restore the default dtype
+        torch.set_default_dtype(dtype)
 
         self.l_num_p = {}
         for l, out_l in out.items():
@@ -46,8 +52,8 @@ class Converter(nn.Module):
             # TODO, the tensors of different G_j_p might be batched, which can
             #  accelerate the computation
             for p, (G, H) in enumerate(zip(out_l["G"], out_l["H"])):
-                self.register_buffer(f"G_{l}_{p}", torch.tensor(G["numerical"]))
-                self.register_buffer(f"H_{l}_{p}", torch.tensor(H["numerical"]))
+                self.register_buffer(f"G_{l}_{p}", G["numerical"].to(dtype))
+                self.register_buffer(f"H_{l}_{p}", H["numerical"].to(dtype))
                 setattr(self, f"G_{l}_{p}_rule", G["rule"])
                 setattr(self, f"H_{l}_{p}_rule", H["rule"])
 
