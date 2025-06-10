@@ -11,7 +11,7 @@ from torch_geometric.data.data import BaseData
 from carten.data.data import Config
 
 
-class Dataset(InMemoryDataset):
+class BaseDataset(InMemoryDataset):
     """
     A base dataset to read atomic data for both structures and molecules.
 
@@ -34,7 +34,7 @@ class Dataset(InMemoryDataset):
     def __init__(
         self,
         filename: Path,
-        target_names=("energy", "forces"),  # e.g. (energy, forces, stress)
+        target_names: list[str],
         r_cut: float = 5.0,
         atom_featurizer: Callable = None,
         root=".",
@@ -84,18 +84,51 @@ class Dataset(InMemoryDataset):
         self.save(data_list, self.processed_paths[0])
 
     def read_data(self, filename: str) -> list[Config]:
-        df = pd.read_json(filename)
+        """Read data from the file and return a list of Config objects."""
+        raise NotImplementedError
 
-        # TODO, this is not used, delete
-        if self.atom_featurizer is not None:
-            df = self.atom_featurizer(df)
+    def get_atomic_number(self) -> list[int]:
+        """Get all atomic number of the atoms in the data."""
+        atom_numbers = set(self.atomic_number.tolist())
+        return sorted(atom_numbers)
+
+    def get_num_average_neigh(self) -> Tensor:
+        """Number of neighbors for each atom averaged across the dataset.
+
+        Returns:
+             Scalar tensor.
+        """
+        return self.num_neigh.to(torch.get_default_dtype()).mean()
+
+    @classmethod
+    def save(cls, data_list: Sequence[BaseData], path: str) -> None:
+        r"""Saves a list of data objects to the file path :obj:`path`."""
+
+        from torch_geometric.io import fs
+
+        data, slices = cls.collate(data_list)
+        # this below line is used in torch_geometric>2.4.0
+        # fs.torch_save((data.to_dict(), slices, data.__class__), path)
+
+        # The below modification makes it go to the original implementation of
+        # torch_geometric<=2.4.0
+        # This will use `Data` instead of `Config` to restore the save dataset it in
+        # the `load` method. This ca avoid shape mismatch error we have enforced in
+        # the `Config` class.
+        fs.torch_save((data.to_dict(), slices), path)
+
+
+class DatasetIP(BaseDataset):
+    """Dataset for interatomic potentials."""
+
+    def read_data(self, filename: str) -> list[Config]:
+        df = pd.read_json(filename)
 
         def process_a_row(row):
             y = {name: row[name] for name in self.target_names}
             y = _to_numpy(y)
 
-            if "energy" in y:
-                y["energy"] = y["energy"].reshape(1)
+            y["energy"] = y["energy"].reshape(1)
 
             if "cell" not in row:
                 cell = None
@@ -122,19 +155,6 @@ class Dataset(InMemoryDataset):
         configs = df.apply(process_a_row, axis=1).tolist()
 
         return configs
-
-    def get_atomic_number(self) -> list[int]:
-        """Get all atomic number of the atoms in the data."""
-        atom_numbers = set(self.atomic_number.tolist())
-        return sorted(atom_numbers)
-
-    def get_num_average_neigh(self) -> Tensor:
-        """Number of neighbors for each atom averaged across the dataset.
-
-        Returns:
-             Scalar tensor.
-        """
-        return self.num_neigh.to(torch.get_default_dtype()).mean()
 
     def get_mean_atomic_energy(self) -> Tensor:
         """Get the mean atomic energy.
@@ -164,10 +184,59 @@ class Dataset(InMemoryDataset):
 
         return rms
 
+
+class DatasetTensor(BaseDataset):
+    """Dataset for tensor property prediciton."""
+
+    def read_data(self, filename: str) -> list[Config]:
+        df = pd.read_json(filename)
+
+        def process_a_row(row):
+            y = {name: row[name] for name in self.target_names}
+            y = _to_numpy(y)
+
+            # TODO, this is hard coded for `full` and `voigt` tensors
+            for k, v in y.items():
+                if k.endswith("_full"):
+                    # Add additional dim for batching
+                    y[k] = np.expand_dims(v, 0)
+
+                if k.endswith("_voigt"):
+                    # Add additional dim for batching, and flatten the tensor dim
+                    # We need the flattening for metrics computing, where the
+                    # prediction has flattened tensor dim.
+                    y[k] = v.reshape(1, -1)
+
+            if "cell" not in row:
+                cell = None
+            else:
+                cell = np.asarray(row["cell"])
+
+            if "pbc" not in row:
+                pbc = False
+            else:
+                pbc = row["pbc"]
+
+            data = Config.from_points(
+                pos=np.asarray(row["coords"]),
+                atomic_number=np.asarray(row["atomic_number"]),
+                pbc=pbc,
+                cell=cell,
+                r_cut=self.r_cut,
+                x=None,
+                y=y,
+            )
+
+            return data
+
+        configs = df.apply(process_a_row, axis=1).tolist()
+
+        return configs
+
     def get_shift_and_scale_tensors(
         self,
     ) -> tuple[dict[int, Tensor], dict[int, Tensor]]:
-        """Get the shift and scale of tensors.
+        """Get the shift and scale of tensors of natural tensors.
 
         Shift is only defined for rank-0 tensors, and it is computed as the mean of
         the rank-0 tensors.
@@ -194,9 +263,8 @@ class Dataset(InMemoryDataset):
                 of the value tensor is  (F, 1).
             scales: {rank: value}. The shape of the value tensor is (F, 1).
         """
-        # Checking that there is only one target name, without considering
-        # `atomic_selector`.
-        target_names = [n for n in self.target_names if n != "atomic_selector"]
+        # TODO, this is hard coded, we get the natural tensor by name search
+        target_names = [n for n in self.target_names if n.endswith("_natural")]
         if len(target_names) != 1:
             raise RuntimeError("Only one target name is allowed.")
         else:
@@ -230,23 +298,6 @@ class Dataset(InMemoryDataset):
 
         return shifts, scales
 
-    @classmethod
-    def save(cls, data_list: Sequence[BaseData], path: str) -> None:
-        r"""Saves a list of data objects to the file path :obj:`path`."""
-
-        from torch_geometric.io import fs
-
-        data, slices = cls.collate(data_list)
-        # this below line is used in torch_geometric>2.4.0
-        # fs.torch_save((data.to_dict(), slices, data.__class__), path)
-
-        # The below modification makes it go to the original implementation of
-        # torch_geometric<=2.4.0
-        # This will use `Data` instead of `Config` to restore the save dataset it in
-        # the `load` method. This ca avoid shape mismatch error we have enforced in
-        # the `Config` class.
-        fs.torch_save((data.to_dict(), slices), path)
-
 
 def _to_numpy(d):
     """
@@ -266,7 +317,7 @@ if __name__ == "__main__":
 
     root = Path(carten.__file__).parents[2] / "example" / "dataset"
     filename = root / "SiC.json"
-    dataset = Dataset(filename=filename, target_names=("energy", "forces"), log=False)
+    dataset = DatasetIP(filename=filename, target_names=["energy", "forces"], log=False)
 
     for d in dataset:
         print(d)

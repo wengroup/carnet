@@ -9,7 +9,7 @@ from lightning import Trainer
 from line_profiler import profile
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import Dataset
+from carten.data.dataset import DatasetIP
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.ip import InteratomicPotential
 from carten.model.pl.pl_ip import InteratomicPotentialLitModule
@@ -22,9 +22,9 @@ from carten.model.pl.utils import (
 
 
 def get_dataset(filename: Path, atomic_number: list[int], r_cut: float):
-    dataset = Dataset(
+    dataset = DatasetIP(
         filename=filename,
-        target_names=("energy", "forces"),
+        target_names=["energy", "forces"],
         r_cut=r_cut,
         transform=ConsecutiveAtomType(atomic_number),
         log=False,
@@ -74,7 +74,7 @@ def update_data_configs(config: dict) -> dict:
     return config
 
 
-def update_model_configs(config: dict, dataset: Dataset) -> dict:
+def update_model_configs(config: dict, dataset: DatasetIP) -> dict:
     """Update the model configs in the config file.
 
     A couple of internally determined parameters are added to the `model` section of
