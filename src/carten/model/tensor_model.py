@@ -27,7 +27,6 @@ class AtomicTensorModel(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         # output
-        output_mlp_hidden_layers: list[int] | int = 2,
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
         atomic_moment_mode: str = "vanilla",
@@ -36,12 +35,6 @@ class AtomicTensorModel(nn.Module):
     ):
         """
         Args:
-            output_mlp_hidden_layers: Number of units in each hidden layer of the output
-                MLP, which is applied to the last layer features before output.
-                If a list of integers, each gives the number of units in the
-                corresponding hidden layer. If an integer, this will be the number of
-                hidden layers, and the number of units in each hidden layer is set to F,
-                the channel dimension of the feature tensor.
             target_shift: A dictionary {l: shift} that specifies the shift to apply to
                 the output of the model before computing the loss. Used together with
                 target_scale.
@@ -90,7 +83,6 @@ class AtomicTensorModel(nn.Module):
         self.readout = AtomicTensor(
             num_layers=num_layers,
             in_features=F,
-            hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
             target_shift=target_shift,
             target_scale=target_scale,
@@ -159,7 +151,6 @@ class StructureTensorModel(nn.Module):
         # activation
         activation: str = "silu",
         # output
-        output_mlp_hidden_layers: list[int] | int = 2,
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
         atomic_moment_mode: str = "vanilla",
@@ -192,7 +183,6 @@ class StructureTensorModel(nn.Module):
         self.readout = StructureTensor(
             num_layers=num_layers,
             in_features=F,
-            hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
             target_shift=target_shift,
             target_scale=target_scale,

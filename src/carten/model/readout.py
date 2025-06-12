@@ -124,10 +124,6 @@ class AtomicTensor(nn.Module):
     Args:
         num_layers: Number of layers in the main model.
         in_features: Size of the input features, namely the channel dimension F.
-        hidden_features: Size of the features for the hidden layers of MLP to process
-            the scalar atom feats of the last layer. If a list, it provides the hidden
-            layer sizes of the MLP. If an integer, it is interpreted as the number of
-            hidden layers, and the hidden layer sizes are set to in_features.
         output_signature: A dictionary {l: n_l} that specifies the natural tensor
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
@@ -154,7 +150,6 @@ class AtomicTensor(nn.Module):
         self,
         num_layers: int,
         in_features: int,
-        hidden_features: list[int] | int,
         output_signature: dict[int, int],
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
@@ -163,7 +158,6 @@ class AtomicTensor(nn.Module):
         super().__init__()
         self.num_layers = num_layers
         self.in_features = in_features
-        self.hidden_features = hidden_features
         self.num_atom_feats = (
             num_atom_feats if num_atom_feats is not None else num_layers
         )
@@ -244,10 +238,6 @@ class StructureTensor(nn.Module):
     Args:
         num_layers: Number of layers in the main model.
         in_features: Size of the input features, namely the channel dimension F.
-        hidden_features: Size of the features for the hidden layers of MLP to process
-            the scalar atom feats of the last layer. If a list, it provides the hidden
-            layer sizes of the MLP. If an integer, it is interpreted as the number of
-            hidden layers, and the hidden layer sizes are set to in_features.
         output_signature: A dictionary {l: n_l} that specifies the natural tensor
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
@@ -274,7 +264,6 @@ class StructureTensor(nn.Module):
         self,
         num_layers: int,
         in_features: int,
-        hidden_features: list[int] | int,
         output_signature: dict[int, int],
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
@@ -284,7 +273,6 @@ class StructureTensor(nn.Module):
         self.atomic_tensor_model = AtomicTensor(
             num_layers,
             in_features,
-            hidden_features,
             output_signature,
             target_shift,
             target_scale,

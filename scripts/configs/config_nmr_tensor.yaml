@@ -42,7 +42,6 @@ model:
   activation: silu
 
   # output
-  output_mlp_hidden_layers: 2
   atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
   output_from_all_layers: false
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
