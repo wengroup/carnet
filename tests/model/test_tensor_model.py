@@ -1,6 +1,9 @@
+import torch
 from natt.utils import is_symmetric, is_traceless
 
+from carten.core.convert import Converter
 from carten.model.tensor_model import AtomicTensorModel, StructureTensorModel
+from carten.utils import get_rotation_matrix
 
 
 def test_AtomicTensorModel(batched_config_info):
@@ -77,3 +80,43 @@ def test_StructureTensorModel(batched_config_info):
     assert structure_tensor[4].shape == (num_configs, 1, 81)
     assert is_symmetric(structure_tensor[4], start_dim=2)
     assert is_traceless(structure_tensor[4], start_dim=2)
+
+
+def test_equivariance(config_info):
+    """
+    Test the equivariance of the StructureTensorModel.
+    R f(x) = f(R x)
+
+    """
+    _, atom_type, edge_vector, edge_idx, num_atoms, num_atom_types = config_info
+
+    # Rotate the coordinates and lattice vectors
+    R = get_rotation_matrix((30, 45, 60), degrees=True)
+    rotated_edge_vector = edge_vector @ R.T
+
+    converter = Converter(symmetry="ijkl=jikl=klij")
+
+    # Elastic tensor
+    model = StructureTensorModel(
+        F=6,
+        max_L=4,
+        num_atom_types=num_atom_types,
+        r_cut=4.0,
+        num_layers=2,
+        num_average_neigh=1.0,
+        output_signature={0: 2, 2: 2, 4: 1},
+    )
+
+    # R f(x)
+    N = num_atoms.view(1)  # make it a 1D tensor
+    nat_tensor = model(edge_vector, edge_idx, atom_type, N)
+    fx = converter.to_ordinary_tensor(nat_tensor)
+    fx = fx.squeeze(0)  # remove batch dimension
+    Rfx = torch.einsum("ijkl,ai,bj,ck,dl->abcd", fx, R, R, R, R)
+
+    # Rotated elastic tensor f(Rx)
+    rotated_nat_tensor = model(rotated_edge_vector, edge_idx, atom_type, N)
+    fRx = converter.to_ordinary_tensor(rotated_nat_tensor)
+    fRx = fRx.squeeze(0)  # remove batch dimension
+
+    assert torch.allclose(Rfx, fRx, rtol=1e-5, atol=1e-6)

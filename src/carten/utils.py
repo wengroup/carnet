@@ -1,7 +1,10 @@
 import gzip
 import json
+import math
 from pathlib import Path
+from typing import Literal
 
+import numpy as np
 import torch
 from torch import Tensor, nn
 
@@ -23,6 +26,48 @@ def time_it(func, *args, **kwargs):
     print(f"Running {func.__name__} for {num_runs} times. Average time: {avg:.6e} s")
 
     return out
+
+
+def get_rotation_matrix(
+    angles: tuple[float, float, float],
+    order: Literal["xyz", "xzy", "yxz", "yzx", "zxy", "zyx"] = "xyz",
+    degrees: bool = False,
+) -> np.ndarray:
+    """
+    Create a 3D rotation matrix from Euler angles.
+
+    Parameters:
+        angles: 3 rotation angles (a, b, c)
+        order: rotation order (e.g., 'xyz', 'zyx', etc.)
+        degrees: whether angles are in degrees (default: radians)
+
+    Returns:
+        3x3 rotation matrix as numpy array
+    """
+    if degrees:
+        angles = [math.radians(angle) for angle in angles]
+    a, b, c = angles
+
+    # Individual rotation matrices
+    Rx = torch.tensor(
+        [[1, 0, 0], [0, math.cos(a), -math.sin(a)], [0, math.sin(a), math.cos(a)]]
+    )
+
+    Ry = torch.tensor(
+        [[math.cos(b), 0, math.sin(b)], [0, 1, 0], [-math.sin(b), 0, math.cos(b)]],
+    )
+
+    Rz = torch.tensor(
+        [[math.cos(c), -math.sin(c), 0], [math.sin(c), math.cos(c), 0], [0, 0, 1]],
+    )
+
+    # Combine based on specified order
+    rotations = {"x": Rx, "y": Ry, "z": Rz}
+    R = torch.eye(3)
+    for dim in order.lower():
+        R = R @ rotations[dim]
+
+    return R
 
 
 @torch.jit.interface
