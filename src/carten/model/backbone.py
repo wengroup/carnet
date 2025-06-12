@@ -33,6 +33,9 @@ class Backbone(nn.Module):
             layer is set to `max_u + 1`, the number of radial basis functions.
         atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
             or `variant2`.
+        activation: Nonlinear activation function to apply after each layer.
+        last_layer_activation: Whether to apply the activation function after the last
+            layer.
     """
 
     def __init__(
@@ -53,6 +56,7 @@ class Backbone(nn.Module):
         atomic_moment_mode: str = "vanilla",
         # activation
         activation: str = None,
+        last_layer_activation: bool = False,
     ):
         super().__init__()
         self.F = F
@@ -84,6 +88,7 @@ class Backbone(nn.Module):
                 f"got unsupported activation function: {activation}. "
                 f"Supported are: {supported}."
             )
+        self.last_layer_activation = last_layer_activation
 
         # Embed atom number as vectors
         self.atom_embedding = Embedding(num_atom_types, F)
@@ -171,16 +176,21 @@ class Backbone(nn.Module):
         #  `Layer` to save some computation.
         output = []
         for i, layer in enumerate(self.layers):
+
             atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
+
+            # Apply activation
+            if self.activation is not None:
+                # No activation for the last layer if `last_layer_activation` is False
+                if i < self.num_layers - 1 or self.last_layer_activation:
+                    atom_feats = self.activation(atom_feats)
+
+            # Gather output
             if return_all or i == self.num_layers - 1:
                 if scalar_only:
                     x = atom_feats[..., 0:1]
                 else:
                     x = atom_feats[..., : (3 ** (self.max_out_L + 1) - 1) // 2]
-
-                # Apply activation function
-                if self.activation is not None:
-                    x = self.activation(x)
 
                 output.append(x)
 
