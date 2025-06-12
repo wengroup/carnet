@@ -52,12 +52,8 @@ class StructureScalar(nn.Module):
         self.in_features = in_features
         self.hidden_features = hidden_features
 
-        self.register_buffer(
-            "atomic_shift", atomic_shift if atomic_shift is not None else None
-        )
-        self.register_buffer(
-            "atomic_scale", atomic_scale if atomic_scale is not None else None
-        )
+        self.register_buffer("atomic_shift", atomic_shift)
+        self.register_buffer("atomic_scale", atomic_scale)
 
         # Linear mapping for atom features in early layers
         self.out_layers = nn.ModuleList(
@@ -67,6 +63,7 @@ class StructureScalar(nn.Module):
         # MLP for atom features in the last layer
         if isinstance(hidden_features, int):
             hidden_features = [in_features for _ in range(hidden_features)]
+
         self.out_layers.append(
             MLP(in_features, 1, hidden_features, out_activation=False)
         )
@@ -124,6 +121,11 @@ class AtomicTensor(nn.Module):
     Args:
         num_layers: Number of layers in the main model.
         in_features: Size of the input features, namely the channel dimension F.
+        hidden_features: Size of the features for the hidden layers of MLP to process
+            the scalar atom feats of the last layer. If a list, it provides the hidden
+            layer sizes of the MLP. If an integer, it is interpreted as the number of
+            hidden layers, and the hidden layer sizes are set to in_features.
+            If the output has no rank-0 natural tensor, this argument is ignored.
         output_signature: A dictionary {l: n_l} that specifies the natural tensor
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
@@ -150,6 +152,7 @@ class AtomicTensor(nn.Module):
         self,
         num_layers: int,
         in_features: int,
+        hidden_features: list[int] | int,
         output_signature: dict[int, int],
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
@@ -172,13 +175,24 @@ class AtomicTensor(nn.Module):
         else:
             self.register_buffer("target_scale", None)
 
-        # Linear mapping for atom features in early layers
         self.kernel = nn.ModuleDict()
         self.slice = dict()
+
         for l, n in output_signature.items():
-            self.kernel[str(l)] = LinearMap(
-                in_features * self.num_atom_feats, n, bias=l == 0
-            )
+            # For scalar, if any, using an MLP
+            if l == 0:
+                if isinstance(hidden_features, int):
+                    hidden_features = [in_features for _ in range(hidden_features)]
+                self.kernel[str(l)] = MLP(
+                    in_features * self.num_atom_feats,
+                    n,
+                    hidden_features,
+                    out_activation=False,
+                )
+            # For others, using a linear map
+            else:
+                self.kernel[str(l)] = LinearMap(in_features * self.num_atom_feats, n)
+
             start = (3**l - 1) // 2
             end = (3 ** (l + 1) - 1) // 2
             self.slice[l] = (start, end)
@@ -206,8 +220,17 @@ class AtomicTensor(nn.Module):
             for l, (start, end) in self.slice.items()
         }
 
+        # Reshape the scalars from (..., F*num_atom_feats, 1) to (..., F*num_atom_feats)
+        # This is needed by the MLP
+        if 0 in atom_feats:
+            atom_feats[0] = atom_feats[0].squeeze(-1)
+
         # Linear mapping F to n_l output dims for each atom; {l: (n_atoms, n_l, 3**l)}
         atom_out = {int(l): fn(atom_feats[int(l)]) for l, fn in self.kernel.items()}
+
+        # Add the squeezed last dim back for scalars
+        if 0 in atom_out:
+            atom_out[0] = atom_out[0].unsqueeze(-1)
 
         # Normalization
         # Note, in a typical case, all ranks l will have a scale, but only rank-0 tensor
@@ -238,6 +261,11 @@ class StructureTensor(nn.Module):
     Args:
         num_layers: Number of layers in the main model.
         in_features: Size of the input features, namely the channel dimension F.
+        hidden_features: Size of the features for the hidden layers of MLP to process
+            the scalar atom feats of the last layer. If a list, it provides the hidden
+            layer sizes of the MLP. If an integer, it is interpreted as the number of
+            hidden layers, and the hidden layer sizes are set to in_features.
+            If the output has no rank-0 natural tensor, this argument is ignored.
         output_signature: A dictionary {l: n_l} that specifies the natural tensor
             components to output for each atomic configuration. The key `l` gives
             the rank of the natural tensor, and the value `n_l` gives the number of
@@ -264,6 +292,7 @@ class StructureTensor(nn.Module):
         self,
         num_layers: int,
         in_features: int,
+        hidden_features: list[int] | int,
         output_signature: dict[int, int],
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
@@ -273,6 +302,7 @@ class StructureTensor(nn.Module):
         self.atomic_tensor_model = AtomicTensor(
             num_layers,
             in_features,
+            hidden_features,
             output_signature,
             target_shift,
             target_scale,
