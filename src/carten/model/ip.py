@@ -25,6 +25,8 @@ class InteratomicPotential(nn.Module):
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
+        # activation
+        activation: str = None,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
@@ -57,6 +59,7 @@ class InteratomicPotential(nn.Module):
             max_chebyshev_degree=max_chebyshev_degree,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
+            activation=activation,
         )
 
         self.readout = StructureScalar(

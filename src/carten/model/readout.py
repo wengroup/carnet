@@ -10,17 +10,16 @@ from carten.utils import BufferDict
 
 
 class StructureScalar(nn.Module):
-    """Get a scalar output for each atomic configuration.
+    """Get a scalar output for each configuration.
 
     For a model with multiple layers, the scalar atomic feats of all layers are passed
     to this module. This module then computes a final scalar output for each atomic
     configuration, achieved by the steps:
     1. The scalar atom feats of each layer (but the last) are multiplied by a weight
-       matrix.
+       matrix to combine the features across the channel dimension.
     2. The scalar atom feats of the last layer are passed through an MLP.
-    3. The scalar atom feats of all layers are summed to get the atom feats.
-    4. The scalar atom feats of each atomic configuration are summed to get the scalar
-       output for each atomic configuration.
+    3. The feats of all layers are summed to get the total atom feats.
+    4. The total atom feats are summed to get the scalar output for each configuration.
 
     Args:
         num_layers: Number of layers in the main model.
@@ -114,12 +113,12 @@ class StructureScalar(nn.Module):
 
 
 class AtomicTensor(nn.Module):
-    """Get a tensor output for each atomic configuration.
+    """Get a tensor output for each atom in a configuration.
 
     For a model with multiple layers, the atomic feats of all layers are passed to this
-    module. This module then
-    1. selects the corresponding natural tensors,
-    2. linearly maps them (via the channel dim) to get the atomic natural tensors.
+    module. This module then:
+    1. Selects the corresponding natural tensors according to `atomic_selector`.
+    2. Linearly maps them (via the channel dim) to get the atomic natural tensors.
 
 
     Args:
@@ -220,6 +219,7 @@ class AtomicTensor(nn.Module):
         # Note, in a typical case, all ranks l will have a scale, but only rank-0 tensor
         # will have a shift. This is because the rank-0 tensor is a scalar, and we can
         # shift it to match the target.
+        # TODO, different scale for different atom types, as in StructureScalar.
         if self.target_scale is not None:
             for l, scale in self.target_scale.items():
                 atom_out[int(l)] = atom_out[int(l)] * scale
@@ -232,13 +232,13 @@ class AtomicTensor(nn.Module):
 
 
 class StructureTensor(nn.Module):
-    """Get a tensor output for each atomic configuration.
+    """Get a tensor output for each configuration.
 
     For a model with multiple layers, the atomic feats of all layers are passed to this
     module. This module then
     1. selects the corresponding natural tensors,
     2. linearly maps them (via the channel dim) to get the atomic natural tensors,
-    3. Pool (sum/mean) the atomic natural tensors to get the atomic configuration tensor.
+    3. Pool (sum/mean) the atomic natural tensors to get the configuration tensor.
 
 
     Args:

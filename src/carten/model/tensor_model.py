@@ -156,6 +156,8 @@ class StructureTensorModel(nn.Module):
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
+        # activation
+        activation: str = "silu",
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         target_shift: dict[str, Tensor] = None,
@@ -184,6 +186,7 @@ class StructureTensorModel(nn.Module):
             max_chebyshev_degree=max_chebyshev_degree,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
+            activation=activation,
         )
 
         self.readout = StructureTensor(

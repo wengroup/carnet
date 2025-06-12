@@ -1,7 +1,9 @@
 """CARTEN backbone module that performs multiple iterations of feature updates."""
+
 from line_profiler import profile
 from torch import Tensor, nn
 
+from carten.module.activation import elu, shifted_softplus, silu
 from carten.module.embedding import Embedding
 from carten.module.layer import Layer
 
@@ -49,6 +51,8 @@ class Backbone(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
+        # activation
+        activation: str = None,
     ):
         super().__init__()
         self.F = F
@@ -66,6 +70,21 @@ class Backbone(nn.Module):
 
         self.atomic_moment_mode = atomic_moment_mode
 
+        if activation is None:
+            self.register_buffer("activation", None)
+        elif activation == "elu":
+            self.activation = silu
+        elif activation == "silu":
+            self.activation = elu
+        elif activation == "shifted_softplus":
+            self.activation = shifted_softplus
+        else:
+            supported = ["silu", "elu", "shifted_softplus"]
+            raise ValueError(
+                f"got unsupported activation function: {activation}. "
+                f"Supported are: {supported}."
+            )
+
         # Embed atom number as vectors
         self.atom_embedding = Embedding(num_atom_types, F)
 
@@ -81,6 +100,10 @@ class Backbone(nn.Module):
                 mix = False
                 out_L = self.max_L
             elif i == num_layers - 1:
+                # TODO, this can be further optimized by replacing `out_L` with explicit
+                #  degrees of the natural tensors. For example, for elastic tensor,
+                #  we only need ranks 0, 2, and 4. The current implementation that uses
+                #  `max_out_L=4` will compute the features of ranks 0 to 4.
                 L1 = max_L
                 mix = True
                 out_L = self.max_out_L
@@ -133,9 +156,12 @@ class Backbone(nn.Module):
                 consists of a single tensor, which is the updated features from the last
                 layer. If `True`, the list contains the updated features from all
                 layers. `scalar_only` determines the shape of the tensors in the list.
+                If `True`, the tensors are of shape (..., F, 1).
                 if `False`, the tensors are of shape (..., F, T'), where
                 T' = (3**(max_out_L + 1) -1))//2 is the total number of tensor
-                components. If `True`, the tensors are of shape (..., F, 1).
+                components. Note, max_out_L can be smaller than max_L, so we need to do
+                the selection.
+
         """
         # Embed atom number as scalar features of dim F; (n_atoms, F, 1)
         atom_feats = self.atom_embedding(atom_type).unsqueeze(-1)
@@ -151,6 +177,11 @@ class Backbone(nn.Module):
                     x = atom_feats[..., 0:1]
                 else:
                     x = atom_feats[..., : (3 ** (self.max_out_L + 1) - 1) // 2]
+
+                # Apply activation function
+                if self.activation is not None:
+                    x = self.activation(x)
+
                 output.append(x)
 
         return output
