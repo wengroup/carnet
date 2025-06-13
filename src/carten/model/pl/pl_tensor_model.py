@@ -199,35 +199,28 @@ class BaseLitModule(LightningModule):
         # use current model
         if self.current_epoch >= start_epoch:
             pred_nat = self(batch)
-
-            if self.target_mode in ["full", "voigt"]:
-                pred = self.to_cartesian(pred_nat)
-            else:
-                pred = None
-
         else:
-            # TODO, this needs to be updated as a dict
-            # dummy values to skip validation for the first few epochs
-            pred = pred_nat = torch.zeros(1, dtype=ref_nat.dtype, device=ref_nat.device)
-            ref = ref_nat = 1e10 * torch.ones(
-                1, dtype=ref_nat.dtype, device=ref_nat.device
-            )
+            # Dummy values to skip validation for the first few epochs
+            pred_nat = {int(k): v + 1e10 for k, v in ref_nat.items()}
+
+        if self.target_mode in ["full", "voigt"]:
+            pred = self.to_cartesian(pred_nat)
+        else:
+            pred = None
 
         metrics = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode)
 
         # use EMA model
         if self.current_epoch >= start_epoch:
             pred_nat = self.forward_ema(batch)
-
-            if self.target_mode in ["full", "voigt"]:
-                pred = self.to_cartesian(pred_nat)
-            else:
-                pred = None
         else:
-            # TODO, this needs to be updated as a dict
-            # dummy values to skip validation for the first few epochs
-            pred = pred_nat = torch.zeros(1, dtype=ref.dtype, device=ref.device)
-            ref = ref_nat = 1e10 * torch.ones(1, dtype=ref.dtype, device=ref.device)
+            # Dummy values to skip validation for the first few epochs
+            pred_nat = {int(k): v + 1e5 for k, v in ref_nat.items()}
+
+        if self.target_mode in ["full", "voigt"]:
+            pred = self.to_cartesian(pred_nat)
+        else:
+            pred = None
 
         metrics_eam = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode + "_ema")
         metrics.update(metrics_eam)
