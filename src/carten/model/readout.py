@@ -336,6 +336,8 @@ class StructureTensor(nn.Module):
         # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
         atom_out = self.atomic_tensor_model(atom_feats, atom_type)
 
+        # TODO, add a linear mapping based on atomic species
+
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
             l: scatter(x, torch.repeat_interleave(num_atoms), reduce=reduce, dim=0)

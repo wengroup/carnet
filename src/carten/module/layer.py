@@ -1,4 +1,5 @@
 """CARTEN layer module."""
+
 from line_profiler import profile
 from torch import Tensor, nn
 
@@ -107,7 +108,7 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
         )
 
-        # By skip connection by mixing channel of the input, separate for each rank
+        # Residual connection, separate for each rank
         if mix_atom_feats_across_channel:
             # Only do it for the ranks that exist in both the input atom feats and the
             # output hyper moment
@@ -157,7 +158,9 @@ class Layer(nn.Module):
         # Mix hyper moments across channel
         hm_mixed = self.linear_channel_hyper(hm)  # (Na, F, T')
 
-        # Mix input atom feats across channel and add to the output
+        # TODO, do we want to add normalization here, or after residual connection
+
+        # Mix input atom feats across channel and add to the output (residual)
         if self.linear_channel_feats is not None:
             size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
             feats_skip_connection = self.linear_channel_feats(atom_feats[..., :size])

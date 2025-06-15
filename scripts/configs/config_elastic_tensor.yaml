@@ -67,7 +67,7 @@ loss:
 metrics:
   type: mae
   normalize: true # normalize natural tensor of different ranks by the number of elements
-  validation_start_epoch: 0 # start calculating metrics at this epoch
+  validation_start_epoch: 0 # start calculating metrics at this epoch, can be used to avoid nan in the first few epochs
 
 optimizer:
   class_path: torch.optim.Adam
@@ -106,10 +106,15 @@ trainer:
   log_every_n_steps: 50
   detect_anomaly: false
   inference_mode: true
-  gradient_clip_val: 100.0
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: value
 
+#  logger:
+#    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+#    init_args:
+#      project: carten_proj
   logger:
-    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    class_path: swanlab.integration.pytorch_lightning.SwanLabLogger
     init_args:
       project: carten_proj
 
