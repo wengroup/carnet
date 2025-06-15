@@ -95,14 +95,13 @@ class Backbone(nn.Module):
 
         # First layer and last layer are a bit special.
         # For the first layer, the input features are only scalars (embedding of atom
-        # types, L1=0), and we don't need to mix them.
+        # types, L1=0).
         # For the last layer, we only need to select the interested output ranks
         # according to max_out_L (this can save some computation).
         self.layers = nn.ModuleList()
         for i in range(num_layers):
             if i == 0:
                 L1 = 0
-                mix = False
                 out_L = self.max_L
             elif i == num_layers - 1:
                 # TODO, this can be further optimized by replacing `out_L` with explicit
@@ -110,11 +109,9 @@ class Backbone(nn.Module):
                 #  we only need ranks 0, 2, and 4. The current implementation that uses
                 #  `max_out_L=4` will compute the features of ranks 0 to 4.
                 L1 = max_L
-                mix = True
                 out_L = self.max_out_L
             else:
                 L1 = max_L
-                mix = True
                 out_L = self.max_L
 
             self.layers.append(
@@ -130,7 +127,7 @@ class Backbone(nn.Module):
                     radial_mlp_hidden_layers=self.radial_mlp_hidden_layers,
                     max_out_L=out_L,
                     max_degree=self.max_degree,
-                    mix_atom_feats_across_channel=mix,
+                    mix_atom_feats_across_channel=True,
                     atomic_moment_mode=self.atomic_moment_mode,
                 )
             )
