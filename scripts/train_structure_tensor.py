@@ -4,6 +4,7 @@ from pathlib import Path
 
 import lightning as L
 import pandas as pd
+import swanlab
 import torch
 from lightning import Trainer
 from line_profiler import profile
@@ -12,12 +13,8 @@ from torch_geometric.loader.dataloader import DataLoader
 from carten.data.dataset import DatasetTensor
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.pl.pl_tensor_model import StructureTensorLitModule
-from carten.model.pl.utils import (
-    get_args,
-    get_git_commit,
-    instantiate_class,
-    load_model,
-)
+from carten.model.pl.utils import (get_args, get_git_commit, instantiate_class,
+                                   load_model)
 from carten.model.tensor_model import StructureTensorModel
 
 
@@ -318,6 +315,10 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
+
+    # Hijack WandB to use SwanLab
+    # This makes WandB to run in `offline` mode
+    swanlab.sync_wandb(wandb_run=False)
 
     # Remove the processed data directory
     shutil.rmtree("./processed", ignore_errors=True)
