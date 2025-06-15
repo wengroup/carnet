@@ -3,7 +3,6 @@
 from line_profiler import profile
 from torch import Tensor, nn
 
-from carten.module.activation import elu, shifted_softplus, silu
 from carten.module.embedding import Embedding
 from carten.module.layer import Layer
 
@@ -57,6 +56,8 @@ class Backbone(nn.Module):
         # activation
         activation: str = None,
         last_layer_activation: bool = False,
+        # residual connection
+        residual: bool = True,
     ):
         super().__init__()
         self.F = F
@@ -74,22 +75,6 @@ class Backbone(nn.Module):
 
         self.atomic_moment_mode = atomic_moment_mode
 
-        if activation is None:
-            self.register_buffer("activation", None)
-        elif activation == "elu":
-            self.activation = silu
-        elif activation == "silu":
-            self.activation = elu
-        elif activation == "shifted_softplus":
-            self.activation = shifted_softplus
-        else:
-            supported = ["silu", "elu", "shifted_softplus"]
-            raise ValueError(
-                f"got unsupported activation function: {activation}. "
-                f"Supported are: {supported}."
-            )
-        self.last_layer_activation = last_layer_activation
-
         # Embed atom number as vectors
         self.atom_embedding = Embedding(num_atom_types, F)
 
@@ -103,6 +88,7 @@ class Backbone(nn.Module):
             if i == 0:
                 L1 = 0
                 out_L = self.max_L
+                act = activation
             elif i == num_layers - 1:
                 # TODO, this can be further optimized by replacing `out_L` with explicit
                 #  degrees of the natural tensors. For example, for elastic tensor,
@@ -110,9 +96,11 @@ class Backbone(nn.Module):
                 #  `max_out_L=4` will compute the features of ranks 0 to 4.
                 L1 = max_L
                 out_L = self.max_out_L
+                act = activation if last_layer_activation else None
             else:
                 L1 = max_L
                 out_L = self.max_L
+                act = activation
 
             self.layers.append(
                 Layer(
@@ -127,8 +115,9 @@ class Backbone(nn.Module):
                     radial_mlp_hidden_layers=self.radial_mlp_hidden_layers,
                     max_out_L=out_L,
                     max_degree=self.max_degree,
-                    mix_atom_feats_across_channel=True,
                     atomic_moment_mode=self.atomic_moment_mode,
+                    activation=act,
+                    residual=residual,
                 )
             )
 
@@ -175,12 +164,6 @@ class Backbone(nn.Module):
         for i, layer in enumerate(self.layers):
 
             atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
-
-            # Apply activation
-            if self.activation is not None:
-                # No activation for the last layer if `last_layer_activation` is False
-                if i < self.num_layers - 1 or self.last_layer_activation:
-                    atom_feats = self.activation(atom_feats)
 
             # Gather output
             if return_all or i == self.num_layers - 1:

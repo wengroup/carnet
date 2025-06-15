@@ -3,6 +3,7 @@
 from line_profiler import profile
 from torch import Tensor, nn
 
+from .activation import elu, shifted_softplus, silu
 from .atomic_moment import AtomicMoment, AtomicMoment2
 from .hyper_moment import HyperMoment
 from .linear import SlicedLinearMap
@@ -26,8 +27,9 @@ class Layer(nn.Module):
         radial_mlp_hidden_layers: int | list[int] = 2,
         max_out_L: int = None,
         max_degree: int = None,
-        mix_atom_feats_across_channel: bool = True,
         atomic_moment_mode: str = "vanilla",
+        activation: str = None,
+        residual: bool = True,
     ):
         """
 
@@ -47,9 +49,10 @@ class Layer(nn.Module):
             max_out_L: Max rank for the output feature tensor. If None, set to L.
             max_degree: Max correlation degree of the hyper moment feature tensor.
                 If None, set to L.
-            mix_atom_feats_across_channel: whether to mix the channel of the input atom
-                feats and then add to the output hyper moment.
-
+            activation: Nonlinear activation function to apply after each layer. If
+                `None`, no activation is applied.
+            residual: whether to use residual connection, that is, mixing the input
+                atom feats across channel and adding to the output.
         """
 
         super().__init__()
@@ -65,7 +68,7 @@ class Layer(nn.Module):
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
         self.max_out_L = L3 if max_out_L is None else max_out_L
         self.max_degree = L3 if max_degree is None else max_degree
-        self.mix_atom_feats_across_channel = mix_atom_feats_across_channel
+        self.residual = residual
         self.atomic_moment_mode = atomic_moment_mode
 
         # TODO, we might not need this, given that we perform the mixing at the end
@@ -108,12 +111,28 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
         )
 
+        # Nonlinear activation
+        if activation is None:
+            self.register_buffer("activation", None)
+        elif activation == "elu":
+            self.activation = silu
+        elif activation == "silu":
+            self.activation = elu
+        elif activation == "shifted_softplus":
+            self.activation = shifted_softplus
+        else:
+            supported = ["silu", "elu", "shifted_softplus"]
+            raise ValueError(
+                f"got unsupported activation function: {activation}. "
+                f"Supported are: {supported}."
+            )
+
         # Residual connection, separate for each rank
-        if mix_atom_feats_across_channel:
+        if self.residual:
             # Only do it for the ranks that exist in both the input atom feats and the
             # output hyper moment
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
-            self.linear_channel_feats = SlicedLinearMap(
+            self.linear_residual_feats = SlicedLinearMap(
                 F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
             )
         else:
@@ -160,10 +179,14 @@ class Layer(nn.Module):
 
         # TODO, do we want to add normalization here, or after residual connection
 
-        # Mix input atom feats across channel and add to the output (residual)
-        if self.linear_channel_feats is not None:
+        # Apply activation
+        if self.activation is not None:
+            hm_mixed = self.activation(hm_mixed)
+
+        # Residual: mix input atom feats across channel and add to the output
+        if self.residual:
             size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
-            feats_skip_connection = self.linear_channel_feats(atom_feats[..., :size])
+            feats_skip_connection = self.linear_residual_feats(atom_feats[..., :size])
             hm_mixed[..., :size] += feats_skip_connection
 
         return hm_mixed
