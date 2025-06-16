@@ -86,7 +86,7 @@ class BasePyTorchTrainer:
             symmetry = self.loss_hparams.get("target_symmetry")
             if symmetry is None:
                 raise ValueError('"target_symmetry" must be provided in loss_hparams.')
-            self.converter = Converter(symmetry)
+            self.converter = Converter(symmetry).to(self.device)
         else:
             raise ValueError(f"Unknown target mode: {self.target_mode}")
 
