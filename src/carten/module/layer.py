@@ -73,12 +73,10 @@ class Layer(nn.Module):
         self.residual = residual
         self.atomic_moment_mode = atomic_moment_mode
 
-        # TODO, we might not need this, given that we perform the mixing at the end
-        #  This might be beneficial for the first layer.
         # Kernel for mixing atom feats across channel, separate for each rank
-        # self.linear_channel_input = SlicedLinearMap(
-        #     F, F, [3**l for l in range(L1 + 1)], bias=True
-        # )
+        self.linear_channel_input = SlicedLinearMap(
+            F, F, [3**l for l in range(L1 + 1)], bias=True
+        )
 
         if atomic_moment_mode == "vanilla":
             AM = AtomicMoment
@@ -172,34 +170,33 @@ class Layer(nn.Module):
             components, determined by max_out_L.
         """
 
-        # TODO, This seems not needed, we have too many mixing
         # Mixing input atom feats across channel
-        # feats = self.linear_channel_input(atom_feats)  # (Na, F, T1)
+        am = self.linear_channel_input(atom_feats)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
-        am = self.atomic_moment(edge_vector, edge_idx, atom_type, atom_feats)
+        am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
 
         # Mix atomic moments across channel
-        am_mixed = self.linear_channel_atomic(am)  # (Na, F, T3)
+        am = self.linear_channel_atomic(am)  # (Na, F, T3)
 
         # Get hyper moments; (Na, F, T')
-        hm = self.hyper_moment(am_mixed)
+        hm = self.hyper_moment(am)
 
         # Mix hyper moments across channel
-        hm_mixed = self.linear_channel_hyper(hm)  # (Na, F, T')
+        hm = self.linear_channel_hyper(hm)  # (Na, F, T')
 
         # Normalize
         if self.layer_norm is not None:
-            hm_mixed = self.layer_norm(hm_mixed)
+            hm = self.layer_norm(hm)
 
         # Apply activation
         if self.activation is not None:
-            hm_mixed = self.activation(hm_mixed)
+            hm = self.activation(hm)
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:
             size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
             feats_skip_connection = self.linear_residual_feats(atom_feats[..., :size])
-            hm_mixed[..., :size] += feats_skip_connection
+            hm[..., :size] += feats_skip_connection
 
-        return hm_mixed
+        return hm
