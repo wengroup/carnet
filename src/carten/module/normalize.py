@@ -44,16 +44,17 @@ class LayerNorm(nn.Module):
         super().__init__()
         self.dim = dim
         self.eps = eps
-        self.slice_sizes = torch.tensor(slice_sizes)
         self.affine = affine
         self.normalization = normalization
 
+        self.register_buffer("slice_sizes", torch.tensor(slice_sizes))
+
         if affine:
             self.a = nn.Parameter(torch.ones(dim, len(slice_sizes)))
-            if self.slice_sizes[0] != 1:
+            if slice_sizes[0] != 1:
                 raise ValueError(
                     f"Affine transformation can only be used when the first slice "
-                    f"size is 1 (namely a scalar), but got {self.slice_sizes[0]}"
+                    f"size is 1 (namely a scalar), but got {slice_sizes[0]}"
                 )
             self.b = nn.Parameter(torch.zeros(dim, 1))
         else:
