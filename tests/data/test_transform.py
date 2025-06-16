@@ -3,14 +3,14 @@ from pathlib import Path
 import pytest
 
 import carten
-from carten.data.dataset import Dataset
+from carten.data.dataset import DatasetIP
 from carten.data.transform import ConsecutiveAtomType
 
 
 @pytest.fixture
 def dataset():
     filename = Path(carten.__file__).parents[2] / "example" / "dataset" / "SiC.json"
-    dataset = Dataset(filename=filename, target_names=("energy", "forces"), log=False)
+    dataset = DatasetIP(filename=filename, target_names=("energy", "forces"), log=False)
 
     return dataset
 

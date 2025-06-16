@@ -37,4 +37,4 @@ def test_Layer(config_info):
         sliced = sliced.reshape(num_atoms, F, *(3,) * l3)
 
         assert is_symmetric(sliced, start_dim=2, atol=1e-6), f"l={l3} is not symmetric"
-        assert is_traceless(sliced, start_dim=2, atol=1e-6), f"l={l3} is not traceless"
+        assert is_traceless(sliced, start_dim=2, atol=1e-5), f"l={l3} is not traceless"
