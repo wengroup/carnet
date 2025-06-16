@@ -7,6 +7,7 @@ from .activation import elu, shifted_softplus, silu
 from .atomic_moment import AtomicMoment, AtomicMoment2
 from .hyper_moment import HyperMoment
 from .linear import SlicedLinearMap
+from .normalize import LayerNorm
 
 
 class Layer(nn.Module):
@@ -28,6 +29,7 @@ class Layer(nn.Module):
         max_out_L: int = None,
         max_degree: int = None,
         atomic_moment_mode: str = "vanilla",
+        layer_norm: bool = True,
         activation: str = None,
         residual: bool = True,
     ):
@@ -111,6 +113,15 @@ class Layer(nn.Module):
             F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
         )
 
+        # Layer normalization
+        if layer_norm:
+            self.layer_norm = LayerNorm(
+                dim=F,
+                slice_sizes=[3**l for l in range(self.max_out_L + 1)],
+            )
+        else:
+            self.register_buffer("layer_norm", None)
+
         # Nonlinear activation
         if activation is None:
             self.register_buffer("activation", None)
@@ -177,7 +188,9 @@ class Layer(nn.Module):
         # Mix hyper moments across channel
         hm_mixed = self.linear_channel_hyper(hm)  # (Na, F, T')
 
-        # TODO, do we want to add normalization here, or after residual connection
+        # Normalize
+        if self.layer_norm is not None:
+            hm_mixed = self.layer_norm(hm_mixed)
 
         # Apply activation
         if self.activation is not None:

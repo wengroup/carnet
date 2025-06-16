@@ -10,9 +10,9 @@ class LayerNorm(nn.Module):
         self,
         dim: int,
         slice_sizes: list[int],
-        eps: float = 1e-5,
         affine: bool = True,
         normalization: str = "component",
+        eps: float = 1e-5,
     ):
         """
         Layer normalization layer.
@@ -35,11 +35,11 @@ class LayerNorm(nn.Module):
             dim: feature dimension (F).
             slice_sizes: Sizes of slices across the T dimension, 3**0, 3**1, ...,
                 3**(n-1) for n slices.
-            eps: A small value added to the denominator for numerical stability.
             affine: whether to use affine transformations, i.e. a and b values.
             normalization: The method to compute `var`. If`component`, it is normalized
                 by individual components; if `norm`, it is normalized by the sum of the
                 features across the channel dimension.
+            eps: A small value added to the denominator for numerical stability.
         """
         super().__init__()
         self.dim = dim
@@ -60,22 +60,9 @@ class LayerNorm(nn.Module):
             self.register_parameter("a", None)
             self.register_parameter("b", None)
 
-        self.slices = []
-        start = 0
-        for size in slice_sizes:
-            end = start + size
-            self.slices.append((start, end))
-            start = end
-
     def forward(self, input: Tensor):
 
         # shape of input: (..., F, T)
-
-        # Compute mean across feature dimension (F) for scalar. This assumes input 0 is
-        # a scalar, which should be the case.
-        mean = input[..., :, 0:1].mean(dim=-2, keepdim=True)  # (..., 1, 1)
-        out = input
-        out[..., :, 0:1] -= mean
 
         # For each feature slice:
         # 1. compute norm (when `norm`) or norm dividing by number of elements of each
@@ -83,20 +70,36 @@ class LayerNorm(nn.Module):
         # 2. compute the mean of the norms across the feature dim F.
         # 3. compute the scaling factor as the square root of the mean norm plus eps;
         # 4. normalize the slice by the scaling factor.
-        for start, end in self.slices:
+        out = []
+        start = 0
+        for size in self.slice_sizes:
+            end = start + size
+            data = input[..., :, start:end]  # (..., F, size)
+
+            if size == 1:
+                # Compute mean across feature dimension (F) for scalar. This assumes input 0 is
+                # a scalar, which should be the case.
+                mean = data.mean(dim=-2, keepdim=True)  # (..., 1, 1)
+                data = data - mean
+
             if self.normalization == "component":
                 # (..., F, 1)
-                norm = out[..., :, start:end].pow(2).mean(dim=-1, keepdim=True)
+                norm = data.pow(2).mean(dim=-1, keepdim=True)
             elif self.normalization == "norm":
                 # (..., F, 1)
-                norm = out[..., :, start:end].pow(2).sum(dim=-1, keepdim=True)
+                norm = data.pow(2).sum(dim=-1, keepdim=True)
             else:
                 raise ValueError()
 
             # (..., 1, 1)
             scaling = torch.sqrt(norm.mean(dim=-2, keepdim=True) + self.eps)
 
-            out[..., :, start:end] /= scaling
+            data = data / scaling  # (..., F, slice_size)
+            out.append(data)
+
+            start = end
+
+        out = torch.cat(out, dim=-1)  # (..., F, T)
 
         if self.affine:
             # `a` is of the shape (F, len(slice_sizes)), we make it of the shape
