@@ -216,7 +216,7 @@ class AtomicTensor(nn.Module):
         # Each obtained by stacking the atomic features of all layers along the channel
         # dimension. {l: (n_atoms, F*self.num_atom_feats, 3 ** l)}
         atom_feats = {
-            l: torch.cat([x[..., start:end] for x in atom_feats], dim=1)
+            l: torch.cat([x[..., start:end] for x in atom_feats], dim=-2)
             for l, (start, end) in self.slice.items()
         }
 
@@ -336,7 +336,7 @@ class StructureTensor(nn.Module):
         # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
         atom_out = self.atomic_tensor_model(atom_feats, atom_type)
 
-        # TODO, add a linear mapping based on atomic species
+        # TODO, add a linear mapping based on atomic species?
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
