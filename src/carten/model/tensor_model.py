@@ -83,6 +83,7 @@ class AtomicTensorModel(nn.Module):
         self.readout = AtomicTensor(
             num_layers=num_layers,
             in_features=F,
+            hidden_features=2,
             output_signature=output_signature,
             target_shift=target_shift,
             target_scale=target_scale,

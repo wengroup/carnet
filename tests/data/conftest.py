@@ -5,7 +5,7 @@ import pytest
 from torch_geometric.loader.dataloader import DataLoader
 
 import carten
-from carten.data.dataset import Dataset
+from carten.data.dataset import DatasetIP
 from carten.data.transform import ConsecutiveAtomType
 
 
@@ -15,7 +15,7 @@ def dataset():
 
     filename = Path(carten.__file__).parents[2] / "example" / "dataset" / "SiC.json"
 
-    dataset = Dataset(
+    dataset = DatasetIP(
         filename=filename,
         target_names=("energy", "forces"),
         transform=ConsecutiveAtomType(atomic_number=[14, 6]),
