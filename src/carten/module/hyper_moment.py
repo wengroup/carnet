@@ -1,7 +1,6 @@
 """Hyper moment constructed as the tensor product of multiple atomic moments."""
 
 import torch
-from line_profiler import profile
 from torch import Tensor, nn
 
 from .linear import LinearCombination
@@ -95,7 +94,6 @@ class HyperMoment(nn.Module):
         # H = \sum_d w_d H^d
         self.linear_degree = LinearCombination(max_degree, F)
 
-    @profile
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:

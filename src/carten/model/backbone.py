@@ -1,6 +1,5 @@
 """CARTEN backbone module that performs multiple iterations of feature updates."""
 
-from line_profiler import profile
 from torch import Tensor, nn
 
 from carten.module.embedding import Embedding
@@ -121,7 +120,6 @@ class Backbone(nn.Module):
                 )
             )
 
-    @profile
     def forward(
         self,
         edge_vector: Tensor,
@@ -154,6 +152,7 @@ class Backbone(nn.Module):
                 the selection.
 
         """
+
         # Embed atom number as scalar features of dim F; (n_atoms, F, 1)
         atom_feats = self.atom_embedding(atom_type).unsqueeze(-1)
 

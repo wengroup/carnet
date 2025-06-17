@@ -1,6 +1,5 @@
 """CARTEN layer module."""
 
-from line_profiler import profile
 from torch import Tensor, nn
 
 from .activation import elu, shifted_softplus, silu
@@ -147,7 +146,6 @@ class Layer(nn.Module):
         else:
             self.register_buffer("linear_channel_feats", None)
 
-    @profile
     def forward(
         self,
         edge_vector: Tensor,

@@ -9,7 +9,6 @@ version of ABC, l is the flattened version of ijk, and s is the flattened versio
 from pathlib import Path
 
 import torch
-from line_profiler import profile
 from natt.H_tp import get_H_numerical_even, get_H_numerical_odd
 from torch import Tensor
 
@@ -23,7 +22,6 @@ H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, mode="flatten")
 H_TENSOR_AND_RULE_ON_DEVICE = set()
 
 
-@profile
 def tp_even(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:
@@ -63,7 +61,6 @@ def tp_even(
     return Z
 
 
-@profile
 def tp_odd(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:

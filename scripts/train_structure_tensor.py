@@ -7,7 +7,6 @@ import pandas as pd
 import swanlab
 import torch
 from lightning import Trainer
-from line_profiler import profile
 from torch_geometric.loader.dataloader import DataLoader
 
 from carten.data.dataset import DatasetTensor
@@ -226,7 +225,6 @@ def get_model(
     return model
 
 
-@profile
 def main(config: dict):
     L.seed_everything(config["seed_everything"])
 

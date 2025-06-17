@@ -12,7 +12,6 @@ from lightning import LightningModule
 from lightning.pytorch.cli import instantiate_class
 from lightning.pytorch.utilities import grad_norm
 from lightning.pytorch.utilities.types import STEP_OUTPUT
-from line_profiler import profile
 from torch import Tensor, nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
@@ -112,7 +111,6 @@ class BaseLitModule(LightningModule):
         else:
             self.register_buffer("M", None)
 
-    @profile
     def forward(self, batch):
         """Compute model output."""
 
@@ -130,7 +128,6 @@ class BaseLitModule(LightningModule):
             atomic_selector=atomic_selector,
         )
 
-    @profile
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 
@@ -145,7 +142,6 @@ class BaseLitModule(LightningModule):
             atomic_selector=atomic_selector,
         )
 
-    @profile
     def training_step(self, batch, batch_idx):
         batch_size = batch.num_graphs
 
@@ -178,13 +174,11 @@ class BaseLitModule(LightningModule):
 
         return losses["train/loss_total"]
 
-    @profile
     def validation_step(self, batch, batch_idx):
         self._val_test_step(
             batch, batch_idx, mode="val", start_epoch=self.validation_start_epoch
         )
 
-    @profile
     def test_step(self, batch, batch_idx):
         self._val_test_step(batch, batch_idx, mode="test")
 
@@ -269,7 +263,6 @@ class BaseLitModule(LightningModule):
     def compute_metrics_cart(self, pred: Tensor, ref: Tensor, mode: str):
         raise NotImplementedError("Subclass must implement this method.")
 
-    @profile
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
         self.ema.update()

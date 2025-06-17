@@ -6,7 +6,6 @@ import lightning as L
 import pandas as pd
 import swanlab
 import torch
-from line_profiler import profile
 from torch_geometric.loader.dataloader import DataLoader
 
 from carten.data.dataset import DatasetTensor
@@ -185,7 +184,6 @@ def update_loss_configs(config: dict) -> dict:
     return config
 
 
-@profile
 def main(config: dict):
     L.seed_everything(config["seed_everything"])
 

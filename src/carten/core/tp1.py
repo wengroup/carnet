@@ -11,7 +11,6 @@ http://dx.doi.org/10.1063/1.528515
 """
 
 import torch
-from line_profiler import profile
 from natt.H_tp import coeff_C, coeff_D, get_tp_even_rule, get_tp_odd_rule
 from natt.symmetrize import get_permutations_delta, symmetrize_via_permutation
 from natt.utils import dij, double_factorial, eijk
@@ -25,7 +24,6 @@ COEFF_C_CACHE = {}
 COEFF_D_CACHE = {}
 
 
-@profile
 def tp_even(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:
@@ -118,7 +116,6 @@ def tp_even(
     return Z
 
 
-@profile
 def tp_odd(
     X: Tensor, Y: Tensor, l1: int, l2: int, l3: int, normalize: str = "unity"
 ) -> Tensor:

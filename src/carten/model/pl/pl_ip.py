@@ -11,7 +11,6 @@ from lightning import LightningModule
 from lightning.pytorch.cli import instantiate_class
 from lightning.pytorch.utilities import grad_norm
 from lightning.pytorch.utilities.types import STEP_OUTPUT
-from line_profiler import profile
 from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
@@ -77,7 +76,6 @@ class InteratomicPotentialLitModule(LightningModule):
             }
         )
 
-    @profile
     def forward(self, batch):
         """Compute energy and forces."""
         # Note, it is tempting to compute the edge_vector in the collate_fn of the
@@ -97,7 +95,6 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return e_pred, f_pred
 
-    @profile
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 
@@ -111,7 +108,6 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return e_pred, f_pred
 
-    @profile
     def training_step(self, batch, batch_idx):
         # requires_grad to enable force computation
         batch.pos.requires_grad_(True)
@@ -138,13 +134,11 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return losses["train/loss_total"]
 
-    @profile
     def validation_step(self, batch, batch_idx):
         self._val_test_step(
             batch, batch_idx, mode="val", start_epoch=self.validation_start_epoch
         )
 
-    @profile
     def test_step(self, batch, batch_idx):
         self._val_test_step(batch, batch_idx, mode="test")
 
@@ -381,7 +375,6 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return metrics
 
-    @profile
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
         self.ema.update()

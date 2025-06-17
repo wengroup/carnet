@@ -1,6 +1,5 @@
 """Carten model to predict tensorial properties of materials and molecules."""
 
-from line_profiler import profile
 from torch import Tensor, nn
 
 from .backbone import Backbone
@@ -91,7 +90,6 @@ class AtomicTensorModel(nn.Module):
             num_atom_feats=num_atom_feats,
         )
 
-    @profile
     def forward(
         self,
         edge_vector: Tensor,
@@ -193,7 +191,6 @@ class StructureTensorModel(nn.Module):
             num_atom_feats=num_atom_feats,
         )
 
-    @profile
     def forward(
         self,
         edge_vector: Tensor,

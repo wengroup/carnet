@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 from ema_pytorch import EMA
-from line_profiler import profile
 from torch.utils.data import DataLoader
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 from tqdm import tqdm
@@ -138,7 +137,6 @@ class BasePyTorchTrainer:
 
         return scheduler_class(self.optimizer, **init_args)
 
-    @profile
     def forward(self, batch):
         """Compute model output."""
         atomic_selector = (
@@ -153,7 +151,6 @@ class BasePyTorchTrainer:
             atomic_selector=atomic_selector,
         )
 
-    @profile
     def forward_ema(self, batch):
         """Same as forward, but use the EMA model instead of the original model."""
         atomic_selector = (
@@ -168,7 +165,6 @@ class BasePyTorchTrainer:
             atomic_selector=atomic_selector,
         )
 
-    @profile
     def training_step(self, batch):
         """Single training step."""
         self.model.train()
@@ -209,14 +205,12 @@ class BasePyTorchTrainer:
 
         return {**losses, **metrics, "batch_size": batch_size}
 
-    @profile
     def validation_step(self, batch):
         """Single validation step."""
         return self._val_test_step(
             batch, mode="val", start_epoch=self.validation_start_epoch
         )
 
-    @profile
     def test_step(self, batch):
         """Single test step."""
         return self._val_test_step(batch, mode="test")
@@ -268,7 +262,6 @@ class BasePyTorchTrainer:
 
         return {**metrics, "batch_size": batch_size}
 
-    @profile
     def train_epoch(self, train_loader: DataLoader):
         """Train for one epoch."""
         self.model.train()
@@ -285,7 +278,6 @@ class BasePyTorchTrainer:
 
         return self._aggregate_metrics(epoch_metrics)
 
-    @profile
     def validate_epoch(self, val_loader: DataLoader):
         """Validate for one epoch."""
         self.model.eval()
@@ -299,7 +291,6 @@ class BasePyTorchTrainer:
 
         return self._aggregate_metrics(epoch_metrics)
 
-    @profile
     def test_epoch(self, test_loader: DataLoader):
         """Test for one epoch."""
         self.model.eval()
@@ -336,7 +327,6 @@ class BasePyTorchTrainer:
 
         return aggregated
 
-    @profile
     def fit(
         self,
         train_loader: DataLoader,
@@ -391,7 +381,6 @@ class BasePyTorchTrainer:
             # Reset metrics for next epoch
             self._reset_metrics()
 
-    @profile
     def test(self, test_loader: DataLoader, checkpoint_path: Optional[str] = None):
         """Test the model."""
         if checkpoint_path:

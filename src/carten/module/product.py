@@ -1,10 +1,10 @@
 """
 Product of natural tensors.
 """
+
 from typing import Optional
 
 import torch
-from line_profiler import profile
 from torch import Tensor, nn
 
 from carten.core.tp import tp_even, tp_odd
@@ -82,7 +82,6 @@ class TensorProduct(nn.Module):
 
         self.z_tensor_dims = [3**l3 for l3 in self.L3]
 
-    @profile
     def forward(
         self, x: Tensor, y: Tensor, R: Optional[dict[str, Tensor]] = None
     ) -> Tensor:
