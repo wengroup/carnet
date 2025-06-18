@@ -106,10 +106,12 @@ class AtomicMoment(nn.Module):
         i_idx = edge_idx[0]
         j_idx = edge_idx[1]
 
+        # TODO, this can be computed once and reused across all layers
         # Polyadics of unit vectors; (n_edges, T2)
         polyadics = get_polyadics_from_vector(
             nn.functional.normalize(edge_vector, p=2.0, dim=-1), self.L2
         )
+
         # (n_edges, F, T2)
         polyadics = polyadics.unsqueeze(-2).expand(
             polyadics.shape[0], self.F, polyadics.shape[1]

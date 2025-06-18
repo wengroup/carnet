@@ -9,7 +9,7 @@ class LinearCombination(nn.Module):
     Linear combination of tensors.
 
     Given a tensor of shape (..., P, F, t), this module computes the linear combination
-    along the dimension F', but separately for each F dimension, resulting in a tensor
+    along the dimension P, but separately for each F dimension, resulting in a tensor
     of shape (..., F, t).
 
     Args:
@@ -44,6 +44,9 @@ class LinearCombination(nn.Module):
         """
 
         return torch.einsum("pf,...pft->...ft", self.weight, input)
+
+    def __repr__(self):
+        return f"LinearCombination(in_features={self.in_features}, const_features={self.const_features})"
 
 
 class LinearMap(nn.Module):
@@ -99,6 +102,12 @@ class LinearMap(nn.Module):
             out += self.bias.unsqueeze(-1)
 
         return out
+
+    def __repr__(self):
+        return (
+            f"LinearMap(in_features={self.in_features}, "
+            f"out_features={self.out_features}, bias={self.bias is not None})"
+        )
 
 
 class SlicedLinearMap(nn.Module):
@@ -194,3 +203,11 @@ class SlicedLinearMap(nn.Module):
             out[..., 0] += self.bias
 
         return out
+
+    def __repr__(self):
+        return (
+            f"SlicedLinearMap(in_features={self.in_features}, "
+            f"out_features={self.out_features}, "
+            f"slice_sizes={self.slice_sizes}, "
+            f"bias={self.bias is not None})"
+        )
