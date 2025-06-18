@@ -32,6 +32,7 @@ class AtomicTensorModel(nn.Module):
         output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
+        element_bias: bool = True,
     ):
         """
         Args:
@@ -57,6 +58,8 @@ class AtomicTensorModel(nn.Module):
             output_from_all_layers: If True, the output is constructed from the
                 atom features of all layers. If False, the output is constructed from
                 the atom features of the last layer only.
+            element_bias: If True, a separate bias is learned for each atomic type and
+            added to the scalar part of the model.
         """
         super().__init__()
         self.output_from_all_layers = output_from_all_layers
@@ -85,8 +88,10 @@ class AtomicTensorModel(nn.Module):
             in_features=F,
             hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
+            num_atom_types=num_atom_types,
             target_shift=target_shift,
             target_scale=target_scale,
+            element_bias=element_bias,
             num_atom_feats=num_atom_feats,
         )
 
@@ -157,6 +162,7 @@ class StructureTensorModel(nn.Module):
         output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
+        element_bias: bool = True,
     ):
         super().__init__()
 
@@ -186,8 +192,10 @@ class StructureTensorModel(nn.Module):
             in_features=F,
             hidden_features=output_mlp_hidden_layers,
             output_signature=output_signature,
+            num_atom_types=num_atom_types,
             target_shift=target_shift,
             target_scale=target_scale,
+            element_bias=element_bias,
             num_atom_feats=num_atom_feats,
         )
 

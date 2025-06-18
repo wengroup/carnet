@@ -67,6 +67,7 @@ class StructureScalar(nn.Module):
         self.out_layers.append(
             MLP(in_features, 1, hidden_features, out_activation=False)
         )
+        # TODO, add element_bias, as in AtomicTensor, if needed.
 
     def forward(
         self, atom_feats: list[Tensor], atom_type: Tensor, num_atoms: Tensor
@@ -136,6 +137,7 @@ class AtomicTensor(nn.Module):
             rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
             natural tensors. To model the elastic tensor, the output_signature should
             be {0: 2, 2: 2, 4: 1}.
+        num_atom_types: Number of atomic types.
         target_shift: A dictionary {l: shift} that specifies the shift to apply to
             the output of the model before computing the loss. Used together with
             target_scale.
@@ -143,6 +145,8 @@ class AtomicTensor(nn.Module):
             the output of the model before computing the loss. Used together with
             target_shift. y = scale*z + shift, where z is the output of the
             network, and y is the predicted target.
+        element_bias: If True, a separate bias is learned for each atomic type and
+            added to the scalar part of the model.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.
@@ -154,26 +158,22 @@ class AtomicTensor(nn.Module):
         in_features: int,
         hidden_features: list[int] | int,
         output_signature: dict[int, int],
+        num_atom_types: int,
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
+        element_bias: bool = True,
         num_atom_feats: int = None,
     ):
         super().__init__()
         self.num_layers = num_layers
         self.in_features = in_features
+        self.hidden_features = hidden_features
+        self.output_signature = output_signature
+        self.num_atom_types = num_atom_types
+
         self.num_atom_feats = (
             num_atom_feats if num_atom_feats is not None else num_layers
         )
-
-        # Register buffers for target shift and scale
-        if target_shift is not None:
-            self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
-        else:
-            self.register_buffer("target_shift", None)
-        if target_scale is not None:
-            self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
-        else:
-            self.register_buffer("target_scale", None)
 
         self.kernel = nn.ModuleDict()
         self.slice = dict()
@@ -196,6 +196,25 @@ class AtomicTensor(nn.Module):
             start = (3**l - 1) // 2
             end = (3 ** (l + 1) - 1) // 2
             self.slice[l] = (start, end)
+
+        # Register buffers for target shift and scale
+        if target_shift is not None:
+            self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
+        else:
+            self.register_buffer("target_shift", None)
+        if target_scale is not None:
+            self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
+        else:
+            self.register_buffer("target_scale", None)
+
+        # Register a separate bias for each atomic type, only for rank-0 tensors.
+        # Different for each feature dimension of the rank-0 tensor.
+        if element_bias:
+            self.element_bias = nn.Parameter(
+                torch.zeros(num_atom_types, output_signature[0])
+            )
+        else:
+            self.register_parameter("element_bias", None)
 
     def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> dict[int, Tensor]:
         """
@@ -236,14 +255,18 @@ class AtomicTensor(nn.Module):
         # Note, in a typical case, all ranks l will have a scale, but only rank-0 tensor
         # will have a shift. This is because the rank-0 tensor is a scalar, and we can
         # shift it to match the target.
-        # TODO, different scale for different atom types, as in StructureScalar.
         if self.target_scale is not None:
             for l, scale in self.target_scale.items():
-                atom_out[int(l)] = atom_out[int(l)] * scale
+                atom_out[int(l)] *= scale
 
         if self.target_shift is not None:
             for l, shift in self.target_shift.items():
-                atom_out[int(l)] = atom_out[int(l)] + shift
+                atom_out[int(l)] += shift
+
+        # Learnable separate bias for each atom type (only for rank-0 tensors)
+        if self.element_bias is not None:
+            # Shape of atom_out[0]: (n_atoms, n_l, 1)
+            atom_out[0] += self.element_bias[atom_type, :].unsqueeze(-1)
 
         return atom_out
 
@@ -275,7 +298,8 @@ class StructureTensor(nn.Module):
             should be {0: 1, 1: 1, 2: 1}. As another example, the elastic tensor is a
             rank-4 tensor, which can be decomposed as 2 rank-0, 2 rank-2, and 1 rank-4
             natural tensors. To model the elastic tensor, the output_signature should
-         target_shift: A dictionary {l: shift} that specifies the shift to apply to
+        num_atom_types: Number of atomic types.
+        target_shift: A dictionary {l: shift} that specifies the shift to apply to
             the output of the model before computing the loss. Used together with
             target_scale.
         target_scale: A dictionary {l: scale} that specifies the scale to apply to
@@ -283,6 +307,8 @@ class StructureTensor(nn.Module):
             target_shift. y = scale*z + shift, where z is the output of the
             network, and y is the predicted target.
             be {0: 2, 2: 2, 4: 1}.
+        element_bias: If True, a separate bias is learned for each atomic type and
+            added to the scalar part of the model.
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.
@@ -294,8 +320,10 @@ class StructureTensor(nn.Module):
         in_features: int,
         hidden_features: list[int] | int,
         output_signature: dict[int, int],
+        num_atom_types: int,
         target_shift: dict[int, Tensor] = None,
         target_scale: dict[int, Tensor] = None,
+        element_bias: bool = True,
         num_atom_feats: int = None,
     ):
         super().__init__()
@@ -304,8 +332,10 @@ class StructureTensor(nn.Module):
             in_features,
             hidden_features,
             output_signature,
+            num_atom_types,
             target_shift,
             target_scale,
+            element_bias,
             num_atom_feats,
         )
 
@@ -335,8 +365,6 @@ class StructureTensor(nn.Module):
 
         # Atomic tensor for each layer; {l: (n_atoms, n_l, 3**l)}
         atom_out = self.atomic_tensor_model(atom_feats, atom_type)
-
-        # TODO, add a linear mapping based on atomic species?
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
