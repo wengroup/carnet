@@ -12,7 +12,7 @@ data:
   #  NOTE, in the dataset file, the tensor should be given with the name
   #  `[target_name]_[target_mode]`, e.g. `elastic_tensor_natural`
   target_name: elastic_tensor
-  target_mode: voigt # options: `natural`, `full`, `voigt`
+  target_mode: natural # options: `natural`, `full`, `voigt`
   target_signature: # {rank: number} of the natural tensor
     0: 2
     2: 2
@@ -70,15 +70,15 @@ metrics:
   validation_start_epoch: 0 # start calculating metrics at this epoch, can be used to avoid nan in the first few epochs
 
 optimizer:
-  class_path: torch.optim.Adam
+  class_path: torch.optim.AdamW
   init_args:
-    amsgrad: true
     lr: 0.01
-    weight_decay: 0.0
+    weight_decay: 0.01
+    amsgrad: false
 
 lr_scheduler:
   # TODO, use combination metric of all ranks
-  monitor: val_ema/mae_cartesian
+  monitor: val_ema/mae_rank-0
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -128,14 +128,14 @@ trainer:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_cartesian
+        monitor: val_ema/mae_rank-0
         mode: min
         save_top_k: 3
         verbose: false
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_cartesian
+        monitor: val_ema/mae_rank-0
         mode: min
         patience: 200
         verbose: true

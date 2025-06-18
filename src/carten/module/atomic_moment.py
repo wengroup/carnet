@@ -140,6 +140,7 @@ class AtomicMoment(nn.Module):
         return M
 
 
+# TODO, this is not used, delete
 class AtomicMoment2(nn.Module):
     """
     Atomic variant 1 and variant 2, where the tensor product is done after the sum
