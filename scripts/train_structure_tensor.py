@@ -4,7 +4,6 @@ from pathlib import Path
 
 import lightning as L
 import pandas as pd
-import swanlab
 import torch
 from lightning import Trainer
 from torch_geometric.loader.dataloader import DataLoader
@@ -317,6 +316,8 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
+
+    import swanlab
 
     # Hijack WandB to use SwanLab
     # This makes WandB to run in `offline` mode

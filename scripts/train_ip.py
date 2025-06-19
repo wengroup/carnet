@@ -266,6 +266,13 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
+
+    import swanlab
+
+    # Hijack WandB to use SwanLab
+    # This makes WandB to run in `offline` mode
+    swanlab.sync_wandb(wandb_run=False)
+
     # Remove the processed data directory
     shutil.rmtree("./processed", ignore_errors=True)
 

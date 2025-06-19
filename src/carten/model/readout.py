@@ -28,6 +28,7 @@ class StructureScalar(nn.Module):
             the scalar atom feats of the last layer. If a list, it provides the hidden
             layer sizes of the MLP. If an integer, it is interpreted as the number of
             hidden layers, and the hidden layer sizes are set to in_features.
+        num_atom_types: Number of atomic types.
         atomic_shift: Shift of the output. See `atomic_scale`.
         atomic_scale: Scale of the output. The atomic shift and scale are used to
             transform the output. The final output for each atomic configuration is
@@ -37,6 +38,8 @@ class StructureScalar(nn.Module):
             then it is then it is used for all atom types.
             If a tensor of shape (n_atom_types,) is provided for `atomic_shift` and
                 `atomic_scale`, then it is applied to each atom type separately.
+        element_bias: If True, a separate learnable bias is added for each atomic type.
+
     """
 
     def __init__(
@@ -44,16 +47,16 @@ class StructureScalar(nn.Module):
         num_layers: int,
         in_features: int,
         hidden_features: list[int] | int,
+        num_atom_types: int,
         atomic_shift: Tensor = None,
         atomic_scale: Tensor = None,
+        element_bias: bool = True,
     ):
         super().__init__()
         self.num_layers = num_layers
         self.in_features = in_features
         self.hidden_features = hidden_features
-
-        self.register_buffer("atomic_shift", atomic_shift)
-        self.register_buffer("atomic_scale", atomic_scale)
+        self.num_atom_types = num_atom_types
 
         # Linear mapping for atom features in early layers
         self.out_layers = nn.ModuleList(
@@ -67,7 +70,15 @@ class StructureScalar(nn.Module):
         self.out_layers.append(
             MLP(in_features, 1, hidden_features, out_activation=False)
         )
-        # TODO, add element_bias, as in AtomicTensor, if needed.
+
+        self.register_buffer("atomic_shift", atomic_shift)
+        self.register_buffer("atomic_scale", atomic_scale)
+
+        # Register a separate bias for each atomic type
+        if element_bias:
+            self.element_bias = nn.Parameter(torch.zeros(num_atom_types))
+        else:
+            self.register_parameter("element_bias", None)
 
     def forward(
         self, atom_feats: list[Tensor], atom_type: Tensor, num_atoms: Tensor
@@ -103,6 +114,10 @@ class StructureScalar(nn.Module):
                 V += self.atomic_shift
             else:
                 V += self.atomic_shift[atom_type]
+
+        # Bias for each atomic type
+        if self.element_bias is not None:
+            V += self.element_bias[atom_type]
 
         # Output of each configuration; (num_config,)
         out = scatter(V, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)

@@ -65,6 +65,7 @@ class InteratomicPotential(nn.Module):
             num_layers=num_layers,
             in_features=F,
             hidden_features=output_mlp_hidden_layers,
+            num_atom_types=num_atom_types,
             atomic_shift=atomic_energy_shift,
             atomic_scale=atomic_energy_scale,
         )
