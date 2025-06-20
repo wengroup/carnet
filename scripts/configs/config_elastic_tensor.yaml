@@ -109,12 +109,8 @@ trainer:
   gradient_clip_val: 1.0
   gradient_clip_algorithm: value
 
-#  logger:
-#    class_path: lightning.pytorch.loggers.wandb.WandbLogger
-#    init_args:
-#      project: carten_proj
   logger:
-    class_path: swanlab.integration.pytorch_lightning.SwanLabLogger
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: carten_proj
 
@@ -143,3 +139,5 @@ trainer:
 #      init_args:
 #        swa_lrs: 0.001
 #        swa_epoch_start: 0.8
+
+wandb_base_url: https://api.wandb-cn.top # https://api.bandw.top

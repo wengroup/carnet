@@ -258,7 +258,6 @@ def main(config: dict):
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
         model = load_model(AtomicTensorLitModule, AtomicTensorModel, restore_checkpoint)
-    print(model)
 
     # Train
     try:

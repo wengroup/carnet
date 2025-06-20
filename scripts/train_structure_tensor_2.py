@@ -1,3 +1,7 @@
+"""This is the same as train_structure_tensor.py, but uses self-constructed trainer
+instead of the one from PyTorch Lightning.
+"""
+
 import itertools
 import shutil
 from pathlib import Path

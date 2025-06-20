@@ -1,6 +1,8 @@
 import itertools
+import os
 import shutil
 from pathlib import Path
+from pprint import pprint
 
 import lightning as L
 import pandas as pd
@@ -205,7 +207,6 @@ def main(config: dict):
         model = load_model(
             InteratomicPotentialLitModule, InteratomicPotential, restore_checkpoint
         )
-    print(model)
 
     # Train
     try:
@@ -267,17 +268,23 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    import swanlab
-
-    # Hijack WandB to use SwanLab
-    # This makes WandB to run in `offline` mode
-    swanlab.sync_wandb(wandb_run=False)
-
     # Remove the processed data directory
     shutil.rmtree("./processed", ignore_errors=True)
 
     config_file = Path(__file__).parent / "configs" / "config_ip.yaml"
     config = get_args(config_file)
+    pprint(config)
+
+    # Set wandb proxy
+    os.environ["WANDB_BASE_URL"] = config.pop("wandb_base_url")
+
+    ## If the above does not work, use the below
+    # import swanlab
+    #
+    # # Hijack WandB to use SwanLab
+    # # This makes WandB to run in `offline` mode
+    # swanlab.sync_wandb(wandb_run=False)
+
     main(config)
 
     # Remove the processed data directory
