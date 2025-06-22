@@ -39,9 +39,10 @@ model:
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
-  # activation, residual for intermediate layers
+  layer_norm: false
   activation: null
-  residual: false
+  last_layer_activation: false # has to be `false` if `activation` is `null`
+  residual: true
 
   # output
   output_mlp_hidden_layers: 2
