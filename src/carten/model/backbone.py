@@ -84,20 +84,22 @@ class Backbone(nn.Module):
         # according to max_out_L (this can save some computation).
         self.layers = nn.ModuleList()
         for i in range(num_layers):
+
+            # The first layer only has scalar inputs
             if i == 0:
                 L1 = 0
-                out_L = self.max_L
-                act = activation
-            elif i == num_layers - 1:
+            else:
+                L1 = max_L
+
+            # The last layer only needs to output needed ranks
+            if i == num_layers - 1:
                 # TODO, this can be further optimized by replacing `out_L` with explicit
                 #  degrees of the natural tensors. For example, for elastic tensor,
                 #  we only need ranks 0, 2, and 4. The current implementation that uses
                 #  `max_out_L=4` will compute the features of ranks 0 to 4.
-                L1 = max_L
                 out_L = self.max_out_L
                 act = activation if last_layer_activation else None
             else:
-                L1 = max_L
                 out_L = self.max_L
                 act = activation
 
