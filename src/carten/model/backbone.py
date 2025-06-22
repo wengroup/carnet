@@ -31,9 +31,11 @@ class Backbone(nn.Module):
             layer is set to `max_u + 1`, the number of radial basis functions.
         atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
             or `variant2`.
+        layer_norm: Whether to apply layer normalization after each layer.
         activation: Nonlinear activation function to apply after each layer.
         last_layer_activation: Whether to apply the activation function after the last
             layer.
+        residual: Whether to use residual connection.
     """
 
     def __init__(
@@ -52,6 +54,8 @@ class Backbone(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
+        # normalization
+        layer_norm: bool = True,
         # activation
         activation: str = None,
         last_layer_activation: bool = False,
@@ -117,6 +121,7 @@ class Backbone(nn.Module):
                     max_out_L=out_L,
                     max_degree=self.max_degree,
                     atomic_moment_mode=self.atomic_moment_mode,
+                    layer_norm=layer_norm,
                     activation=act,
                     residual=residual,
                 )

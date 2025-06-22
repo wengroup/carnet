@@ -25,14 +25,18 @@ class InteratomicPotential(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
+        # normalization
+        layer_norm: bool = False,
         # activation
         activation: str = None,
+        last_layer_activation: bool = False,
         # residual
         residual: bool = True,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
         atomic_energy_scale: Tensor = None,
+        element_bias: Tensor = True,
     ):
         """
         Args:
@@ -60,7 +64,9 @@ class InteratomicPotential(nn.Module):
             max_chebyshev_degree=max_chebyshev_degree,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
+            layer_norm=layer_norm,
             activation=activation,
+            last_layer_activation=last_layer_activation,
             residual=residual,
         )
 
@@ -71,6 +77,7 @@ class InteratomicPotential(nn.Module):
             num_atom_types=num_atom_types,
             atomic_shift=atomic_energy_shift,
             atomic_scale=atomic_energy_scale,
+            element_bias=element_bias,
         )
 
     def forward(
