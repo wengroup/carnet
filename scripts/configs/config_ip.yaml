@@ -5,8 +5,8 @@ restore_checkpoint: null # path to checkpoint to restore from; if `null`, train 
 data:
   atomic_number: [3, 15, 16]
   trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
-  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_100_LiPS.json
-  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_100_LiPS.json
+  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
+  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
   #  atomic_number: [1, 6, 8]
   #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_train.json
   #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_val.json
@@ -39,8 +39,9 @@ model:
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
-  # activation
+  # activation, residual for intermediate layers
   activation: null
+  residual: false
 
   # output
   output_mlp_hidden_layers: 2
@@ -84,7 +85,7 @@ ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   include_online_model: false
 
 trainer:
-  max_epochs: 2
+  max_epochs: 20
   accelerator: cpu
   num_nodes: 1
   check_val_every_n_epoch: 1

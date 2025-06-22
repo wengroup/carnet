@@ -24,13 +24,15 @@ class InteratomicPotential(nn.Module):
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
+        atomic_moment_mode: str = "vanilla",
         # activation
         activation: str = None,
+        # residual
+        residual: bool = True,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
         atomic_energy_scale: Tensor = None,
-        atomic_moment_mode: str = "vanilla",
     ):
         """
         Args:
@@ -59,6 +61,7 @@ class InteratomicPotential(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
             activation=activation,
+            residual=residual,
         )
 
         self.readout = StructureScalar(
