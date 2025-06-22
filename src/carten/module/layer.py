@@ -72,7 +72,7 @@ class Layer(nn.Module):
         self.residual = residual
         self.atomic_moment_mode = atomic_moment_mode
 
-        # Kernel for mixing atom feats across channel, separate for each rank
+        # Kernel for mixing input atom feats across channel, separate for each rank
         self.linear_channel_input = SlicedLinearMap(
             F, F, [3**l for l in range(L1 + 1)], bias=True
         )
@@ -135,11 +135,22 @@ class Layer(nn.Module):
                 f"Supported are: {supported}."
             )
 
+        # If activation is used, add another linear layer after it
+        if activation is not None:
+            self.linear_after_activation = SlicedLinearMap(
+                F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
+            )
+        else:
+            self.register_buffer("linear_after_activation", None)
+
         # Residual connection, separate for each rank
         if self.residual:
             # Only do it for the ranks that exist in both the input atom feats and the
             # output hyper moment
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
+
+            # TODO, this linear map is not absolutely since it is guaranteed that the
+            #  input and out features will be having the same sizes
             self.linear_residual_feats = SlicedLinearMap(
                 F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
             )
@@ -190,6 +201,7 @@ class Layer(nn.Module):
         # Apply activation
         if self.activation is not None:
             hm = self.activation(hm)
+            hm = self.linear_after_activation(hm)
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:

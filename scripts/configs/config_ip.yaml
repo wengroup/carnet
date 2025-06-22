@@ -123,4 +123,4 @@ trainer:
 #        swa_lrs: 0.001
 #        swa_epoch_start: 0.8
 
-wandb_base_url: https://api.wandb-cn.top # https://api.bandw.top
+wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top

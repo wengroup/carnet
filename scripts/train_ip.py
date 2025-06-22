@@ -219,9 +219,9 @@ def main(config: dict):
 
         ## TODO, for DEBUG only, should be commented out
         ## log gradients, parameter histogram and model topology
-        ## for test run with small max_epoch, you might need to set `log_freq` such that
-        ## this is executed at least once
-        # logger.watch(model, log="all", log_graph=False)
+        ## For test run with small max_epoch, you might need to set `log_freq` to a
+        ## smaller value (default is 100) so that this is executed at least once.
+        # logger.watch(model, log="all", log_graph=False, log_freq=1)
     except KeyError:
         logger = None
 
