@@ -54,13 +54,14 @@ class Backbone(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
-        # normalization
+        #
         layer_norm: bool = True,
-        # activation
         activation: str = None,
         last_layer_activation: bool = False,
-        # residual connection
         residual: bool = True,
+        # optional layers
+        use_linear_channel_input: bool = False,
+        use_linear_residual_feats: bool = True,
     ):
         super().__init__()
         self.F = F
@@ -124,6 +125,8 @@ class Backbone(nn.Module):
                     layer_norm=layer_norm,
                     activation=act,
                     residual=residual,
+                    use_linear_channel_input=use_linear_channel_input,
+                    use_linear_residual_feats=use_linear_residual_feats,
                 )
             )
 

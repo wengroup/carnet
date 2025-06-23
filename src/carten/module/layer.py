@@ -1,5 +1,6 @@
 """CARTEN layer module."""
 
+import torch
 from torch import Tensor, nn
 
 from .activation import elu, shifted_softplus, silu
@@ -28,9 +29,11 @@ class Layer(nn.Module):
         max_out_L: int = None,
         max_degree: int = None,
         atomic_moment_mode: str = "vanilla",
-        layer_norm: bool = True,
+        layer_norm: bool = False,
         activation: str = None,
         residual: bool = True,
+        use_linear_channel_input: bool = False,
+        use_linear_residual_feats: bool = True,
     ):
         """
 
@@ -73,9 +76,12 @@ class Layer(nn.Module):
         self.atomic_moment_mode = atomic_moment_mode
 
         # Kernel for mixing input atom feats across channel, separate for each rank
-        self.linear_channel_input = SlicedLinearMap(
-            F, F, [3**l for l in range(L1 + 1)], bias=True
-        )
+        if use_linear_channel_input:
+            self.linear_channel_input = SlicedLinearMap(
+                F, F, [3**l for l in range(L1 + 1)], bias=True
+            )
+        else:
+            self.register_buffer("linear_channel_input", None)
 
         if atomic_moment_mode == "vanilla":
             AM = AtomicMoment
@@ -137,6 +143,17 @@ class Layer(nn.Module):
 
         # If activation is used, add another linear layer after it
         if activation is not None:
+            # If activation is used, the scalars in the above linear_channel_hyper and
+            # layer_norm are used to create the gate scalar for the activation,
+            # i.e. the scalars are used as x in g(x)*t.
+            # Then, we create additional layer norm for the scalar features.
+            # This is the same as the equiformer way of doing activation.
+            self.linear_channel_hyper_scalar = SlicedLinearMap(F, F, [1], bias=True)
+            if layer_norm:
+                self.layer_norm_scalar = LayerNorm(dim=F, slice_sizes=[1])
+            else:
+                self.register_buffer("layer_norm_scalar", None)
+
             self.linear_after_activation = SlicedLinearMap(
                 F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
             )
@@ -149,13 +166,14 @@ class Layer(nn.Module):
             # output hyper moment
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
 
-            # TODO, this linear map is not absolutely since it is guaranteed that the
-            #  input and out features will be having the same sizes
+        # TODO, this linear map is not absolutely since it is guaranteed that the
+        #  input and out features will be having the same sizes
+        if self.residual and use_linear_residual_feats:
             self.linear_residual_feats = SlicedLinearMap(
                 F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
             )
         else:
-            self.register_buffer("linear_channel_feats", None)
+            self.register_buffer("linear_residual_feats", None)
 
     def forward(
         self,
@@ -178,9 +196,11 @@ class Layer(nn.Module):
             Updated atom feats. Shape (Na, F, T'), where T' is the number of tensor
             components, determined by max_out_L.
         """
+        am = atom_feats  # (Na, F, T1)
 
         # Mixing input atom feats across channel
-        am = self.linear_channel_input(atom_feats)  # (Na, F, T1)
+        if self.linear_channel_input is not None:
+            am = self.linear_channel_input(am)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
         am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
@@ -192,21 +212,41 @@ class Layer(nn.Module):
         hm = self.hyper_moment(am)
 
         # Mix hyper moments across channel
-        hm = self.linear_channel_hyper(hm)  # (Na, F, T')
+        hm_2 = self.linear_channel_hyper(hm)  # (Na, F, T')
 
         # Normalize
         if self.layer_norm is not None:
-            hm = self.layer_norm(hm)
+            hm_2 = self.layer_norm(hm_2)
 
         # Apply activation
         if self.activation is not None:
-            hm = self.activation(hm)
-            hm = self.linear_after_activation(hm)
+            hm_2 = self.activation(hm_2)
+
+            # If activation is not None, then self.linear_channel_hyper and
+            # self.layer_norm are for the high-rank tensors. Generate it for scalars.
+            hm_scalar = self.linear_channel_hyper_scalar(hm)
+            if self.layer_norm_scalar is not None:
+                hm_scalar = self.layer_norm_scalar(hm_scalar)
+            # Apply activation to the scalar features
+            hm_scalar = self.activation(hm_scalar)
+
+            # hm_2 will have the scalar part due to the fact that we use the
+            # general activation function g(x) * t, where x is the scalar features.
+            # But, we want the scalar part to be separate, so we select the 1:
+            # high-rank tensor part and concatenate with the separate scalar part.
+            hm = torch.cat([hm_scalar, hm_2[..., 1:]], dim=-1)
+
+            if self.linear_after_activation is not None:
+                hm = self.linear_after_activation(hm)
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:
             size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
-            feats_skip_connection = self.linear_residual_feats(atom_feats[..., :size])
-            hm[..., :size] += feats_skip_connection
+            feats_skip = atom_feats[..., :size]
+
+            if self.linear_residual_feats is not None:
+                feats_skip = self.linear_residual_feats(feats_skip)
+
+            hm[..., :size] += feats_skip
 
         return hm

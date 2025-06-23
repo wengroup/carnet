@@ -26,13 +26,14 @@ class AtomicTensorModel(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
-        # normalization
+        #
         layer_norm: bool = True,
-        # activation
         activation: str = "silu",
         last_layer_activation: bool = False,
-        # residual
         residual: bool = True,
+        # optional layers
+        use_linear_channel_input: bool = False,
+        use_linear_residual_feats: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
@@ -92,6 +93,8 @@ class AtomicTensorModel(nn.Module):
             activation=activation,
             last_layer_activation=last_layer_activation,
             residual=residual,
+            use_linear_channel_input=use_linear_channel_input,
+            use_linear_residual_feats=use_linear_residual_feats,
         )
 
         self.readout = AtomicTensor(
@@ -165,13 +168,14 @@ class StructureTensorModel(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
-        # normalization
+        #
         layer_norm: bool = True,
-        # activation
         activation: str = "silu",
         last_layer_activation: bool = False,
-        # residual
         residual: bool = True,
+        # optional layers
+        use_linear_channel_input: bool = False,
+        use_linear_residual_feats: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
@@ -204,6 +208,8 @@ class StructureTensorModel(nn.Module):
             activation=activation,
             last_layer_activation=last_layer_activation,
             residual=residual,
+            use_linear_channel_input=use_linear_channel_input,
+            use_linear_residual_feats=use_linear_residual_feats,
         )
 
         self.readout = StructureTensor(
