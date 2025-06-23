@@ -218,7 +218,9 @@ class Layer(nn.Module):
         if self.layer_norm is not None:
             hm_2 = self.layer_norm(hm_2)
 
-        # Apply activation
+        # Activation
+        if self.activation is None:
+            hm = hm_2
         if self.activation is not None:
             hm_2 = self.activation(hm_2)
 
