@@ -224,9 +224,11 @@ class Layer(nn.Module):
 
             # If activation is not None, then self.linear_channel_hyper and
             # self.layer_norm are for the high-rank tensors. Generate it for scalars.
-            hm_scalar = self.linear_channel_hyper_scalar(hm)
+            hm_scalar = self.linear_channel_hyper_scalar(hm[..., 0:1])
+
             if self.layer_norm_scalar is not None:
                 hm_scalar = self.layer_norm_scalar(hm_scalar)
+
             # Apply activation to the scalar features
             hm_scalar = self.activation(hm_scalar)
 
