@@ -29,11 +29,12 @@ class AtomicTensorModel(nn.Module):
         #
         layer_norm: bool = True,
         activation: str = "silu",
-        last_layer_activation: bool = False,
+        last_layer_activation: bool = True,
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_residual_feats: bool = True,
+        use_linear_channel_hyper: bool = False,
+        use_linear_channel_residual: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
@@ -94,7 +95,8 @@ class AtomicTensorModel(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_residual_feats=use_linear_residual_feats,
+            use_linear_channel_hyper=use_linear_channel_hyper,
+            use_linear_channel_residual=use_linear_channel_residual,
         )
 
         self.readout = AtomicTensor(
@@ -175,7 +177,8 @@ class StructureTensorModel(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_residual_feats: bool = True,
+        use_linear_channel_hyper: bool = False,
+        use_linear_channel_residual: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
@@ -209,7 +212,8 @@ class StructureTensorModel(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_residual_feats=use_linear_residual_feats,
+            use_linear_channel_hyper=use_linear_channel_hyper,
+            use_linear_channel_residual=use_linear_channel_residual,
         )
 
         self.readout = StructureTensor(

@@ -55,13 +55,14 @@ class Backbone(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
         #
-        layer_norm: bool = True,
+        layer_norm: bool = False,
         activation: str = None,
         last_layer_activation: bool = False,
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_residual_feats: bool = True,
+        use_linear_channel_hyper: bool = False,
+        use_linear_channel_residual: bool = True,
     ):
         super().__init__()
         self.F = F
@@ -126,7 +127,8 @@ class Backbone(nn.Module):
                     activation=act,
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
-                    use_linear_residual_feats=use_linear_residual_feats,
+                    use_linear_channel_hyper=use_linear_channel_hyper,
+                    use_linear_channel_residual=use_linear_channel_residual,
                 )
             )
 

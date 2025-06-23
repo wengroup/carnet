@@ -33,7 +33,8 @@ class Layer(nn.Module):
         activation: str = None,
         residual: bool = True,
         use_linear_channel_input: bool = False,
-        use_linear_residual_feats: bool = True,
+        use_linear_channel_hyper: bool = False,
+        use_linear_channel_residual: bool = True,
     ):
         """
 
@@ -112,9 +113,12 @@ class Layer(nn.Module):
         )
 
         # Kernel for mixing channel of hyper moment, separate for each rank
-        self.linear_channel_hyper = SlicedLinearMap(
-            F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
-        )
+        if use_linear_channel_hyper:
+            self.linear_channel_hyper = SlicedLinearMap(
+                F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
+            )
+        else:
+            self.register_buffer("linear_channel_hyper", None)
 
         # Layer normalization
         if layer_norm:
@@ -148,7 +152,11 @@ class Layer(nn.Module):
             # i.e. the scalars are used as x in g(x)*t.
             # Then, we create additional layer norm for the scalar features.
             # This is the same as the equiformer way of doing activation.
-            self.linear_channel_hyper_scalar = SlicedLinearMap(F, F, [1], bias=True)
+            if use_linear_channel_hyper:
+                self.linear_channel_hyper_scalar = SlicedLinearMap(F, F, [1], bias=True)
+            else:
+                self.register_buffer("linear_channel_hyper_scalar", None)
+
             if layer_norm:
                 self.layer_norm_scalar = LayerNorm(dim=F, slice_sizes=[1])
             else:
@@ -168,12 +176,12 @@ class Layer(nn.Module):
 
         # TODO, this linear map is not absolutely since it is guaranteed that the
         #  input and out features will be having the same sizes
-        if self.residual and use_linear_residual_feats:
-            self.linear_residual_feats = SlicedLinearMap(
+        if self.residual and use_linear_channel_residual:
+            self.linear_channel_residual = SlicedLinearMap(
                 F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
             )
         else:
-            self.register_buffer("linear_residual_feats", None)
+            self.register_buffer("linear_channel_residual", None)
 
     def forward(
         self,
@@ -212,7 +220,10 @@ class Layer(nn.Module):
         hm = self.hyper_moment(am)
 
         # Mix hyper moments across channel
-        hm_2 = self.linear_channel_hyper(hm)  # (Na, F, T')
+        if self.linear_channel_hyper is not None:
+            hm_2 = self.linear_channel_hyper(hm)  # (Na, F, T')
+        else:
+            hm_2 = hm
 
         # Normalize
         if self.layer_norm is not None:
@@ -221,12 +232,15 @@ class Layer(nn.Module):
         # Activation
         if self.activation is None:
             hm = hm_2
-        if self.activation is not None:
+        else:
             hm_2 = self.activation(hm_2)
 
             # If activation is not None, then self.linear_channel_hyper and
             # self.layer_norm are for the high-rank tensors. Generate it for scalars.
-            hm_scalar = self.linear_channel_hyper_scalar(hm[..., 0:1])
+            if self.linear_channel_hyper_scalar is not None:
+                hm_scalar = self.linear_channel_hyper_scalar(hm[..., 0:1])
+            else:
+                hm_scalar = hm[..., 0:1]
 
             if self.layer_norm_scalar is not None:
                 hm_scalar = self.layer_norm_scalar(hm_scalar)
@@ -248,8 +262,8 @@ class Layer(nn.Module):
             size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
             feats_skip = atom_feats[..., :size]
 
-            if self.linear_residual_feats is not None:
-                feats_skip = self.linear_residual_feats(feats_skip)
+            if self.linear_channel_residual is not None:
+                feats_skip = self.linear_channel_residual(feats_skip)
 
             hm[..., :size] += feats_skip
 

@@ -81,8 +81,8 @@ class HyperMoment(nn.Module):
         #   still come from H^1_2 and x_2. So, we need H^1 to have ranks up to L.
 
         self.tp = nn.ModuleList()
-        for i in range(max_degree - 1):
-            if i == max_degree - 2:
+        for i in range(1, max_degree):
+            if i == max_degree - 1:
                 out_L = max_out_L
             else:
                 out_L = L
@@ -113,8 +113,9 @@ class HyperMoment(nn.Module):
         # Shape of each element is (..., F, T'), where T' is the size above
         out_H = [x[..., :size]]
 
-        # TODO, given that we only need :size componment, is it possible to enforce
+        # TODO, given that we only need `:size` component, is it possible to enforce
         #  this in fn (namely TensorProduct)? This will make it more efficient.
+        #  A: We did this for the last layer, but not for the others, yet.
         H_tmp = x
         for fn in self.tp:
             product = fn(H_tmp, x)

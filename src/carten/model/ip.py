@@ -32,7 +32,8 @@ class InteratomicPotential(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_residual_feats: bool = True,
+        use_linear_channel_hyper: bool = False,
+        use_linear_channel_residual: bool = True,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
@@ -70,7 +71,8 @@ class InteratomicPotential(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_residual_feats=use_linear_residual_feats,
+            use_linear_channel_hyper=use_linear_channel_hyper,
+            use_linear_channel_residual=use_linear_channel_residual,
         )
 
         self.readout = StructureScalar(
