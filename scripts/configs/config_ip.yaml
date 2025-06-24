@@ -26,6 +26,7 @@ data:
 
 model:
   atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  tp_path_mode: full # options: `full`, `lite`, `camp`
 
   F: 8 # number of channels
   num_layers: 2 # number of layers
@@ -49,7 +50,6 @@ model:
   use_linear_channel_input: false
   use_linear_channel_hyper: false
   use_linear_channel_residual: true
-
 
   # output
   output_mlp_hidden_layers: 2
@@ -93,7 +93,7 @@ ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   include_online_model: false
 
 trainer:
-  max_epochs: 20
+  max_epochs: 2
   accelerator: cpu
   num_nodes: 1
   check_val_every_n_epoch: 1

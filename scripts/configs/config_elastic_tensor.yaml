@@ -27,6 +27,9 @@ data:
   test_batch_size: 8
 
 model:
+  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  tp_path_mode: full # options: `full`, `lite`, `camp`
+
   F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
@@ -50,8 +53,8 @@ model:
   use_linear_channel_hyper: false
   use_linear_channel_residual: true
 
+
   # output
-  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
   output_from_all_layers: false
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
