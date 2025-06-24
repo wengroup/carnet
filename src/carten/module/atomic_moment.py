@@ -36,6 +36,7 @@ class AtomicMoment(nn.Module):
         r_cut: float = 5,
         envelope: int = 6,
         mode: str = None,  # dummy argument to give the same signature as AtomicMoment2
+        tp_path_mode: str = "full",
     ):
         super().__init__()
         self.F = F
@@ -48,6 +49,7 @@ class AtomicMoment(nn.Module):
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
         self.r_cut = r_cut
         self.envelope = envelope
+        self.tp_path_mode = tp_path_mode
 
         # Radial part
         self.radial = RadialPart(
@@ -59,7 +61,9 @@ class AtomicMoment(nn.Module):
         )
 
         # Tensor product
-        self.tp = TensorProduct(F, L1, L2, L3, normalize="unity")
+        self.tp = TensorProduct(
+            F, L1, L2, L3, normalize="unity", path_mode=tp_path_mode
+        )
 
         # MLP on radial part, separate for each (l1, l2, l3)
         if isinstance(radial_mlp_hidden_layers, int):

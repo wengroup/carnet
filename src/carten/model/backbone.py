@@ -54,6 +54,7 @@ class Backbone(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
+        tp_path_mode: str = "full",
         #
         layer_norm: bool = False,
         activation: str = None,
@@ -123,6 +124,7 @@ class Backbone(nn.Module):
                     max_out_L=out_L,
                     max_degree=self.max_degree,
                     atomic_moment_mode=self.atomic_moment_mode,
+                    tp_path_mode=tp_path_mode,
                     layer_norm=layer_norm,
                     activation=act,
                     residual=residual,

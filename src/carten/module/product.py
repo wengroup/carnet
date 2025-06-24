@@ -44,6 +44,7 @@ class TensorProduct(nn.Module):
         L2: int,
         L3: int | list[int] = None,
         normalize: str = "unity",
+        path_mode: str = "full",
     ):
         """
         Args:
@@ -61,6 +62,8 @@ class TensorProduct(nn.Module):
                 0, 1, ..., max(L1, L2).
             normalize: normalization method for the output tensor. Options are:
                 `unity` or `none`. See `carten.core.tp.tp_even`.
+            path_mode: mode to construct the paths from L1 and L2 to L3. Options are:
+                `full`, `mid`, or `lite`. See `carten.module.utils.get_paths`.
         """
         super().__init__()
         self.L1 = L1
@@ -68,7 +71,7 @@ class TensorProduct(nn.Module):
         self.L3 = check_rank(L1, L2, L3)
         self.normalize = normalize
 
-        self.paths = get_paths(self.L1, self.L2, self.L3)
+        self.paths = get_paths(self.L1, self.L2, self.L3, mode=path_mode)
 
         # Kernel parameters for linear combination of paths to each l3
         # Each (l1, l2, l3) has its own kernel parameters

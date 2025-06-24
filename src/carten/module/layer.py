@@ -29,6 +29,7 @@ class Layer(nn.Module):
         max_out_L: int = None,
         max_degree: int = None,
         atomic_moment_mode: str = "vanilla",
+        tp_path_mode: str = "full",
         layer_norm: bool = False,
         activation: str = None,
         residual: bool = True,
@@ -101,6 +102,7 @@ class Layer(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
             mode=atomic_moment_mode,
+            tp_path_mode=tp_path_mode,
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
@@ -109,7 +111,11 @@ class Layer(nn.Module):
         )
 
         self.hyper_moment = HyperMoment(
-            F=self.F, L=self.L3, max_out_L=self.max_out_L, max_degree=self.max_degree
+            F=self.F,
+            L=self.L3,
+            max_out_L=self.max_out_L,
+            max_degree=self.max_degree,
+            tp_path_mode=tp_path_mode,
         )
 
         # Kernel for mixing channel of hyper moment, separate for each rank

@@ -43,6 +43,7 @@ class HyperMoment(nn.Module):
         L: int,
         max_out_L: int = None,
         max_degree: int = None,
+        tp_path_mode: str = "full",
     ):
         super().__init__()
 
@@ -62,6 +63,7 @@ class HyperMoment(nn.Module):
         self.L = L
         self.max_out_L = max_out_L
         self.max_degree = max_degree
+        self.tp_path_mode = tp_path_mode
 
         # Iterative tensor products to evaluate H^1, H^2, ..., H^{max_degree}
         # H^1 = x_L
@@ -86,7 +88,9 @@ class HyperMoment(nn.Module):
                 out_L = max_out_L
             else:
                 out_L = L
-            self.tp.append(TensorProduct(F, L, L, out_L, normalize="unity"))
+            self.tp.append(
+                TensorProduct(F, L, L, out_L, normalize="unity", path_mode=tp_path_mode)
+            )
 
         # Linear combination of different degree
         # In TensorProduct, a separate kernel is used for each rank to combine different
