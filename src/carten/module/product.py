@@ -70,15 +70,17 @@ class TensorProduct(nn.Module):
 
         self.paths = get_paths(self.L1, self.L2, self.L3)
 
-        # TODO, we might want to skip linear combination if there is only one path
-        # TODO, LinearCombination uses different params for different channel F. Do we
-        #  want to share the params for all F?
-
         # Kernel parameters for linear combination of paths to each l3
         # Each (l1, l2, l3) has its own kernel parameters
-        self.kernels = nn.ModuleList(
-            [LinearCombination(len(self.paths[l3]), F) for l3 in self.L3]
-        )
+        self.kernels = nn.ModuleList()
+        for l3 in self.L3:
+            n = len(self.paths[l3])
+            if n == 1:
+                # If only one path, no need to do a linear combination.
+                # None as a placeholder, but never used below in forward()
+                self.kernels.append(None)
+            else:
+                self.kernels.append(LinearCombination(n, F))
 
         self.z_tensor_dims = [3**l3 for l3 in self.L3]
 
@@ -127,13 +129,16 @@ class TensorProduct(nn.Module):
                     p = R[str(path)]  # (..., F)
                     z_tmp = p.unsqueeze(-1) * z_tmp
 
-                z_l3.append(z_tmp)
+                z_l3.append(z_tmp)  # list of tensors of shape (..., F, 3**l3)
 
-            # (..., Np, F, 3**l3), where Np is the number of all paths to l3
-            z_l3 = torch.stack(z_l3, dim=-3)
-
-            # (..., F, 3**l3) Linear combination of all Np paths to l3
-            z_l3_combined = kernel(z_l3)
+            # Only one path to l3
+            if len(z_l3) == 1:
+                z_l3_combined = z_l3[0]  # (..., F, 3**l3)
+            # Multiple paths to l3
+            else:
+                z_l3 = torch.stack(z_l3, dim=-3)  # (..., Np, F, 3**l3)
+                # (..., F, 3**l3) Linear combination of all Np paths to l3
+                z_l3_combined = kernel(z_l3)
 
             z.append(z_l3_combined)
 
