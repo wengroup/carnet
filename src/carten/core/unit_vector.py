@@ -1,4 +1,12 @@
-"""Natural tensors constructed from unit vectors."""
+"""Natural tensors constructed from unit vectors.
+
+This is the reference implementation, which can used to verify the performance of other
+optimized implementations.
+
+Ref:
+[LP89] "Angular reduction in multiparticle matrix elements" by D. R. Lehman and W. C. Parke.
+http://dx.doi.org/10.1063/1.528515
+"""
 
 import torch
 from natt.symmetrize import get_permutations_delta, symmetrize_via_permutation
@@ -47,13 +55,12 @@ def get_nt_from_vector(
     """
     # TODO we can force to normalize `a` as a unit vector
 
-    # For rank-0, return scalar 1. For rank-1, return the unit vector itself.
     batch_dims = a.shape[:-1]
 
+    # For rank-0, return scalar 1. For rank-1, return the unit vector itself.
     if l == 0:
         out = torch.ones(batch_dims, dtype=a.dtype, device=a.device)
         return out.view(batch_dims + (1,))
-
     elif l == 1:
         return a
 
@@ -66,8 +73,8 @@ def get_nt_from_vector(
     for d in range(D + 1):
         rule, symmetry, delta_indices = get_nt_from_vector_rule(l, d)
 
-        # When l == 2*d, we have only deltas, and we create a placeholder of 1 to deal
-        # with the batch dimensions in the vector `a`.
+        # When l == 2*d, (namely, d = D/2 for even D) we have only deltas, no `a`.
+        # We create a placeholder of 1 to deal with the batch dimensions in `a`.
         if l == 2 * d:
             all_a = [torch.ones(batch_dims, dtype=a.dtype, device=a.device)]
         else:
@@ -121,11 +128,10 @@ def get_polyadics_from_vector(a: Tensor, L: int, normalize: str = "unity"):
         The feature tensor of the unit vector. Shape (..., T), where
         T = \sum_{l=0}^L = ((L+1)**2 -1)/2.
     """
-    feature_tensors = []
-    for l in range(L + 1):
-        feature_tensors.append(get_nt_from_vector(a, l, normalize, flatten=True))
-
-    return torch.cat(feature_tensors, dim=-1)
+    return torch.cat(
+        [get_nt_from_vector(a, l, normalize, flatten=True) for l in range(L + 1)],
+        dim=-1,
+    )
 
 
 def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:

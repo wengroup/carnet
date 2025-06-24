@@ -174,8 +174,6 @@ class Layer(nn.Module):
             # output hyper moment
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
 
-        # TODO, this linear map is not absolutely since it is guaranteed that the
-        #  input and out features will be having the same sizes
         if self.residual and use_linear_channel_residual:
             self.linear_channel_residual = SlicedLinearMap(
                 F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
