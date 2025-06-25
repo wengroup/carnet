@@ -54,7 +54,6 @@ class AtomicMoment(nn.Module):
         # Radial part
         self.radial = RadialPart(
             F,
-            num_atom_types,
             max_chebyshev_degree=max_chebyshev_degree,
             r_cut=r_cut,
             envelope=envelope,
@@ -122,11 +121,7 @@ class AtomicMoment(nn.Module):
         )
 
         # Radial basis; (n_edges, F)
-        fu = self.radial(
-            torch.linalg.vector_norm(edge_vector, dim=-1),
-            atom_type[i_idx],
-            atom_type[j_idx],
-        )
+        fu = self.radial(torch.linalg.vector_norm(edge_vector, dim=-1))
 
         # TODO, the radial_mlp might be batched
         #  put all weights as a larger one

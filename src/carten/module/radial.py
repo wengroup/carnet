@@ -8,6 +8,59 @@ from torch import nn as nn
 
 
 class RadialPart(nn.Module):
+    """Radial part.
+
+    Unlike RadialPartCAMP, here, the weight does not depend on chemical species.
+
+    f_nu(r) = \sum_\beta c_nu * radial_basis_\beta(r)
+    """
+
+    def __init__(
+        self,
+        n_u: int,
+        max_chebyshev_degree: int = 9,
+        r_cut: float = 5,
+        envelope: Optional[int] = None,
+    ):
+        """
+        Args:
+            n_u: number of radial basis functions.
+            max_chebyshev_degree: max degree of the Chebyshev polynomial. The total
+                number of chebyshev polynomials is `max_chebyshev_degree + 1`; +1 for
+                the zeroth degree.
+            r_cut: cutoff distance.
+            envelope: envelope function to make the radial basis function smooth at
+                r_cut. if None, using the MTP 2nd order polynomial envelope. Otherwise,
+                p is a positive integer, and the envelope function in dimenet is used.
+        """
+        super().__init__()
+
+        self.n_u = n_u
+        self.max_chebyshev_degree = max_chebyshev_degree
+        self.r_cut = r_cut
+        self.envelope = envelope
+
+        self.linear = nn.Linear(max_chebyshev_degree + 1, n_u)
+
+    def forward(self, r: Tensor):
+        """
+        Args:
+            r: 1D tensor of distances between atoms i and j.
+
+        Returns:
+            A tensor of shape (len(r), n_nu). The first dimension corresponds to `nu`
+            in Eq. 3 of Shapeev, and the second dimension denotes the size of the
+            distances.
+        """
+        # shape (len(r), degrees)
+        radial = radial_basis(
+            self.max_chebyshev_degree, r, r_cut=self.r_cut, envelope=self.envelope
+        )
+
+        return self.linear(radial)  # (len(r), n_nu)
+
+
+class RadialPartCAMP(nn.Module):
     """Radial part of the MTP.
 
     f_nu_i_j(r) = \sum_\beta c_nu_i_j * radial_basis_\beta(r)
