@@ -2,11 +2,12 @@ import torch
 from natt.utils import is_symmetric_traceless, letter_index
 
 from carten.core.legendre import legendre
-from carten.core.unit_vector import (
+from carten.core.unit_vector_1 import (
     get_nt_from_vector,
     get_nt_from_vector_rule,
     get_polyadics_from_vector,
 )
+from carten.core.unit_vector_2 import get_nt_from_vector as get_nt_from_vector_2
 
 
 def test_get_nt_from_vector_rule():
@@ -99,3 +100,18 @@ def test_get_polyadics_from_vector():
     for L in range(5):
         x = get_polyadics_from_vector(a, L)
         assert x.shape == ((3 ** (L + 1) - 1) // 2,)
+
+
+def test_implementation():
+    """
+    Check different implementations of get_nt_from_vector produce the same result.
+    """
+    torch.manual_seed(35)
+
+    a = torch.randn(2, 3)
+    a /= a.norm(dim=-1, keepdim=True)
+
+    for l in range(4):
+        out1 = get_nt_from_vector(a, l)
+        out2 = get_nt_from_vector_2(a, l)
+        assert torch.allclose(out1, out2)

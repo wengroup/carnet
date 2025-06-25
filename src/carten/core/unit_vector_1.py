@@ -165,3 +165,10 @@ def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:
     delta_indices = letter_index(d)
 
     return rule, symmetry, delta_indices
+
+
+if __name__ == "__main__":
+    torch.manual_seed(35)
+
+    a = torch.randn(2, 3)
+    out = get_nt_from_vector(a, l=2)
