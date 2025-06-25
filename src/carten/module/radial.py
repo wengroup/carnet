@@ -1,6 +1,5 @@
 """Radial basis functions."""
 
-
 from typing import Optional
 
 import torch
@@ -14,6 +13,9 @@ class RadialPart(nn.Module):
     f_nu_i_j(r) = \sum_\beta c_nu_i_j * radial_basis_\beta(r)
 
     Eq. 3 of Shapeev.
+
+    # Note, this will be extremely large when there are lots of species. Then you
+    want to use RadialPart2, which is not dependent on the species.
     """
 
     def __init__(
@@ -77,16 +79,16 @@ class RadialPart(nn.Module):
             in Eq. 3 of Shapeev, and the second dimension denotes the size of the
             distances.
         """
-        # shape (n_nu, len(r))
+        # shape (len(r), degrees)
         radial = radial_basis(
             self.max_chebyshev_degree, r, r_cut=self.r_cut, envelope=self.envelope
         )
 
         # select c for r according to zi and zj
-        c = self.c[zi, zj, :, :]  # shape(len(r), n_nu, len(degrees))
+        c = self.c[zi, zj, :, :]  # shape(len(r), n_nu, degrees)
 
         # linear combination of radial basis functions of different degrees
-        out = torch.einsum("rub, br -> ru", c, radial)
+        out = torch.bmm(c, radial.unsqueeze(-1)).squeeze(-1)  # shape (len(r), n_nu)
 
         return out
 
@@ -113,8 +115,8 @@ def radial_basis(
             positive integer, and the envelope function in dimenet is used.
 
     Returns:
-        A tensor X of shape (degree+1, *r.shape); +1 to include the zeroth degree.
-        The first dimension denotes the degree of the polynomial. X[i] is the result
+        A tensor X of shape (*r.shape, degree+1); +1 to include the zeroth degree.
+        The last dimension denotes the degree of the polynomial. X[..., i] is the result
         for the i-th degree polynomial.
     """
     # select r < r_cut ones for computation
@@ -131,12 +133,12 @@ def radial_basis(
     else:
         env = dimenet_envelope(normalized_r, p=envelope)
 
-    Q = che * env
+    Q = che * env.unsqueeze(-1)
 
     # prepare output
-    shape = torch.Size([degree + 1]) + r.shape
+    shape = r.shape + (degree + 1,)
     out = torch.zeros(shape, dtype=r.dtype, device=r.device)
-    out[:, mask] = Q
+    out[mask, :] = Q
 
     return out
 
@@ -149,14 +151,14 @@ def chebyshev_first(n: int, x: Tensor) -> Tensor:
         x: input tensor.
 
     Returns:
-        A tensor of shape (n + 1, *x.shape). The first dimension denotes the degree
-        of the polynomial, e.g. T[1] is the result of the first degree polynomial.
+        A tensor of shape (*x.shape, n+1). The last dimension denotes the degree
+        of the polynomial, e.g. T[:,1] is the result of the first degree polynomial.
     """
     T = [torch.ones_like(x), x]  # T0 and T1
     for i in range(2, n + 1):
         T.append(2.0 * x * T[i - 1] - T[i - 2])
 
-    T = torch.stack(T, dim=0)
+    T = torch.stack(T, dim=-1)
 
     return T
 
