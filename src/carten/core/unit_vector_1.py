@@ -21,6 +21,33 @@ from natt.utils import (
 from torch import Tensor
 
 
+def get_polyadics_from_vector(a: Tensor, L: int, normalize: str = "unity"):
+    r"""
+    Create polyadic tensors from a unit vector.
+
+    A polyadic tensor of rank L from a unit vector is defined as:
+    $a \otimes a \otimes ... \otimes a$,  # a total of L a.
+    It can be decomposed to natural tensors of unit vector of rank 0, 1, and up to L.
+
+    This function gets all the natural tensors and concatenates them at the last
+    dimension.
+
+    Args:
+        a: The unit vector(s). Shape(..., 3), where the last dimension is the vector,
+            and the rest are batch dimensions.
+        L: Maximum rank of the natural tensors to create.
+        normalize: Normalization type. See `get_nt_from_vector()`.
+
+    Returns:
+        The feature tensor of the unit vector. Shape (..., T), where
+        T = \sum_{l=0}^L = ((L+1)**2 -1)/2.
+    """
+    return torch.cat(
+        [get_nt_from_vector(a, l, normalize, flatten=True) for l in range(L + 1)],
+        dim=-1,
+    )
+
+
 def get_nt_from_vector(
     a: Tensor, l: int, normalize: str = "unity", flatten: bool = False
 ) -> Tensor:
@@ -105,33 +132,6 @@ def get_nt_from_vector(
         return out.view(batch_dims + (-1,))
     else:
         return out
-
-
-def get_polyadics_from_vector(a: Tensor, L: int, normalize: str = "unity"):
-    r"""
-    Create polyadic tensors from a unit vector.
-
-    A polyadic tensor of rank L from a unit vector is defined as:
-    $a \otimes a \otimes ... \otimes a$,  # a total of L a.
-    It can be decomposed to natural tensors of unit vector of rank 0, 1, and up to L.
-
-    This function gets all the natural tensors and concatenates them at the last
-    dimension.
-
-    Args:
-        a: The unit vector(s). Shape(..., 3), where the last dimension is the vector,
-            and the rest are batch dimensions.
-        L: Maximum rank of the natural tensors to create.
-        normalize: Normalization type. See `get_nt_from_vector()`.
-
-    Returns:
-        The feature tensor of the unit vector. Shape (..., T), where
-        T = \sum_{l=0}^L = ((L+1)**2 -1)/2.
-    """
-    return torch.cat(
-        [get_nt_from_vector(a, l, normalize, flatten=True) for l in range(L + 1)],
-        dim=-1,
-    )
 
 
 def get_nt_from_vector_rule(l: int, d: int) -> tuple[str, str, str]:

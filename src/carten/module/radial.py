@@ -146,6 +146,54 @@ class RadialPartCAMP(nn.Module):
         return out
 
 
+@torch.jit.script
+def chebyshev_first(n: int, x: Tensor) -> Tensor:
+    """Chebyshev polynomials of the first kind.
+
+    Args:
+        n: highest degree of the polynomial to compute.
+        x: input tensor.
+
+    Returns:
+        A tensor of shape (*x.shape, n+1). The last dimension denotes the degree
+        of the polynomial, e.g. T[:,1] is the result of the first degree polynomial.
+    """
+    T = [torch.ones_like(x), x]  # T0 and T1
+    for i in range(2, n + 1):
+        T.append(2.0 * x * T[i - 1] - T[i - 2])
+
+    T = torch.stack(T, dim=-1)
+
+    return T
+
+
+def mtp_envelope(r: Tensor):
+    """The envelope function used in the MTP."""
+    return (1 - r) ** 2
+
+
+@torch.jit.script
+def dimenet_envelope(r: Tensor, p: int = 6):
+    """The envelope function used in DimNet.
+
+    1 - (p+1)(p+2)/2*x**p + p*(p+2)*x**(p+1) - p*(p+1)/2*x**(p+2)
+
+    This is also the envelope function used hybrid NN of Mingjian Wen when p = 3.
+    """
+    if p == 6:
+        return 1 - 28 * r**6 + 48 * r**7 - 21 * r**8
+    elif p == 3:
+        return 1 - 10 * r**3 + 15 * r**4 - 6 * r**5
+    else:
+        return (
+            1
+            - (p + 1) * (p + 2) / 2 * r**p
+            + p * (p + 2) * r ** (p + 1)
+            - p * (p + 1) / 2 * r ** (p + 2)
+        )
+
+
+@torch.jit.script
 def radial_basis(
     degree: int,
     r: Tensor,
@@ -194,48 +242,3 @@ def radial_basis(
     out[mask, :] = Q
 
     return out
-
-
-def chebyshev_first(n: int, x: Tensor) -> Tensor:
-    """Chebyshev polynomials of the first kind.
-
-    Args:
-        n: highest degree of the polynomial to compute.
-        x: input tensor.
-
-    Returns:
-        A tensor of shape (*x.shape, n+1). The last dimension denotes the degree
-        of the polynomial, e.g. T[:,1] is the result of the first degree polynomial.
-    """
-    T = [torch.ones_like(x), x]  # T0 and T1
-    for i in range(2, n + 1):
-        T.append(2.0 * x * T[i - 1] - T[i - 2])
-
-    T = torch.stack(T, dim=-1)
-
-    return T
-
-
-def mtp_envelope(r: Tensor):
-    """The envelope function used in the MTP."""
-    return (1 - r) ** 2
-
-
-def dimenet_envelope(r: Tensor, p: int = 6):
-    """The envelope function used in DimNet.
-
-    1 - (p+1)(p+2)/2*x**p + p*(p+2)*x**(p+1) - p*(p+1)/2*x**(p+2)
-
-    This is also the envelope function used hybrid NN of Mingjian Wen when p = 3.
-    """
-    if p == 6:
-        return 1 - 28 * r**6 + 48 * r**7 - 21 * r**8
-    elif p == 3:
-        return 1 - 10 * r**3 + 15 * r**4 - 6 * r**5
-    else:
-        return (
-            1
-            - (p + 1) * (p + 2) / 2 * r**p
-            + p * (p + 2) * r ** (p + 1)
-            - p * (p + 1) / 2 * r ** (p + 2)
-        )
