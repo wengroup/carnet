@@ -24,7 +24,13 @@ def get_args(path: Path):
     return config
 
 
-def load_model(lit_model_cls, model_cls, checkpoint: Path, map_location: str = None):
+def load_model(
+    lit_model_cls,
+    model_cls,
+    checkpoint: Path,
+    map_location: str = None,
+    overrides: dict | None = None,
+):
     """
     Load the model from checkpoint.
 
@@ -34,6 +40,12 @@ def load_model(lit_model_cls, model_cls, checkpoint: Path, map_location: str = N
         model_cls: the model class, e.g. `carten.model.ip.InteratomicPotential`
         checkpoint: path to the checkpoint
         map_location: device to load the model to
+        overrides: additional hyperparameters to override these saved in the
+            checkpoint. Accepts a dictionary of hyperparameters, each should be of the
+            same format as defined in the lightning module's `__init__` method, e.g.
+            see the __init__ method of
+            `carten.model.pl.pl_ip.InteratomicPotentialLitModule`.
+
     """
     # create the model to load, using the same hyperparameters saved in the checkpoint
     d = torch.load(checkpoint, map_location=map_location, weights_only=True)
@@ -46,11 +58,16 @@ def load_model(lit_model_cls, model_cls, checkpoint: Path, map_location: str = N
     model_hparams = d["hyper_parameters"]["other_hparams"]["model"]
     model = model_cls(**model_hparams)
 
-    # create the lit model
-    # Note, this will only restore model parameters, not the epoch, optimizer state,
+    # Create the lit model
+    # Note 1, this will only restore model parameters, not the epoch, optimizer state,
     # lr_scheduler state, etc.
+    # Note 2, model has to be provided, as the lightning module receives it as a
+    # positional argument, and it is not part of the hyperparameters (saved to
+    # checkpoint).
+    # Note 3,
+    overrides = overrides or {}
     lit_model = lit_model_cls.load_from_checkpoint(
-        checkpoint, model=model, map_location=map_location
+        checkpoint, map_location=map_location, model=model, **overrides
     )
 
     return lit_model
