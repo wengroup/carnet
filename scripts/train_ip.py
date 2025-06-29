@@ -268,9 +268,6 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    # Remove the processed data directory
-    shutil.rmtree("./processed", ignore_errors=True)
-
     config_file = Path(__file__).parent / "configs" / "config_ip.yaml"
     config = get_args(config_file)
     pprint(config)
@@ -287,5 +284,5 @@ if __name__ == "__main__":
 
     main(config)
 
-    # Remove the processed data directory
+    # Remove the processed data directory to save space
     shutil.rmtree("./processed", ignore_errors=True)
