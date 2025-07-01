@@ -19,7 +19,7 @@ dependencies = [
     "ema-pytorch",
     "lightning",
     "wandb",
-    "line_profiler",
+    "scikit-learn",
 ]
 
 [project.optional-dependencies]
