@@ -11,9 +11,9 @@ data:
   #  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
   #  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
   #
-  #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_train.json
-  #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_val.json
-  #  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/rmd17/json_data/rmd17_aspirin_index_1_test.json
+  #  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
+  #  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
+  #  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
   #
   #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
   #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json

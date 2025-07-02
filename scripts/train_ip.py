@@ -46,7 +46,9 @@ def get_dataloaders(
 ):
 
     trainset = get_dataset(trainset_filename, atomic_number, r_cut)
-    train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
+    train_loader = DataLoader(
+        trainset, batch_size=train_batch_size, shuffle=True, drop_last=True
+    )
 
     valset = get_dataset(valset_filename, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)

@@ -4,6 +4,10 @@ Here, we use the methods to do it and see that they give the same results.
 
 One method is using the explicit rule and another is using the general rule. We want to
 explore the scalar factor between the two methods.
+The two methods are:
+1. get_G_H_S_of_j_natural: the general method, where G is obtained using the tensor
+   decomposition method.
+2. tp_even: the explicit method, where the G tensor is from the explicit tensor rule.
 """
 
 import torch
@@ -58,12 +62,14 @@ if __name__ == "__main__":
     Z1 = tp_even_general(X, Y, l1, l2, l3)
 
     # Explicit method
-    NORMALIZATION = "unity"  # Do not normalize the tensor
+    NORMALIZATION = "unity"  # or "none"
     X = X.flatten().unsqueeze(0)
     Y = Y.flatten().unsqueeze(0)
     Z2 = tp_even(X, Y, l1, l2, l3, normalize=NORMALIZATION)
     Z2 = Z2.reshape((3,) * l3)
 
+    # Factor between the two methods
+    # We will see that no  matter what the normalization is, the factor will not be 1.
     factor = Z1 / Z2
 
     print(factor)

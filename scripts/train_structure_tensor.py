@@ -61,7 +61,9 @@ def get_dataloaders(
         raise ValueError(f"Unknown target mode: {target_mode}.")
 
     trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
-    train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
+    train_loader = DataLoader(
+        trainset, batch_size=train_batch_size, shuffle=True, drop_last=True
+    )
 
     valset = get_dataset(valset_filename, names, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
