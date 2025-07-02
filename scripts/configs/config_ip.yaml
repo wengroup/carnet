@@ -3,9 +3,9 @@ default_dtype: float32
 restore_checkpoint: null # path to checkpoint to restore from; if `null`, train from scratch
 
 data:
-  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
-  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
-  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_10_LiPS.json
+  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
   #
   #  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
   #  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
@@ -89,10 +89,10 @@ lr_scheduler:
 #    eta_min: 0.0001
 
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
-  beta: 0.999
-  update_after_step: 1000
+  beta: 0.99
+  update_after_step: 100
   update_every: 10
-  power: 0.6667
+  power: 0.75
   include_online_model: false
 
 trainer:
