@@ -21,7 +21,7 @@ class AtomicTensorModel(nn.Module):
         num_layers: int,
         num_average_neigh: float,
         # angular
-        max_degree: int = None,
+        max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
@@ -167,7 +167,7 @@ class StructureTensorModel(nn.Module):
         num_layers: int,
         num_average_neigh: float,
         # angular
-        max_degree: int = None,
+        max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,

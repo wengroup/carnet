@@ -36,8 +36,9 @@ model:
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
 
   # angular
-  max_L: 2 # max rank of natural tensor
-  max_degree: null # max degree of coupling natural tensor, if `null`, equal to max_L
+  max_L: 3 # max rank of natural tensor
+  max_degree: 3 # max correlation degree
+
 
   # radial
   radial_mlp_hidden_layers: 2

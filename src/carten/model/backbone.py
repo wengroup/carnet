@@ -21,7 +21,6 @@ class Backbone(nn.Module):
         max_out_L: Max rank for the output feature tensor in the last layer.
             If None, set to max_L.
         max_degree: Max correlation degree to construct the hyper moment tensor.
-            If None, set to max_L.
         max_chebyshev_degree: max degree of the Chebyshev polynomial to use to construct
             the radial basis functions. The total number of chebyshev polynomials is
             `max_chebyshev_degree + 1`; +1 for the zeroth degree.
@@ -49,7 +48,7 @@ class Backbone(nn.Module):
         num_average_neigh: float,
         # angular
         max_out_L: int = None,
-        max_degree: int = None,
+        max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
         radial_mlp_hidden_layers: list[int] | int = 2,
@@ -74,7 +73,7 @@ class Backbone(nn.Module):
         self.num_average_neigh = num_average_neigh
 
         self.max_out_L = max_L if max_out_L is None else max_out_L
-        self.max_degree = max_L if max_degree is None else max_degree
+        self.max_degree = max_degree
 
         self.max_chebyshev_degree = max_chebyshev_degree
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers

@@ -36,7 +36,7 @@ model:
 
   # angular
   max_L: 4 # max rank of natural tensor
-  max_degree: null # max degree of coupling natural tensor, if `null`, equal to max_L
+  max_degree: 3 # max correlation degree
 
   # radial
   radial_mlp_hidden_layers: 2

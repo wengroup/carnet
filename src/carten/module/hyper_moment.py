@@ -34,7 +34,6 @@ class HyperMoment(nn.Module):
         max_out_L: Max rank for the output hyper moment feature tensor.
             If None, set to L.
         max_degree: Max correlation degree of the hyper moment feature tensor.
-            If None, set to L.
     """
 
     def __init__(
@@ -42,7 +41,7 @@ class HyperMoment(nn.Module):
         F: int,
         L: int,
         max_out_L: int = None,
-        max_degree: int = None,
+        max_degree: int = 3,
         tp_path_mode: str = "full",
     ):
         super().__init__()
@@ -52,12 +51,6 @@ class HyperMoment(nn.Module):
         else:
             if not max_out_L <= L:
                 raise ValueError(f"Expect max_out_L <= L, got {max_out_L} > {L}.")
-
-        if max_degree is None:
-            max_degree = L
-        else:
-            if not max_degree <= L:
-                raise ValueError(f"Expect max_degree <= L, got {max_degree} > {L}.")
 
         self.F = F
         self.L = L

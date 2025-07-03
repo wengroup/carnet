@@ -27,7 +27,7 @@ class Layer(nn.Module):
         r_cut: float = 5.0,
         radial_mlp_hidden_layers: int | list[int] = 2,
         max_out_L: int = None,
-        max_degree: int = None,
+        max_degree: int = 3,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
         layer_norm: bool = False,
@@ -73,7 +73,7 @@ class Layer(nn.Module):
         self.r_cut = r_cut
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
         self.max_out_L = L3 if max_out_L is None else max_out_L
-        self.max_degree = L3 if max_degree is None else max_degree
+        self.max_degree = max_degree
         self.residual = residual
         self.atomic_moment_mode = atomic_moment_mode
 
