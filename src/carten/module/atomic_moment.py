@@ -7,7 +7,7 @@ from carten.core.unit_vector import get_polyadics_from_vector
 
 from .mlp import MLP
 from .product import TensorProduct
-from .radial import RadialPart
+from .radial import radial_basis
 from .scatter import scatter
 from .utils import check_rank
 
@@ -51,14 +51,6 @@ class AtomicMoment(nn.Module):
         self.envelope = envelope
         self.tp_path_mode = tp_path_mode
 
-        # Radial part
-        self.radial = RadialPart(
-            F,
-            max_chebyshev_degree=max_chebyshev_degree,
-            r_cut=r_cut,
-            envelope=envelope,
-        )
-
         # Tensor product
         self.tp = TensorProduct(
             F, L1, L2, L3, normalize="unity", path_mode=tp_path_mode
@@ -73,7 +65,7 @@ class AtomicMoment(nn.Module):
             for p in paths:
                 p = str(p)
                 self.radial_mlp[p] = MLP(
-                    in_features=F,
+                    in_features=max_chebyshev_degree + 1,  # +1 for degrees 0
                     out_features=F,
                     hidden_features=radial_mlp_hidden_layers,
                     out_activation=False,
@@ -120,8 +112,13 @@ class AtomicMoment(nn.Module):
             polyadics.shape[0], self.F, polyadics.shape[1]
         )
 
-        # Radial basis; (n_edges, F)
-        fu = self.radial(torch.linalg.vector_norm(edge_vector, dim=-1))
+        # Radial basis; (n_edges, max_chebyshev_degree + 1)
+        fu = radial_basis(
+            torch.linalg.vector_norm(edge_vector, dim=-1),
+            self.max_chebyshev_degree,
+            r_cut=self.r_cut,
+            envelope=self.envelope,
+        )
 
         # TODO, the radial_mlp might be batched
         #  put all weights as a larger one
