@@ -158,6 +158,10 @@ class Layer(nn.Module):
             # i.e. the scalars are used as x in g(x)*t.
             # Then, we create additional layer norm for the scalar features.
             # This is the same as the equiformer way of doing activation.
+            #
+            # TODO, alternatively, for high rank tensors, instead of scalars from the
+            #  rank-0 tensor, we can use its norm as x in g(x)*t. This makes a bit
+            #  more sense and is similar to what is done in TensorNet.
             if use_linear_channel_hyper:
                 self.linear_channel_hyper_scalar = SlicedLinearMap(F, F, [1], bias=True)
             else:
