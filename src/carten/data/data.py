@@ -299,7 +299,6 @@ class Config(Data):
 
         if not np.any(pbc):
             cell = None
-            shift_vec = None
 
         return cls(
             pos=pos,
