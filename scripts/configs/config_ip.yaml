@@ -84,10 +84,11 @@ lr_scheduler:
     patience: 100
     verbose: true
 #lr_scheduler:
-#  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+#  class_path: carten.model.pl.scheduler.LinearWarmupCosineAnnealingWarmRestarts
 #  init_args:
-#    T_max: 5 # should be equal to trainer.max_epochs
-#    eta_min: 0.0001
+#    start_factor: 0.01
+#    warmup_epochs: 10
+#    T_0: 100
 
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   beta: 0.99
