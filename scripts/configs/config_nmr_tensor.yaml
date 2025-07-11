@@ -53,18 +53,13 @@ loss:
   # The loss is: \sum w_i (y_i - \hat y_i)^2,
   # where y_i is the model prediction for natural tensor of rank i, and \hat y_i is corresponding target;
   # w_i is the weight for the loss of natural tensor of rank i.
-  # If `normalize` is true, w_i = w_i/n_i, where n_i = 3**i is the number of elements in natural tensor of rank i.
-  # The ranks should be consistent with the `target_signature` given in `data`.
   ratio:
     ## NMR tensor
     0: 1.0
     2: 1.0
 
-  normalize: true # normalize natural tensor of different ranks by the number of elements
-
 metrics:
   type: mae
-  normalize: true # normalize natural tensor of different ranks by the number of elements
   validation_start_epoch: 0 # start calculating metrics at this epoch
 
 optimizer:
