@@ -262,9 +262,9 @@ def main(config: dict):
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
 
-        # Pass alone the model hyperparameters to override the ones saved in the
-        # checkpoint. This becomes useful when changing the way to train the model,
-        # e.g. using a different loss function.
+        # Pass the model hyperparameters to override the ones saved in the checkpoint.
+        # This becomes useful when changing the way to train the model, e.g. using a
+        # different loss weight.
         # Note, optimizer and lr_scheduler, will not be effective although they are
         # passed here, as they will be restored from the checkpoint below with
         # trainer.fit(ckpt_path=restore_checkpoint).
@@ -295,9 +295,9 @@ def main(config: dict):
 
         ## TODO, for DEBUG only, should be commented out
         ## log gradients, parameter histogram and model topology
-        ## for test run with small max_epoch, you might need to set `log_freq` such that
-        ## this is executed at least once
-        # logger.watch(model, log="all", log_graph=False)
+        ## For test run with small max_epoch, you might need to set `log_freq` to a
+        ## smaller value (default is 100) so that this is executed at least once.
+        # logger.watch(model, log="all", log_graph=False, log_freq=1)
     except KeyError:
         logger = None
 
@@ -305,6 +305,11 @@ def main(config: dict):
 
     # Note, passing ckpt_path to trainer.fit() to restore epoch, optimizer state,
     # lr_scheduler state, etc.
+    # See: https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
+    # Note, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
+    # and new values are provided in `config`, they won't be updated in the training
+    # process, since the below `fit` method has `ckpt_path` as an argument, which will
+    # override the hyperparameters from the config file (set in the above line).
     trainer.fit(
         model,
         train_dataloaders=train_loader,

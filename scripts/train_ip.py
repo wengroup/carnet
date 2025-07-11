@@ -188,11 +188,12 @@ def main(config: dict):
     # Get model
     restore_checkpoint = config.pop("restore_checkpoint")
 
-    # create new model
-    if restore_checkpoint is None:
-        config = update_model_configs(config, train_loader.dataset)
-        config["git_commit"] = get_git_commit()
+    # Update configs
+    config = update_model_configs(config, train_loader.dataset)
+    config["git_commit"] = get_git_commit()
 
+    # Create new model
+    if restore_checkpoint is None:
         model = get_model(
             config["model"],  # do not pop to pass to other_hparams to track with WandB
             loss_hparams=config.pop("loss"),
@@ -202,12 +203,30 @@ def main(config: dict):
             ema_hparams=config.pop("ema"),
             other_hparams=config,
         )
-
     # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
+
+        # Pass the model hyperparameters to override the ones saved in the checkpoint.
+        # This becomes useful when changing the way to train the model, e.g. using a
+        # different loss weight.
+        # Note, optimizer and lr_scheduler, will not be effective although they are
+        # passed here, as they will be restored from the checkpoint below with
+        # trainer.fit(ckpt_path=restore_checkpoint).
+        names = {
+            "loss": "loss_hparams",
+            "metrics": "metrics_hparams",
+            "optimizer": "optimizer_hparams",
+            "lr_scheduler": "lr_scheduler_hparams",
+            "ema": "ema_hparams",
+        }
+        overrides = {v: config.pop(k) for k, v in names.items()}
+
         model = load_model(
-            InteratomicPotentialLitModule, InteratomicPotential, restore_checkpoint
+            InteratomicPotentialLitModule,
+            InteratomicPotential,
+            restore_checkpoint,
+            overrides=overrides,
         )
 
     # Train
