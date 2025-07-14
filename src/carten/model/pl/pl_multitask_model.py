@@ -118,6 +118,12 @@ class MultiTaskLitModule(LightningModule):
 
         # References
         ref = batch.y
+
+        # deal with shield tensor shape (we have multiple atoms predicted together)
+        name = "shielding_tensor_full"
+        if name in ref:
+            ref[name] = ref[name].view(-1, 3, 3)
+
         pred_nat = self(batch)
         pred = self.to_cartesian(pred_nat)
 
@@ -147,6 +153,11 @@ class MultiTaskLitModule(LightningModule):
 
             # References
             ref = batch.y
+            # deal with shield tensor shape (we have multiple atoms predicted together)
+            name = "shielding_tensor_full"
+            if name in ref:
+                ref[name] = ref[name].view(-1, 3, 3)
+
             pred_nat = self(batch)
             pred = self.to_cartesian(pred_nat)
 
