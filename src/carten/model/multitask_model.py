@@ -149,10 +149,14 @@ class MultiTaskModel(nn.Module):
                 output[target_name] = head(selected_feats, atom_type, num_atoms)
             elif target_name == "dipole_moment_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(selected_feats, atom_type, num_atoms)
+                output[target_name] = head(
+                    selected_feats, atom_type, num_atoms, reduce="sum"
+                )
             elif target_name == "polarizability_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(selected_feats, atom_type, num_atoms)
+                output[target_name] = head(
+                    selected_feats, atom_type, num_atoms, reduce="sum"
+                )
             elif target_name == "shielding_tensor":
                 selected_feats = all_atom_feats
                 output[target_name] = head(selected_feats, atom_type)
