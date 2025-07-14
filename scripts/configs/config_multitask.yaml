@@ -16,7 +16,7 @@ data:
     - forces
     - dipole_moment_tensor
     - polarizability_tensor
-#    - shielding_tensor
+    - shielding_tensor
   target_mode: full # options: `natural`, `full`, `voigt`
   target_signature: # {rank: number} of the natural tensor
     dipole_moment_tensor:
@@ -24,14 +24,14 @@ data:
     polarizability_tensor:
       0: 1
       2: 1
-#    shielding_tensor:
-#      0: 1
-#      1: 1
-#      2: 1
+    shielding_tensor: # 9 is the number of atoms, w
+      0: 9
+      1: 9
+      2: 9
   target_symmetry:
 #    dipole_moment_tensor: i # For rank-0 dipole moment, we don't need to convert
     polarizability_tensor: ij=ji
-#    shielding_tensor: ij
+    shielding_tensor: ij
   trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
   valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
   testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
@@ -87,7 +87,7 @@ loss:
     forces: 1.
     dipole_moment_tensor: 1.
     polarizability_tensor: 1.
-#    shielding_tensor: 1.
+    shielding_tensor: 1.
 
   normalize: true # normalize natural tensor of different ranks by the number of elements
 

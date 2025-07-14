@@ -209,6 +209,9 @@ class AtomicTensor(nn.Module):
                 )
             # For others, using a linear map
             else:
+                # TODO, why we want to use in_features * num_atom_feats, instead of
+                #  mapping the features of each layer separately? There is no reason
+                #  Should test it
                 self.kernel[str(l)] = LinearMap(in_features * self.num_atom_feats, n)
 
             start = (3**l - 1) // 2
