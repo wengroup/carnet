@@ -102,6 +102,7 @@ class StructureScalar(nn.Module):
         for i, fn in enumerate(self.out_layers):
             V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
+        # TODO, allow the per species scale and shift
         # Normalization
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
@@ -224,7 +225,7 @@ class AtomicTensor(nn.Module):
 
         # Register a separate bias for each atomic type, only for rank-0 tensors.
         # Different for each feature dimension of the rank-0 tensor.
-        if element_bias:
+        if element_bias and 0 in output_signature:
             self.element_bias = nn.Parameter(
                 torch.zeros(num_atom_types, output_signature[0])
             )

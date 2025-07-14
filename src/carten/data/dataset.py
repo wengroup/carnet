@@ -162,11 +162,7 @@ class DatasetIP(BaseDataset):
         Returns:
              Scalar tensor.
         """
-        energies = []
-        for config in self:
-            energies.append(config.y["energy"] / len(config["pos"]))
-
-        return torch.tensor(energies).mean()
+        return _get_mean_atomic_energy(self)
 
     def get_root_mean_square_force(self) -> Tensor:
         """Get the root-mean-square force.
@@ -174,15 +170,7 @@ class DatasetIP(BaseDataset):
         Returns:
              Scalar tensor.
         """
-        s = 0
-        n = 0
-        for config in self:
-            s += config.y["forces"].pow(2).sum()
-            n += 3 * len(config["pos"])
-
-        rms = (s / n) ** 0.5
-
-        return rms
+        return _get_root_mean_square_force(self)
 
 
 class DatasetTensor(BaseDataset):
@@ -270,31 +258,32 @@ class DatasetTensor(BaseDataset):
         else:
             name = self.target_names[0]
 
-        # Note, the key of y[name] is an integer that is represented as a string
-        rank_0_vals = []
-        scales = {rank: 0 for rank, _ in self[0].y[name].items() if rank != "0"}
+        return _get_tensor_shifts_and_scales(self, name)
 
-        for config in self:
-            d = config.y[name]
-            for rank, val in d.items():
-                if rank == "0":
-                    rank_0_vals.append(val)
-                else:
-                    scales[rank] += val.pow(2).sum(dim=(0, -1))
 
-        rank_0_vals = torch.cat(rank_0_vals)
+class DatasetMultiTask(DatasetTensor):
+    """
+    An extension of DatasetTensor to handle multiple tensor targets.
+    """
 
-        # Scale of tensors of rank > 0
-        scales = {
-            int(rank): (val / (len(self) * 3 ** int(rank))).sqrt().unsqueeze(-1)
-            for rank, val in scales.items()
-        }
+    def get_shift_and_scale_tensors(
+        self,
+    ) -> tuple[dict[str, dict[int, Tensor]], dict[str, dict[int, Tensor]]]:
 
-        # Scale of rank 0 tensor
-        scales[0] = torch.std(rank_0_vals, dim=0)
+        shifts = {}
+        scales = {}
 
-        # Currently, only computing the shift for rank 0 tensors
-        shifts = {0: torch.mean(rank_0_vals, dim=0)}
+        # energy
+        shifts["energy"] = _get_mean_atomic_energy(self)
+        scales["energy"] = _get_root_mean_square_force(self)
+
+        # TODO, this is hard coded, we get the natural tensor by name search
+        target_names = [n for n in self.target_names if n.endswith("_natural")]
+
+        for name in target_names:
+            s, c = _get_tensor_shifts_and_scales(self, name)
+            shifts[name] = s
+            scales[name] = c
 
         return shifts, scales
 
@@ -310,6 +299,56 @@ def _to_numpy(d):
         return {k: _to_numpy(v) for k, v in d.items()}
     else:
         return np.asarray(d)
+
+
+def _get_mean_atomic_energy(self) -> Tensor:
+    energies = []
+    for config in self:
+        energies.append(config.y["energy"] / len(config["pos"]))
+
+    return torch.tensor(energies).mean()
+
+
+def _get_root_mean_square_force(self) -> Tensor:
+    s = 0
+    n = 0
+    for config in self:
+        s += config.y["forces"].pow(2).sum()
+        n += 3 * len(config["pos"])
+
+    rms = (s / n) ** 0.5
+
+    return rms
+
+
+def _get_tensor_shifts_and_scales(self, name):
+    # Note, the key of y[name] is an integer that is represented as a string
+    rank_0_vals = []
+    scales = {rank: 0 for rank, _ in self[0].y[name].items() if rank != "0"}
+
+    for config in self:
+        d = config.y[name]
+        for rank, val in d.items():
+            if rank == "0":
+                rank_0_vals.append(val)
+            else:
+                scales[rank] += val.pow(2).sum(dim=(0, -1))
+
+    # Scale of tensors of rank > 0
+    scales = {
+        int(rank): (val / (len(self) * 3 ** int(rank))).sqrt().unsqueeze(-1)
+        for rank, val in scales.items()
+    }
+
+    # Scale and shift of rank 0 tensors
+    if rank_0_vals:
+        rank_0_vals = torch.cat(rank_0_vals)
+        scales[0] = torch.std(rank_0_vals, dim=0)
+        shifts = {0: torch.mean(rank_0_vals, dim=0)}
+    else:
+        shifts = {}
+
+    return shifts, scales
 
 
 if __name__ == "__main__":
