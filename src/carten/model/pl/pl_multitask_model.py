@@ -67,10 +67,12 @@ class MultiTaskLitModule(LightningModule):
         )
 
         # values needed to convert natural tensors to cartesian tensors
-        self.converter = {
-            target: Converter(sym)
-            for target, sym in self.loss_hparams["target_symmetry"].items()
-        }
+        self.converter = nn.ModuleDict(
+            {
+                target: Converter(sym)
+                for target, sym in self.loss_hparams["target_symmetry"].items()
+            }
+        )
 
     def forward(self, batch):
         """Compute model output."""
