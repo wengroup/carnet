@@ -130,9 +130,11 @@ class AtomicTensor(nn.Module):
     """Get a tensor output for each atom in a configuration.
 
     For a model with multiple layers, the atomic feats of all layers are passed to this
-    module. This module then:
-    1. Selects the corresponding natural tensors according to `atomic_selector`.
-    2. Linearly maps them (via the channel dim) to get the atomic natural tensors.
+    module. This module then: linearly maps them (via the channel dim) to get the atomic
+    natural tensors.
+
+    Note, this module does not use `atomic_selector` to select a subset of atoms. If
+    needed, it should be done before passing the atomic features to this module.
 
 
     Args:

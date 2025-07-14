@@ -145,6 +145,7 @@ class AtomicTensorModel(nn.Module):
         # Select the atomic features of the specified atoms
         if atomic_selector is not None:
             all_atom_feats = [x[atomic_selector] for x in all_atom_feats]
+            atom_type = atom_type[atomic_selector]
 
         # Compute the atomic tensor on each atom
         output = self.readout(all_atom_feats, atom_type)
