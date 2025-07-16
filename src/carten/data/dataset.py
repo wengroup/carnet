@@ -329,22 +329,31 @@ def _get_tensor_shifts_and_scales(self, name):
     for config in self:
         d = config.y[name]
         for rank, val in d.items():
+            assert val.ndim == 3, "The tensor should have 3 dimensions: (1, F, T)."
             if rank == "0":
                 rank_0_vals.append(val)
             else:
-                scales[rank] += val.pow(2).sum(dim=(0, -1))
+                # sum over F, and T dims
+                scales[rank] += val.pow(2).sum()
 
     # Scale of tensors of rank > 0
+    # normalize by N*F*T, where:
+    # - N is the number of configurations;
+    # - F is the number of natural tensors; Typically it is 1 for structure tensors,
+    #   and it can be > 1 for atomic tensors where each configuration consists of
+    #   multiple atomic tensors.
+    # - T is the number of tensor elements, which is 3^l, where l is the rank of the
+    #   natural tensor.
     scales = {
-        int(rank): (val / (len(self) * 3 ** int(rank))).sqrt().unsqueeze(-1)
-        for rank, val in scales.items()
+        int(rank): (v / (len(self) * val.shape[1] * 3 ** int(rank))).sqrt()
+        for rank, v in scales.items()
     }
 
     # Scale and shift of rank 0 tensors
     if rank_0_vals:
         rank_0_vals = torch.cat(rank_0_vals)
-        scales[0] = torch.std(rank_0_vals, dim=0)
-        shifts = {0: torch.mean(rank_0_vals, dim=0)}
+        scales[0] = torch.std(rank_0_vals)
+        shifts = {0: torch.mean(rank_0_vals)}
     else:
         shifts = {}
 

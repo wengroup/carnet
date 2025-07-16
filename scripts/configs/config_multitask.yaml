@@ -24,10 +24,10 @@ data:
     polarizability_tensor:
       0: 1
       2: 1
-    shielding_tensor: # 9 is the number of atoms, w
-      0: 9
-      1: 9
-      2: 9
+    shielding_tensor:
+      0: 1
+      1: 1
+      2: 1
   target_symmetry:
 #    dipole_moment_tensor: i # For rank-0 dipole moment, we don't need to convert
     polarizability_tensor: ij=ji
