@@ -85,6 +85,9 @@ class InteratomicPotentialLitModule(LightningModule):
         # be able to compute the forces.
         # This is why we compute the edge_vector here.
 
+        # requires_grad to enable force computation
+        batch.pos.requires_grad_(True)
+
         e_pred = self.model(
             edge_vector=self._get_edge_vector(batch),
             edge_idx=batch.edge_index,
@@ -98,6 +101,9 @@ class InteratomicPotentialLitModule(LightningModule):
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 
+        # requires_grad to enable force computation
+        batch.pos.requires_grad_(True)
+
         e_pred = self.ema(
             edge_vector=self._get_edge_vector(batch),
             edge_idx=batch.edge_index,
@@ -109,8 +115,6 @@ class InteratomicPotentialLitModule(LightningModule):
         return e_pred, f_pred
 
     def training_step(self, batch, batch_idx):
-        # requires_grad to enable force computation
-        batch.pos.requires_grad_(True)
 
         e_ref = batch.y["energy"]
         f_ref = batch.y["forces"]
@@ -144,8 +148,6 @@ class InteratomicPotentialLitModule(LightningModule):
 
     def _val_test_step(self, batch, batch_idx, mode: str, start_epoch: int = 0):
         with torch.enable_grad():
-            # requires_grad to enable force computation
-            batch.pos.requires_grad_(True)
 
             e_ref = batch.y["energy"]
             f_ref = batch.y["forces"]

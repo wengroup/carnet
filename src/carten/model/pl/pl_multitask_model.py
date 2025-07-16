@@ -77,6 +77,9 @@ class MultiTaskLitModule(LightningModule):
     def forward(self, batch):
         """Compute model output."""
 
+        # requires_grad to enable force computation
+        batch.pos.requires_grad_(True)
+
         # Atomic selector only needed for atomic tensor model, not for structure tensor
         # model.
         atomic_selector = (
@@ -97,6 +100,9 @@ class MultiTaskLitModule(LightningModule):
     def forward_ema(self, batch):
         """Same as `forward, but use the EMA model instead of the original model."""
 
+        # requires_grad to enable force computation
+        batch.pos.requires_grad_(True)
+
         atomic_selector = (
             None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
         )
@@ -114,8 +120,6 @@ class MultiTaskLitModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
 
-        # requires_grad to enable force computation
-        batch.pos.requires_grad_(True)
         batch_size = batch.num_graphs
 
         # References
@@ -148,8 +152,6 @@ class MultiTaskLitModule(LightningModule):
 
     def _val_test_step(self, batch, batch_idx, mode: str):
         with torch.enable_grad():
-            # requires_grad to enable force computation
-            batch.pos.requires_grad_(True)
 
             batch_size = batch.num_graphs
 
