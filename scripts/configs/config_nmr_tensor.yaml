@@ -63,9 +63,8 @@ metrics:
   validation_start_epoch: 0 # start calculating metrics at this epoch
 
 optimizer:
-  class_path: torch.optim.Adam
+  class_path: torch.optim.AdamW
   init_args:
-    amsgrad: true
     lr: 0.01
     weight_decay: 0.0
 
