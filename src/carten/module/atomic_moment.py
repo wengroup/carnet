@@ -23,6 +23,7 @@ class AtomicMoment(nn.Module):
         L3: Max rank for the tensor product of the atomic features and polyadics.
     """
 
+    # TODO, num_atom_types not used , delete
     def __init__(
         self,
         F: int,

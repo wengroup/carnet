@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from .activation import elu, shifted_softplus, silu
 from .atomic_moment import AtomicMoment
 from .hyper_moment import HyperMoment
-from .linear import SlicedLinearMap
+from .linear import SlicedLinearMap, SlicedLinearMap2
 from .normalize import LayerNorm
 
 
@@ -105,8 +105,12 @@ class Layer(nn.Module):
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
-        self.linear_channel_atomic = SlicedLinearMap(
-            F, F, [3**l for l in range(L3 + 1)], bias=True
+        self.linear_channel_atomic = SlicedLinearMap2(
+            F,
+            F,
+            [3**l for l in range(L3 + 1)],
+            num_atom_types=num_atom_types,
+            bias=True,
         )
 
         self.hyper_moment = HyperMoment(
@@ -172,8 +176,12 @@ class Layer(nn.Module):
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
 
         if self.residual and use_linear_channel_residual:
-            self.linear_channel_residual = SlicedLinearMap(
-                F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
+            self.linear_channel_residual = SlicedLinearMap2(
+                F,
+                F,
+                [3**l for l in range(self.min_max_out_L_L1 + 1)],
+                num_atom_types=num_atom_types,
+                bias=True,
             )
         else:
             self.register_buffer("linear_channel_residual", None)
@@ -209,7 +217,7 @@ class Layer(nn.Module):
         am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
 
         # Mix atomic moments across channel
-        am = self.linear_channel_atomic(am)  # (Na, F, T3)
+        am = self.linear_channel_atomic(am, atom_type)  # (Na, F, T3)
 
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am)
@@ -251,7 +259,7 @@ class Layer(nn.Module):
             feats_skip = atom_feats[..., :size]
 
             if self.linear_channel_residual is not None:
-                feats_skip = self.linear_channel_residual(feats_skip)
+                feats_skip = self.linear_channel_residual(feats_skip, atom_type)
 
             hm[..., :size] += feats_skip
 
