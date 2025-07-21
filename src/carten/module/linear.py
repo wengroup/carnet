@@ -49,6 +49,62 @@ class LinearCombination(nn.Module):
         return f"LinearCombination(in_features={self.in_features}, const_features={self.const_features})"
 
 
+class SlicedLinearCombination(nn.Module):
+    """
+    Sliced linear combination of tensors.
+
+    Given a tensor of shape (..., P, F, t), this module computes the linear combination
+    along the dimension P, resulting in a tensor of shape (..., F, t).
+
+    Unlike LinearCombination, where a single weight matrix is used for the entire tensor,
+    here separate weight matrices are used for each slice across the t dimension.
+    """
+
+    def __init__(self, in_features: int, const_features: int, slice_sizes: list[int]):
+        super().__init__()
+        self.in_features = in_features
+        self.const_features = const_features
+        self.slice_sizes = slice_sizes
+
+        self.slices = []
+        self.linear = nn.ModuleList()
+        start = 0
+        for size in slice_sizes:
+            end = start + size
+            self.slices.append(slice(start, end))
+            start = end
+
+            self.linear.append(
+                LinearCombination(
+                    in_features=in_features,
+                    const_features=const_features,
+                )
+            )
+
+    def forward(self, input: Tensor) -> Tensor:
+        """
+        Args:
+            input: tensor of shape (..., P, F, t)
+
+        Returns:
+            tensor of shape (..., F, t)
+        """
+
+        out = []
+        for layer, s in zip(self.linear, self.slices):
+            out.append(layer(input[..., s]))
+        out = torch.cat(out, dim=-1)
+
+        return out
+
+    def __repr__(self):
+        return (
+            f"SlicedLinearCombination(in_features={self.in_features}, "
+            f"const_features={self.const_features}, "
+            f"slice_sizes={self.slice_sizes})"
+        )
+
+
 class LinearMap(nn.Module):
     """
     Linear map of tensors.

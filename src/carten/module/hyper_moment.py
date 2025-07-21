@@ -3,7 +3,7 @@
 import torch
 from torch import Tensor, nn
 
-from .linear import LinearCombination
+from .linear import SlicedLinearCombination
 from .product import TensorProduct
 
 
@@ -86,10 +86,10 @@ class HyperMoment(nn.Module):
             )
 
         # Linear combination of different degree
-        # In TensorProduct, a separate kernel is used for each rank to combine different
-        # paths, so do not need to use a separate linear combination for rank here.
         # H = \sum_d w_d H^d
-        self.linear_degree = LinearCombination(max_degree, F)
+        self.linear_degree = SlicedLinearCombination(
+            max_degree, F, [3**l for l in range(self.max_out_L + 1)]
+        )
 
     def forward(self, x: Tensor) -> Tensor:
         """
