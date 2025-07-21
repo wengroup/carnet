@@ -34,7 +34,6 @@ class Layer(nn.Module):
         activation: str = None,
         residual: bool = True,
         use_linear_channel_input: bool = False,
-        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
     ):
         """
@@ -118,14 +117,6 @@ class Layer(nn.Module):
             tp_path_mode=tp_path_mode,
         )
 
-        # Kernel for mixing channel of hyper moment, separate for each rank
-        if use_linear_channel_hyper:
-            self.linear_channel_hyper = SlicedLinearMap(
-                F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
-            )
-        else:
-            self.register_buffer("linear_channel_hyper", None)
-
         # Layer normalization
         if layer_norm:
             self.layer_norm = LayerNorm(
@@ -153,8 +144,8 @@ class Layer(nn.Module):
 
         # If activation is used, add another linear layer after it
         if activation is not None:
-            # If activation is used, the scalars in the above linear_channel_hyper and
-            # layer_norm are used to create the gate scalar for the activation,
+            # If activation is used, the scalars in the above layer_norm are used to
+            # create the gate scalar for the activation,
             # i.e. the scalars are used as x in g(x)*t.
             # Then, we create additional layer norm for the scalar features.
             # This is the same as the equiformer way of doing activation.
@@ -162,10 +153,6 @@ class Layer(nn.Module):
             # TODO, alternatively, for high rank tensors, instead of scalars from the
             #  rank-0 tensor, we can use its norm as x in g(x)*t. This makes a bit
             #  more sense and is similar to what is done in TensorNet.
-            if use_linear_channel_hyper:
-                self.linear_channel_hyper_scalar = SlicedLinearMap(F, F, [1], bias=True)
-            else:
-                self.register_buffer("linear_channel_hyper_scalar", None)
 
             if layer_norm:
                 self.layer_norm_scalar = LayerNorm(dim=F, slice_sizes=[1])
@@ -227,15 +214,11 @@ class Layer(nn.Module):
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am)
 
-        # Mix hyper moments across channel
-        if self.linear_channel_hyper is not None:
-            hm_2 = self.linear_channel_hyper(hm)  # (Na, F, T')
-        else:
-            hm_2 = hm
-
         # Normalize
         if self.layer_norm is not None:
-            hm_2 = self.layer_norm(hm_2)
+            hm_2 = self.layer_norm(hm)
+        else:
+            hm_2 = hm
 
         # Activation
         if self.activation is None:
@@ -243,12 +226,9 @@ class Layer(nn.Module):
         else:
             hm_2 = self.activation(hm_2)
 
-            # If activation is not None, then self.linear_channel_hyper and
-            # self.layer_norm are for the high-rank tensors. Generate it for scalars.
-            if self.linear_channel_hyper_scalar is not None:
-                hm_scalar = self.linear_channel_hyper_scalar(hm[..., 0:1])
-            else:
-                hm_scalar = hm[..., 0:1]
+            # If activation is not None, then self.layer_norm are for the high-rank
+            # tensors. Generate it for scalars.
+            hm_scalar = hm[..., 0:1]
 
             if self.layer_norm_scalar is not None:
                 hm_scalar = self.layer_norm_scalar(hm_scalar)

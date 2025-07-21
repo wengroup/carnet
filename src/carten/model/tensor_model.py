@@ -34,7 +34,6 @@ class AtomicTensorModel(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
@@ -97,7 +96,6 @@ class AtomicTensorModel(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
         )
 
@@ -181,7 +179,6 @@ class StructureTensorModel(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         # output
         target_shift: dict[str, Tensor] = None,
@@ -217,7 +214,6 @@ class StructureTensorModel(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
         )
 

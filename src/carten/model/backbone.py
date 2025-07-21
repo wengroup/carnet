@@ -61,7 +61,6 @@ class Backbone(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
     ):
         super().__init__()
@@ -128,7 +127,6 @@ class Backbone(nn.Module):
                     activation=act,
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
-                    use_linear_channel_hyper=use_linear_channel_hyper,
                     use_linear_channel_residual=use_linear_channel_residual,
                 )
             )

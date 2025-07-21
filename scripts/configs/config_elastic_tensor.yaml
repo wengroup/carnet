@@ -50,7 +50,6 @@ model:
 
   # optional layers
   use_linear_channel_input: false
-  use_linear_channel_hyper: false
   use_linear_channel_residual: true
 
 
