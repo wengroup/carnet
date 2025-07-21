@@ -144,42 +144,29 @@ class SlicedLinearMap(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.slice_sizes = slice_sizes
+        self.bias = bias
 
-        # Weight matrices, each for a slice; (F', F, 1)
-        self.weights = nn.ParameterList(
-            [
-                nn.Parameter(torch.empty(out_features, in_features, 1))
-                for _ in slice_sizes
-            ]
-        )
+        self.slices = []
+        self.linear = nn.ModuleList()
+        start = 0
+        for size in slice_sizes:
+            end = start + size
+            self.slices.append(slice(start, end))
+            start = end
 
-        # Bias for the first slice
-        if bias:
-            if slice_sizes[0] != 1:
-                raise ValueError(
-                    f"Bias can only be used when first slice size is 1 "
-                    f"(namely a scalar), but got {slice_sizes[0]}"
+            # Apply bias for scalars
+            if bias and size == 1:
+                b = True
+            else:
+                b = False
+
+            self.linear.append(
+                LinearMap(
+                    in_features=in_features,
+                    out_features=out_features,
+                    bias=b,
                 )
-            self.bias = nn.Parameter(torch.empty(out_features))
-        else:
-            self.register_parameter("bias", None)
-
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        """
-        https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#l109
-        """
-        # We don't directly use nn.init.kaiming_uniform_ since in self.weight, the
-        # in_features is not the last dimension
-        k = 1 / self.in_features**0.5
-        for w in self.weights:
-            nn.init.uniform_(w, -k, k)
-
-        if self.bias is not None:
-            fan_in = self.in_features
-            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-            nn.init.uniform_(self.bias, -bound, bound)
+            )
 
     def forward(self, input: Tensor) -> Tensor:
         """
@@ -190,18 +177,10 @@ class SlicedLinearMap(nn.Module):
             tensor of shape (..., F', T)
         """
 
-        # Combine all weights into a single tensor; (F', F, T)
-        expanded_weights = []
-        for i, w in enumerate(self.weights):
-            expanded_weights.append(w.expand(-1, -1, self.slice_sizes[i]))
-        expanded_weight = torch.cat(expanded_weights, dim=-1)
-
-        out = torch.einsum("ijt,...jt->...it", expanded_weight, input)
-
-        if self.bias is not None:
-            # Bias is now shape (F',) and we add it to first slice only
-            out[..., 0] += self.bias
-
+        out = []
+        for layer, s in zip(self.linear, self.slices):
+            out.append(layer(input[..., s]))
+        out = torch.cat(out, dim=-1)  # Shape (..., F', T)
         return out
 
     def __repr__(self):
