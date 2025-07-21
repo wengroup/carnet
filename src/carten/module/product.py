@@ -8,6 +8,7 @@ import torch
 from torch import Tensor, nn
 
 from carten.core.tp import tp_even, tp_odd
+from carten.core.tp_with_weight import tp_even_with_weight, tp_odd_with_weight
 from carten.module.linear import LinearCombination
 from carten.module.utils import check_rank, get_paths
 
@@ -45,6 +46,7 @@ class TensorProduct(nn.Module):
         L3: int | list[int] = None,
         normalize: str = "unity",
         path_mode: str = "full",
+        for_atomic_moment: bool = False,
     ):
         """
         Args:
@@ -64,12 +66,19 @@ class TensorProduct(nn.Module):
                 `unity` or `none`. See `carten.core.tp.tp_even`.
             path_mode: mode to construct the paths from L1 and L2 to L3. Options are:
                 `full`, `mid`, or `lite`. See `carten.module.utils.get_paths`.
+            for_atomic_moment: If False, this is for a general tensor product,
+                which is simply a wrapper around the tp_even and tp_odd functions.
+                When it is True, it is used in the context of atomic moments,
+                Z= RXY, where X is of shape (..., F, T1) and Y is of shape (..., T2),
+                and R is a dictionary of additional weights, of shape (..., F).
         """
         super().__init__()
         self.L1 = L1
         self.L2 = L2
         self.L3 = check_rank(L1, L2, L3)
         self.normalize = normalize
+        self.path_mode = path_mode
+        self.for_atomic_moment = for_atomic_moment
 
         self.paths = get_paths(self.L1, self.L2, self.L3, mode=path_mode)
 
@@ -97,8 +106,8 @@ class TensorProduct(nn.Module):
         Args:
             x: Feature tensor of maximum rank L1. Shape (..., F, T1),
                 where T1 = \sum_{l1} 3**l1.
-            y: Feature tensor of maximum rank L2. Shape (..., F, T2),
-                where T2 = \sum_{l2} 3**l2.
+            y: Feature tensor of maximum rank L2. Shape (..., F, T2), or Shape(..., T2),
+                where T2 = \sum_{l2} 3**l2. The shape depends on `for_atomic_moment`.
             R: additional parameters to be multiplied with the tensor product. If None,
                 the tensor product is evaluated without additional parameters.
                 Shape (..., F), where F is the number of features.
@@ -107,6 +116,8 @@ class TensorProduct(nn.Module):
             z: Output feature tensor, whose ranks are determined the input L3. Shape
                 (..., F, T3), where T3 = \sum_{l3} 3**l3.
         """
+        if self.for_atomic_moment:
+            assert R is not None, "Weights are needed for atomic moment, but R is None"
 
         z = []
         for idx, kernel in enumerate(self.kernels):
@@ -116,21 +127,29 @@ class TensorProduct(nn.Module):
                 l1, l2, _ = path
 
                 # x_l1: (..., F, 3**l1)
-                # y_l2: (..., F, 3**l2)
+                # y_l2: (..., F, 3**l2) or (..., 3**l2)
                 # int() needed for TorchScript
                 x_l1 = x[..., int((3**l1 - 1) // 2) : int((3 ** (l1 + 1) - 1) // 2)]
                 y_l2 = y[..., int((3**l2 - 1) // 2) : int((3 ** (l2 + 1) - 1) // 2)]
 
-                # z_tmp: (..., F, 3**l3)
-                if (l1 + l2 - l3) % 2 == 0:
-                    z_tmp = tp_even(x_l1, y_l2, l1, l2, l3, self.normalize)
-                else:
-                    z_tmp = tp_odd(x_l1, y_l2, l1, l2, l3, self.normalize)
+                if self.for_atomic_moment:
+                    w = R[str(path)]  # (..., F)
 
-                # Multiply with additional parameters
-                if R is not None:
-                    p = R[str(path)]  # (..., F)
-                    z_tmp = p.unsqueeze(-1) * z_tmp
+                    if (l1 + l2 - l3) % 2 == 0:
+                        z_tmp = tp_even_with_weight(
+                            x_l1, y_l2, w, l1, l2, l3, self.normalize
+                        )
+                    else:
+                        z_tmp = tp_odd_with_weight(
+                            x_l1, y_l2, w, l1, l2, l3, self.normalize
+                        )
+
+                else:
+                    # z_tmp: (..., F, 3**l3)
+                    if (l1 + l2 - l3) % 2 == 0:
+                        z_tmp = tp_even(x_l1, y_l2, l1, l2, l3, self.normalize)
+                    else:
+                        z_tmp = tp_odd(x_l1, y_l2, l1, l2, l3, self.normalize)
 
                 z_l3.append(z_tmp)  # list of tensors of shape (..., F, 3**l3)
 

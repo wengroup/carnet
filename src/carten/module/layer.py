@@ -4,7 +4,7 @@ import torch
 from torch import Tensor, nn
 
 from .activation import elu, shifted_softplus, silu
-from .atomic_moment import AtomicMoment, AtomicMoment2
+from .atomic_moment import AtomicMoment
 from .hyper_moment import HyperMoment
 from .linear import SlicedLinearMap
 from .normalize import LayerNorm
