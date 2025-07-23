@@ -54,6 +54,7 @@ def tp_even(
     # Shape of H: (3^(l1+l2), 3^l3)
     H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
+    # NOTE, this is extremely memory intensive for large l1, l2
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
     XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
 
@@ -93,6 +94,7 @@ def tp_odd(
     # Shape of H: (3^(l1+l2), 3^l3)
     H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
+    # NOTE, this is extremely memory intensive for large l1, l2
     XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
     XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
 

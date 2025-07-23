@@ -1,6 +1,9 @@
 """
+
 Same as tp2.py, but:
-- use matrix multiplication instead of einsum
+- change the rules H_ABCijkpqr X_ijk Y_pqr to H_D X_l Y_s, where D is the flattened
+version of ABC, l is the flattened version of ijk, and s is the flattened version of pqr.
+
 """
 
 from pathlib import Path
@@ -13,7 +16,7 @@ from carten.core.utils import load_H_tensor_and_rule
 
 # Load the pre-computed H tensor and einsum rule
 filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
-H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, mode="mm")
+H_TENSOR_AND_RULE = load_H_tensor_and_rule(filename, mode="flatten")
 
 # On device cache for efficiency
 H_TENSOR_AND_RULE_ON_DEVICE = set()
@@ -45,19 +48,13 @@ def tp_even(
     assert abs(l1 - l2) <= l3 <= l1 + l2, "l3 must be in the range of |l1-l2| and l1+l2"
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
 
-    leading_dims = X.shape[:-1]  # including the feature dimension
-
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    #
-    # Shape of H: (3^(l1+l2), 3^l3)
-    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
-    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
-    XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
-
-    Z = torch.matmul(XY, H)  # (leading_dims, 3**l3)
+    # Perform tensor product
+    Z = torch.einsum(rule, H, X, Y)
 
     return Z
 
@@ -84,19 +81,13 @@ def tp_odd(
     assert abs(l1 - l2) <= l3 <= l1 + l2, "l3 must be in the range of |l1-l2| and l1+l2"
     assert (l1 + l2 - l3) % 2 == 1, "l1 + l2 - l3 must be odd"
 
-    leading_dims = X.shape[:-1]  # including the feature dimension
-
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_odd(l1, l2, l3, normalize)
     # We use the pre-computed H tensor and rule for efficiency
-    #
-    # Shape of H: (3^(l1+l2), 3^l3)
-    H, _ = get_H_and_rule(l1, l2, l3, normalize, X.device)
+    H, rule = get_H_and_rule(l1, l2, l3, normalize, X.device)
 
-    XY = torch.einsum("...x,...y->...xy", X, Y)  # (..., F, 3^l1, 3^l2))
-    XY = XY.reshape(*leading_dims, 3 ** (l1 + l2))
-
-    Z = torch.matmul(XY, H)  # (leading_dims, 3**l3)
+    # Perform tensor product
+    Z = torch.einsum(rule, H, X, Y)
 
     return Z
 

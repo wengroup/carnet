@@ -1,10 +1,7 @@
 """Tensor product between two natural tensors.
 
-Batching and feature dimensions of the tensors are supported.
+Based on tp2-2.py, but adding weight into the tensor product..
 
-This implements the formula such that Z = H:XY, where H is an operator composed of
-delta and Levi-Civita tensors. Unlike `tp.py`, this reformulation does not require
-loop to compute the tensor product.
 """
 
 from pathlib import Path
@@ -49,8 +46,6 @@ def tp_even_with_weight(
     """
     assert abs(l1 - l2) <= l3 <= l1 + l2, "l3 must be in the range of |l1-l2| and l1+l2"
     assert (l1 + l2 - l3) % 2 == 0, "l1 + l2 - l3 must be even"
-
-    leading_dims = X.shape[:-1]  # including the feature dimension
 
     # Get H tensor and einsum rule:
     # H, rule = get_H_numerical_even(l1, l2, l3, normalize)
