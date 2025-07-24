@@ -216,8 +216,8 @@ def main(config: dict):
         names = {
             "loss": "loss_hparams",
             "metrics": "metrics_hparams",
-            "optimizer": "optimizer_hparams",
-            "lr_scheduler": "lr_scheduler_hparams",
+            # "optimizer": "optimizer_hparams",
+            # "lr_scheduler": "lr_scheduler_hparams",
             "ema": "ema_hparams",
         }
         overrides = {v: config.pop(k) for k, v in names.items()}

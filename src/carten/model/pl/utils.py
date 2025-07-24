@@ -109,14 +109,52 @@ def get_git_commit(
     return latest_commit
 
 
+def update_checkpoint(ckpt_path: Path, config: dict, output_path: Path = None):
+    """
+    Update the checkpoint file to modify callback states etc.
+
+    Args:
+        ckpt_path: path to the checkpoint file
+        config: the config dictionary
+        output_path: path to save the updated checkpoint file
+    """
+    d = torch.load(ckpt_path)
+
+    def update_dict(d: dict, config: dict):
+        """Update the dictionary with the config."""
+        for k, v in config.items():
+            if isinstance(v, dict):
+                d[k] = update_dict(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
+
+    # update the hyper_parameters
+    d = update_dict(d, config)
+
+    output_path = output_path or ckpt_path
+    torch.save(d, output_path)
+
+
 if __name__ == "__main__":
-    from carten.model.ip import InteratomicPotential
-    from carten.model.pl.pl_ip import InteratomicPotentialLitModule
+    # from carten.model.ip import InteratomicPotential
+    # from carten.model.pl.pl_ip import InteratomicPotentialLitModule
+    #
+    # lit_model = load_model(
+    #     InteratomicPotentialLitModule,
+    #     InteratomicPotential,
+    #     "/Users/mjwen/Packages/carten/scripts/last_epoch.ckpt",
+    # )
+    #
+    # compile_model(lit_model)
 
-    lit_model = load_model(
-        InteratomicPotentialLitModule,
-        InteratomicPotential,
-        "/Users/mjwen.admin/Packages/carten/scripts/last_epoch.ckpt",
+    update_checkpoint(
+        "/Users/mjwen/Packages/carten/scripts/last_epoch.ckpt",
+        {
+            "callbacks": {
+                "EarlyStopping{'monitor': 'val_ema/mae_e', 'mode': 'min'}": {
+                    "patience": 500
+                }
+            }
+        },
     )
-
-    compile_model(lit_model)
