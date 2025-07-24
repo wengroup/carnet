@@ -120,12 +120,15 @@ def update_checkpoint(ckpt_path: Path, config: dict, output_path: Path = None):
     """
     d = torch.load(ckpt_path)
 
-    def update_dict(d: dict, config: dict):
+    def update_dict(d: dict, config: dict, indent=""):
         """Update the dictionary with the config."""
         for k, v in config.items():
             if isinstance(v, dict):
-                d[k] = update_dict(d.get(k, {}), v)
+                print(indent, k)
+                indent += "  "
+                d[k] = update_dict(d.get(k, {}), v, indent)
             else:
+                print(f"{indent}{k}: {v} (Updated from {d[k]})")
                 d[k] = v
         return d
 
