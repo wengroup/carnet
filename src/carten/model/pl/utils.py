@@ -109,7 +109,9 @@ def get_git_commit(
     return latest_commit
 
 
-def update_checkpoint(ckpt_path: Path, config: dict, output_path: Path = None):
+def update_checkpoint(
+    ckpt_path: Path, config: dict, output_path: Path = None, map_location: str = None
+):
     """
     Update the checkpoint file to modify callback states etc.
 
@@ -117,8 +119,9 @@ def update_checkpoint(ckpt_path: Path, config: dict, output_path: Path = None):
         ckpt_path: path to the checkpoint file
         config: the config dictionary
         output_path: path to save the updated checkpoint file
+        map_location: device to load the model to
     """
-    d = torch.load(ckpt_path)
+    d = torch.load(ckpt_path, map_location=map_location)
 
     def update_dict(d: dict, config: dict, indent=""):
         """Update the dictionary with the config."""
