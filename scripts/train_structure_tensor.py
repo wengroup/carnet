@@ -271,8 +271,8 @@ def main(config: dict):
         names = {
             "loss": "loss_hparams",
             "metrics": "metrics_hparams",
-            "optimizer": "optimizer_hparams",
-            "lr_scheduler": "lr_scheduler_hparams",
+            # "optimizer": "optimizer_hparams",
+            # "lr_scheduler": "lr_scheduler_hparams",
             "ema": "ema_hparams",
         }
         overrides = {v: config.pop(k) for k, v in names.items()}
@@ -344,7 +344,6 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    # config_file = Path(__file__).parent / "configs" / "config_dielectric_tensor.yaml"
     config_file = Path(__file__).parent / "configs" / "config_elastic_tensor.yaml"
     # config_file = (
     #     Path(__file__).parent / "configs" / "config_polarizability_tensor.yaml"

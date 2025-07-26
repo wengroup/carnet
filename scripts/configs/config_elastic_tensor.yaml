@@ -43,19 +43,18 @@ model:
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
   #
-  layer_norm: true
-  activation: silu
-  last_layer_activation: true # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
+  layer_norm: false
+  activation: null
+  last_layer_activation: false # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
   residual: true
 
   # optional layers
   use_linear_channel_input: false
   use_linear_channel_residual: true
 
-
   # output
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
-  output_from_all_layers: false
+  output_from_all_layers: true
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   target_scale: auto # scale dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
 
@@ -93,7 +92,6 @@ lr_scheduler:
 #  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
 #  init_args:
 #    T_max: 5 # should be equal to trainer.max_epochs
-#    eta_min: 0.0001
 
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   beta: 0.99
@@ -110,8 +108,7 @@ trainer:
   log_every_n_steps: 50
   detect_anomaly: false
   inference_mode: true
-  gradient_clip_val: 100.
-  gradient_clip_algorithm: norm
+  gradient_clip_val: 100.0
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
@@ -144,4 +141,4 @@ trainer:
 #        swa_lrs: 0.001
 #        swa_epoch_start: 0.8
 
-wandb_base_url: https://api.wandb-cn.top # https://api.bandw.top
+wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top
