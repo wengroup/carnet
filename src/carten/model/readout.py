@@ -39,7 +39,6 @@ class StructureScalar(nn.Module):
             If a tensor of shape (n_atom_types,) is provided for `atomic_shift` and
                 `atomic_scale`, then it is applied to each atom type separately.
         element_bias: If True, a separate learnable bias is added for each atomic type.
-
     """
 
     def __init__(
@@ -96,13 +95,11 @@ class StructureScalar(nn.Module):
         """
         assert len(atom_feats) == self.num_layers, "Incorrect number of atom feats."
 
-        V = torch.zeros(
-            torch.sum(num_atoms), dtype=atom_feats[0].dtype, device=atom_feats[0].device
-        )
+        V = 0
         for i, fn in enumerate(self.out_layers):
             V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
-        # TODO, allow the per species scale and shift
+        # TODO, allow the per species scale and shift?
         # Normalization
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
@@ -135,7 +132,6 @@ class AtomicTensor(nn.Module):
 
     Note, this module does not use `atomic_selector` to select a subset of atoms. If
     needed, it should be done before passing the atomic features to this module.
-
 
     Args:
         num_layers: Number of layers in the main model.
@@ -197,48 +193,33 @@ class AtomicTensor(nn.Module):
         self.slice = dict()
 
         for l, n in output_signature.items():
-            # For scalar, if any, using an MLP
-            if l == 0:
-                if isinstance(hidden_features, int):
-                    hidden_features = [in_features for _ in range(hidden_features)]
-                self.kernel[str(l)] = MLP(
-                    in_features * self.num_atom_feats,
-                    n,
-                    hidden_features,
-                    out_activation=False,
-                )
-            # For others, using a linear map
-            else:
-                # TODO, why we want to use in_features * num_atom_feats, instead of
-                #  mapping the features of each layer separately? There is no reason
-                #  Should test it
-                #
-                #  TODO At least, we might want to do SlicedLinearMap or
-                #   SlicedLinearMap2
-                self.kernel[str(l)] = LinearMap(in_features * self.num_atom_feats, n)
-
             start = (3**l - 1) // 2
             end = (3 ** (l + 1) - 1) // 2
-            self.slice[l] = (start, end)
+            self.slice[l] = slice(start, end)
 
-        # Register buffers for target shift and scale
-        if target_shift is not None:
-            self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
-        else:
-            self.register_buffer("target_shift", None)
-        if target_scale is not None:
-            self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
-        else:
-            self.register_buffer("target_scale", None)
+            if l == 0:
+                layer = _AtomicScalar(
+                    num_layers=num_layers,
+                    in_features=in_features,
+                    hidden_features=hidden_features,
+                    out_features=n,
+                    num_atom_types=num_atom_types,
+                    atomic_shift=target_shift[l],
+                    atomic_scale=target_scale[l],
+                    element_bias=element_bias,
+                    num_atom_feats=num_atom_feats,
+                )
+            else:
+                layer = _AtomicTensor(
+                    num_layers=num_layers,
+                    in_features=in_features,
+                    out_features=n,
+                    num_atom_types=num_atom_types,
+                    atomic_scale=target_scale[l],
+                    num_atom_feats=num_atom_feats,
+                )
 
-        # Register a separate bias for each atomic type, only for rank-0 tensors.
-        # Different for each feature dimension of the rank-0 tensor.
-        if element_bias and 0 in output_signature:
-            self.element_bias = nn.Parameter(
-                torch.zeros(num_atom_types, output_signature[0])
-            )
-        else:
-            self.register_parameter("element_bias", None)
+            self.kernel[str(l)] = layer
 
     def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> dict[int, Tensor]:
         """
@@ -255,44 +236,13 @@ class AtomicTensor(nn.Module):
         """
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
 
-        # Select natural tensors of ranks needed for outputs
-        # Each obtained by stacking the atomic features of all layers along the channel
-        # dimension. {l: (n_atoms, F*self.num_atom_feats, 3 ** l)}
-        atom_feats = {
-            l: torch.cat([x[..., start:end] for x in atom_feats], dim=-2)
-            for l, (start, end) in self.slice.items()
-        }
+        output = {}
+        for l, s in self.slice.items():
+            data = [x[..., s] for x in atom_feats]
+            fn = self.kernel[str(l)]
+            output[l] = fn(data, atom_type)
 
-        # Reshape the scalars from (..., F*num_atom_feats, 1) to (..., F*num_atom_feats)
-        # This is needed by the MLP
-        if 0 in atom_feats:
-            atom_feats[0] = atom_feats[0].squeeze(-1)
-
-        # Linear mapping F to n_l output dims for each atom; {l: (n_atoms, n_l, 3**l)}
-        atom_out = {int(l): fn(atom_feats[int(l)]) for l, fn in self.kernel.items()}
-
-        # Add the squeezed last dim back for scalars
-        if 0 in atom_out:
-            atom_out[0] = atom_out[0].unsqueeze(-1)
-
-        # Normalization
-        # Note, in a typical case, all ranks l will have a scale, but only rank-0 tensor
-        # will have a shift. This is because the rank-0 tensor is a scalar, and we can
-        # shift it to match the target.
-        if self.target_scale is not None:
-            for l, scale in self.target_scale.items():
-                atom_out[int(l)] *= scale
-
-        if self.target_shift is not None:
-            for l, shift in self.target_shift.items():
-                atom_out[int(l)] += shift
-
-        # Learnable separate bias for each atom type (only for rank-0 tensors)
-        if self.element_bias is not None:
-            # Shape of atom_out[0]: (n_atoms, n_l, 1)
-            atom_out[0] += self.element_bias[atom_type, :].unsqueeze(-1)
-
-        return atom_out
+        return output
 
 
 class StructureTensor(nn.Module):
@@ -352,15 +302,15 @@ class StructureTensor(nn.Module):
     ):
         super().__init__()
         self.atomic_tensor_model = AtomicTensor(
-            num_layers,
-            in_features,
-            hidden_features,
-            output_signature,
-            num_atom_types,
-            target_shift,
-            target_scale,
-            element_bias,
-            num_atom_feats,
+            num_layers=num_layers,
+            in_features=in_features,
+            hidden_features=hidden_features,
+            output_signature=output_signature,
+            num_atom_types=num_atom_types,
+            target_shift=target_shift,
+            target_scale=target_scale,
+            element_bias=element_bias,
+            num_atom_feats=num_atom_feats,
         )
 
     def forward(
@@ -397,3 +347,144 @@ class StructureTensor(nn.Module):
         }
 
         return conf_out
+
+
+class _AtomicScalar(nn.Module):
+    def __init__(
+        self,
+        num_layers: int,
+        in_features: int,
+        hidden_features: list[int] | int,
+        out_features: int,
+        num_atom_types: int,
+        atomic_shift: Tensor = None,
+        atomic_scale: Tensor = None,
+        element_bias: bool = True,
+        num_atom_feats: int = None,
+    ):
+        super().__init__()
+        self.num_layers = num_layers
+        self.in_features = in_features
+        self.hidden_features = hidden_features
+        self.out_features = out_features
+        self.num_atom_types = num_atom_types
+
+        self.num_atom_feats = (
+            num_atom_feats if num_atom_feats is not None else num_layers
+        )
+
+        self.layers = nn.ModuleList()
+
+        for i in range(self.num_atom_feats):
+
+            # Linear mapping for atom features in early layers
+            if i < self.num_atom_feats - 1:
+                self.layers.append(nn.Linear(in_features, out_features))
+
+            # MLP for atom features in the last layer
+            else:
+                if isinstance(hidden_features, int):
+                    hidden_features = [in_features for _ in range(hidden_features)]
+                self.layers.append(
+                    MLP(
+                        in_features, out_features, hidden_features, out_activation=False
+                    )
+                )
+
+        self.register_buffer("atomic_shift", atomic_shift)
+        self.register_buffer("atomic_scale", atomic_scale)
+
+        # Register a separate bias for each atomic type
+        if element_bias:
+            self.element_bias = nn.Parameter(torch.zeros(num_atom_types))
+        else:
+            self.register_parameter("element_bias", None)
+
+    def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> Tensor:
+        """
+        Returns:
+            Shape (n_atoms, out_features, 1).
+        """
+        assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
+
+        V = 0
+        for i, fn in enumerate(self.layers):
+            # shape (n_atoms, out_features, 1)
+            V += fn(atom_feats[i].squeeze(-1)).unsqueeze(-1)
+
+        # TODO, allow the per species scale and shift?
+        # Normalization
+        if self.atomic_scale is not None:
+            if self.atomic_scale.ndim == 0:
+                V *= self.atomic_scale
+            else:
+                V *= self.atomic_scale[atom_type]
+
+        if self.atomic_shift is not None:
+            if self.atomic_shift.ndim == 0:
+                V += self.atomic_shift
+            else:
+                V += self.atomic_shift[atom_type]
+
+        # Bias for each atomic type
+        if self.element_bias is not None:
+            V += self.element_bias[atom_type].view(-1, 1, 1)
+
+        return V
+
+
+class _AtomicTensor(nn.Module):
+    def __init__(
+        self,
+        num_layers: int,
+        in_features: int,
+        out_features: int,
+        num_atom_types: int,
+        atomic_scale: Tensor = None,
+        num_atom_feats: int = None,
+    ):
+        super().__init__()
+        self.num_layers = num_layers
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_atom_types = num_atom_types
+
+        self.num_atom_feats = (
+            num_atom_feats if num_atom_feats is not None else num_layers
+        )
+
+        self.layers = nn.ModuleList()
+
+        for i in range(self.num_atom_feats):
+
+            # Linear mapping for atom features in early layers
+            if i < self.num_atom_feats - 1:
+                self.layers.append(LinearMap(in_features, out_features))
+
+            # TODO, we can do a nonlinear for this?
+            # Linear mapping for atom features in the last layer
+            else:
+                self.layers.append(LinearMap(in_features, out_features))
+
+        self.register_buffer("atomic_scale", atomic_scale)
+
+    def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> Tensor:
+        """
+        Returns:
+            Shape (n_atoms, out_features, 3**l).
+        """
+        assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
+
+        V = 0
+        for i, fn in enumerate(self.layers):
+            V += fn(atom_feats[i])  # shape (n_atoms,out_features, 3**l)
+
+        # TODO, allow the per species scale and shift?
+        # Normalization
+        if self.atomic_scale is not None:
+            if self.atomic_scale.ndim == 0:
+                V *= self.atomic_scale
+            else:
+                V *= self.atomic_scale[atom_type]
+
+        return V
