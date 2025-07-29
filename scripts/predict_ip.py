@@ -118,9 +118,15 @@ if __name__ == "__main__":
     # To generate an example checkpoint, run `train_ip.py` first
     checkpoint = "./last_epoch.ckpt"
 
+    # Device to run it
+    device = "cpu"  # e.g. cpu, cuda
+
     # Get references and predictions
     e_ref, f_ref = get_references(filename)
-    e_pred, f_pred = predict(filename, checkpoint)
+    e_ref = e_ref.to(device)
+    f_ref = f_ref.to(device)
+
+    e_pred, f_pred = predict(filename, checkpoint, map_location=device, batch_size=4)
 
     # Overall metrics
     e_mae = torch.mean(torch.abs(e_ref - e_pred))
@@ -128,6 +134,11 @@ if __name__ == "__main__":
     print(f"MAE of energy: {e_mae:.4f}")
     print(f"MAE of forces: {f_mae:.4f}")
 
+    e_rmse = torch.sqrt(torch.mean((e_ref - e_pred) ** 2))
+    f_rmse = torch.sqrt(torch.mean((f_ref - f_pred) ** 2))
+    print(f"RMSE of energy: {e_rmse:.4f}")
+    print(f"RMSE of forces: {f_rmse:.4f}")
+
     # Distribution of energy errors
-    e_diff = e_pred - e_ref
-    plot_hist(e_diff.detach().numpy(), "E_pred - E_ref", "energy_diff")
+    # e_diff = e_pred - e_ref
+    # plot_hist(e_diff.detach().numpy(), "E_pred - E_ref", "energy_diff")
