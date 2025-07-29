@@ -5,6 +5,7 @@ from torch import Tensor, nn
 
 from carten.module.linear import LinearMap
 from carten.module.mlp import MLP
+from carten.module.normalize import LayerNorm
 from carten.module.scatter import scatter
 
 
@@ -177,6 +178,7 @@ class AtomicTensor(nn.Module):
         target_scale: dict[int, Tensor] = None,
         element_bias: bool = True,
         num_atom_feats: int = None,
+        use_layer_norm: bool = True,
     ):
         super().__init__()
         self.num_layers = num_layers
@@ -188,6 +190,15 @@ class AtomicTensor(nn.Module):
         self.num_atom_feats = (
             num_atom_feats if num_atom_feats is not None else num_layers
         )
+
+        # Layer norm (nonlinearity) for the last layer
+        if use_layer_norm:
+            self.layer_norm = LayerNorm(
+                dim=in_features,
+                slice_sizes=[3**l for l in range(max(output_signature.keys()) + 1)],
+            )
+        else:
+            self.register_buffer("layer_norm", None)
 
         self.kernel = nn.ModuleDict()
         self.slice = dict()
@@ -235,6 +246,10 @@ class AtomicTensor(nn.Module):
             See `output_signature`.
         """
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
+
+        # Apply layer norm to the last layer's atomic feats
+        if self.layer_norm is not None:
+            atom_feats[-1] = self.layer_norm(atom_feats[-1])
 
         output = {}
         for l, s in self.slice.items():
@@ -299,6 +314,7 @@ class StructureTensor(nn.Module):
         target_scale: dict[int, Tensor] = None,
         element_bias: bool = True,
         num_atom_feats: int = None,
+        use_layer_norm: bool = True,
     ):
         super().__init__()
         self.atomic_tensor_model = AtomicTensor(
@@ -311,6 +327,7 @@ class StructureTensor(nn.Module):
             target_scale=target_scale,
             element_bias=element_bias,
             num_atom_feats=num_atom_feats,
+            use_layer_norm=use_layer_norm,
         )
 
     def forward(

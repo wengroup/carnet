@@ -153,10 +153,6 @@ class Layer(nn.Module):
             # i.e. the scalars are used as x in g(x)*t.
             # Then, we create additional layer norm for the scalar features.
             # This is the same as the equiformer way of doing activation.
-            #
-            # TODO, alternatively, for high rank tensors, instead of scalars from the
-            #  rank-0 tensor, we can use its norm as x in g(x)*t. This makes a bit
-            #  more sense and is similar to what is done in TensorNet.
 
             if layer_norm:
                 self.layer_norm_scalar = LayerNorm(dim=F, slice_sizes=[1])
@@ -250,8 +246,7 @@ class Layer(nn.Module):
             # high-rank tensor part and concatenate with the separate scalar part.
             hm = torch.cat([hm_scalar, hm_2[..., 1:]], dim=-1)
 
-            if self.linear_after_activation is not None:
-                hm = self.linear_after_activation(hm)
+            hm = self.linear_after_activation(hm)
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:

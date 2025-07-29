@@ -42,6 +42,7 @@ class AtomicTensorModel(nn.Module):
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,
+        use_layer_norm: bool = True,  # layer normalization for the readout
     ):
         """
         Args:
@@ -109,6 +110,7 @@ class AtomicTensorModel(nn.Module):
             target_scale=target_scale,
             element_bias=element_bias,
             num_atom_feats=num_atom_feats,
+            use_layer_norm=use_layer_norm,
         )
 
     def forward(
@@ -187,6 +189,7 @@ class StructureTensorModel(nn.Module):
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,
+        use_layer_norm: bool = True,  # layer normalization for the readout
     ):
         super().__init__()
 
@@ -227,6 +230,7 @@ class StructureTensorModel(nn.Module):
             target_scale=target_scale,
             element_bias=element_bias,
             num_atom_feats=num_atom_feats,
+            use_layer_norm=use_layer_norm,
         )
 
     def forward(
