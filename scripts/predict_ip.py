@@ -90,7 +90,9 @@ def get_references(filename: Path) -> tuple[Tensor, Tensor]:
     e_ref = torch.tensor(e_ref)
     f_ref = torch.cat([torch.tensor(x) for x in f_ref])
 
-    return e_ref, f_ref
+    n_atoms = torch.tensor(df["coords"].apply(len).to_list())
+
+    return e_ref, f_ref, n_atoms
 
 
 def plot_hist(data, x_label, title: str, filename=None):
@@ -122,21 +124,26 @@ if __name__ == "__main__":
     device = "cpu"  # e.g. cpu, cuda
 
     # Get references and predictions
-    e_ref, f_ref = get_references(filename)
+    e_ref, f_ref, n_atoms = get_references(filename)
     e_ref = e_ref.to(device)
     f_ref = f_ref.to(device)
+    n_atoms = n_atoms.to(device)
 
-    e_pred, f_pred = predict(filename, checkpoint, map_location=device, batch_size=4)
+    e_pred, f_pred = predict(filename, checkpoint, map_location=device, batch_size=20)
 
     # Overall metrics
     e_mae = torch.mean(torch.abs(e_ref - e_pred))
+    e_mae_per_atom = torch.mean(torch.abs(e_ref - e_pred) / n_atoms)
     f_mae = torch.mean(torch.abs(f_ref - f_pred))
     print(f"MAE of energy: {e_mae:.4f}")
+    print(f"MAE of energy/atom: {e_mae_per_atom:.4f}")
     print(f"MAE of forces: {f_mae:.4f}")
 
     e_rmse = torch.sqrt(torch.mean((e_ref - e_pred) ** 2))
+    e_rmse_per_atom = torch.sqrt(torch.mean((e_ref / n_atoms - e_pred / n_atoms) ** 2))
     f_rmse = torch.sqrt(torch.mean((f_ref - f_pred) ** 2))
     print(f"RMSE of energy: {e_rmse:.4f}")
+    print(f"RMSE of energy/atom: {e_rmse_per_atom:.4f}")
     print(f"RMSE of forces: {f_rmse:.4f}")
 
     # Distribution of energy errors
