@@ -81,12 +81,7 @@ def predict(
     return torch.cat(energy), torch.cat(forces)
 
 
-def compute_metrics(filename: Path, checkpoint: Path):
-    """Compute the MAEs of energy and forces.
-    Args:
-        filename: Path to the file containing the dataset to make predictions.
-        checkpoint: Path to the checkpoint file.
-    """
+def get_references(filename: Path) -> tuple[Tensor, Tensor]:
 
     # Get references
     df = pd.read_json(filename)
@@ -95,18 +90,7 @@ def compute_metrics(filename: Path, checkpoint: Path):
     e_ref = torch.tensor(e_ref)
     f_ref = torch.cat([torch.tensor(x) for x in f_ref])
 
-    # Get predictions
-    e_pred, f_pred = predict(filename, checkpoint)
-
-    # Overall metrics
-    e_mae = torch.mean(torch.abs(e_ref - e_pred))
-    f_mae = torch.mean(torch.abs(f_ref - f_pred))
-    print(f"MAE of energy: {e_mae:.4f}")
-    print(f"MAE of forces: {f_mae:.4f}")
-
-    # Distribution of energy errors
-    e_diff = e_pred - e_ref
-    plot_hist(e_diff.detach().numpy(), "E_pred - E_ref", "energy_diff")
+    return e_ref, f_ref
 
 
 def plot_hist(data, x_label, title: str, filename=None):
@@ -134,4 +118,16 @@ if __name__ == "__main__":
     # To generate an example checkpoint, run `train_ip.py` first
     checkpoint = "./last_epoch.ckpt"
 
-    compute_metrics(filename, checkpoint)
+    # Get references and predictions
+    e_ref, f_ref = get_references(filename)
+    e_pred, f_pred = predict(filename, checkpoint)
+
+    # Overall metrics
+    e_mae = torch.mean(torch.abs(e_ref - e_pred))
+    f_mae = torch.mean(torch.abs(f_ref - f_pred))
+    print(f"MAE of energy: {e_mae:.4f}")
+    print(f"MAE of forces: {f_mae:.4f}")
+
+    # Distribution of energy errors
+    e_diff = e_pred - e_ref
+    plot_hist(e_diff.detach().numpy(), "E_pred - E_ref", "energy_diff")
