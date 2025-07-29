@@ -7,7 +7,7 @@ import tqdm
 from torch import Tensor
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import Dataset
+from carten.data.dataset import DatasetIP
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.ip import InteratomicPotential
 from carten.model.pl.pl_ip import InteratomicPotentialLitModule
@@ -24,9 +24,9 @@ def get_dataloader(
     set.
     """
 
-    dataset = Dataset(
+    dataset = DatasetIP(
         filename=filename,
-        target_names=("energy", "forces"),
+        target_names=["energy", "forces"],
         r_cut=r_cut,
         transform=ConsecutiveAtomType(atomic_number),
         log=False,
@@ -38,7 +38,7 @@ def get_dataloader(
 
 
 def predict(
-    filename: Path, checkpoint: Path, map_location: str = "cpu", batch_size: int = 10
+    filename: Path, checkpoint: Path, map_location: str = "cpu", batch_size: int = 20
 ) -> tuple[Tensor, Tensor]:
     """
     Predict energy and forces.
@@ -75,13 +75,13 @@ def predict(
         batch = batch.to(model.device)
         e_pred, f_pred = model.forward_ema(batch)
 
-        energy.extend(e_pred.detach())
-        forces.extend(f_pred.detach())
+        energy.append(e_pred.detach())
+        forces.append(f_pred.detach())
 
-    return torch.stack(energy), torch.stack(forces)
+    return torch.cat(energy), torch.cat(forces)
 
 
-def compute_metrics(filename, checkpoint):
+def compute_metrics(filename: Path, checkpoint: Path):
     """Compute the MAEs of energy and forces.
     Args:
         filename: Path to the file containing the dataset to make predictions.
@@ -101,8 +101,8 @@ def compute_metrics(filename, checkpoint):
     # Overall metrics
     e_mae = torch.mean(torch.abs(e_ref - e_pred))
     f_mae = torch.mean(torch.abs(f_ref - f_pred))
-    print(f"MAE of energy: {e_mae:.4f} eV")
-    print(f"MAE of forces: {f_mae:.4f} eV/Å")
+    print(f"MAE of energy: {e_mae:.4f}")
+    print(f"MAE of forces: {f_mae:.4f}")
 
     # Distribution of energy errors
     e_diff = e_pred - e_ref
@@ -111,6 +111,7 @@ def compute_metrics(filename, checkpoint):
 
 def plot_hist(data, x_label, title: str, filename=None):
     """Create a histogram of the data and save it to a file."""
+
     fig, ax = plt.subplots()
     ax.hist(data, bins=100)
 
@@ -126,10 +127,11 @@ def plot_hist(data, x_label, title: str, filename=None):
 
 if __name__ == "__main__":
 
-    filename = "/Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/json_data/train_100_LiPS.json"
+    filename = (
+        "/Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/train_100_LiPS.json"
+    )
 
-    # To generate an example checkpoint, run `train_ip.py` first and then checkout
-    # `./carten_proj` to the checkpoint you want to use.
-    checkpoint = "./carten_proj/mp6m09fr/checkpoints/epoch=1-step=6.ckpt"
+    # To generate an example checkpoint, run `train_ip.py` first
+    checkpoint = "./last_epoch.ckpt"
 
     compute_metrics(filename, checkpoint)

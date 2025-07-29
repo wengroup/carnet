@@ -6,9 +6,9 @@ from torch import Tensor, nn
 from carten.module.linear import LinearMap
 from carten.module.mlp import MLP
 from carten.module.scatter import scatter
-from carten.utils import BufferDict
 
 
+# TODO, this can be reimplemented using _AtomicScalar
 class StructureScalar(nn.Module):
     """Get a scalar output for each configuration.
 
@@ -461,7 +461,7 @@ class _AtomicTensor(nn.Module):
             if i < self.num_atom_feats - 1:
                 self.layers.append(LinearMap(in_features, out_features))
 
-            # TODO, we can do a nonlinear for this?
+            # TODO, we can do a nonlinear layer and then this linear Map for this?
             # Linear mapping for atom features in the last layer
             else:
                 self.layers.append(LinearMap(in_features, out_features))
