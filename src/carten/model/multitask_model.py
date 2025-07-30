@@ -45,6 +45,7 @@ class MultiTaskModel(nn.Module):
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,
+        use_layer_norm: bool = True,
     ):
         super().__init__()
 
@@ -72,7 +73,6 @@ class MultiTaskModel(nn.Module):
             last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
-            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
         )
 
@@ -107,6 +107,8 @@ class MultiTaskModel(nn.Module):
                     target_scale=target_scale[name + "_natural"],
                     element_bias=element_bias,
                     num_atom_feats=num_atom_feats,
+                    reduce="sum",
+                    use_layer_norm=use_layer_norm,
                 )
             # Atomic tensor
             elif name in ["shielding_tensor"]:
@@ -121,6 +123,7 @@ class MultiTaskModel(nn.Module):
                     target_scale=target_scale[name + "_natural"],
                     element_bias=element_bias,
                     num_atom_feats=num_atom_feats,
+                    use_layer_norm=use_layer_norm,
                 )
 
     def forward(
@@ -149,14 +152,10 @@ class MultiTaskModel(nn.Module):
                 output[target_name] = head(selected_feats, atom_type, num_atoms)
             elif target_name == "dipole_moment_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(
-                    selected_feats, atom_type, num_atoms, reduce="sum"
-                )
+                output[target_name] = head(selected_feats, atom_type, num_atoms)
             elif target_name == "polarizability_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(
-                    selected_feats, atom_type, num_atoms, reduce="sum"
-                )
+                output[target_name] = head(selected_feats, atom_type, num_atoms)
             elif target_name == "shielding_tensor":
                 selected_feats = all_atom_feats
                 output[target_name] = head(selected_feats, atom_type)
