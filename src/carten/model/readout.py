@@ -311,6 +311,9 @@ class StructureTensor(nn.Module):
         num_atom_feats: Number of atomic features to expect in the forward pass. If
             None, it is set to `num_layers`, indicating that the atomic features of
             all layers are passed to this module.
+        reduce: Reduction method to use for pooling the atomic natural tensors to
+            get the configuration tensor. Can be "mean" or "sum".
+
     """
 
     def __init__(
@@ -325,8 +328,12 @@ class StructureTensor(nn.Module):
         element_bias: bool = True,
         num_atom_feats: int = None,
         use_layer_norm: bool = True,
+        reduce: str = "mean",
     ):
         super().__init__()
+
+        self.reduce = reduce
+
         self.atomic_tensor_model = AtomicTensor(
             num_layers=num_layers,
             in_features=in_features,
@@ -345,7 +352,6 @@ class StructureTensor(nn.Module):
         atom_feats: list[Tensor],
         atom_type: Tensor,
         num_atoms: Tensor,
-        reduce: str = "mean",
     ) -> dict[int, Tensor]:
         """
         Args:
@@ -354,9 +360,6 @@ class StructureTensor(nn.Module):
             atom_type: The atomic type of each atom. Shape (n_atoms,).
             num_atoms: The number of atoms in each atomic configuration.
                 Shape (n_atoms,)
-            reduce: Reduction method to use for pooling the atomic natural tensors to
-                get the configuration tensor. Can be "mean" or "sum".
-
         Returns:
             Dictionary of natural tensors for each atomic configuration.
             {l: T}, where `l` is the rank of the natural tensor, and `T` is the tensor.
@@ -369,7 +372,7 @@ class StructureTensor(nn.Module):
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
         conf_out = {
-            l: scatter(x, torch.repeat_interleave(num_atoms), reduce=reduce, dim=0)
+            l: scatter(x, torch.repeat_interleave(num_atoms), reduce=self.reduce, dim=0)
             for l, x in atom_out.items()
         }
 

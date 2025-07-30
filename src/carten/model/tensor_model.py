@@ -193,6 +193,7 @@ class StructureTensorModel(nn.Module):
         output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
+        reduce: str = "mean",
         element_bias: bool = True,
         use_layer_norm: bool = True,  # layer normalization for the readout
         use_torch_embedding: bool = False,
@@ -240,6 +241,7 @@ class StructureTensorModel(nn.Module):
             element_bias=element_bias,
             num_atom_feats=num_atom_feats,
             use_layer_norm=use_layer_norm,
+            reduce=reduce,
         )
 
     def forward(
