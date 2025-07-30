@@ -35,6 +35,7 @@ class Layer(nn.Module):
         residual: bool = True,
         use_linear_channel_input: bool = False,
         use_linear_channel_residual: bool = True,
+        use_atomic_dependent_weight: bool = True,
     ):
         """
 
@@ -75,6 +76,7 @@ class Layer(nn.Module):
         self.max_degree = max_degree
         self.residual = residual
         self.atomic_moment_mode = atomic_moment_mode
+        self.use_atomic_dependent_weight = use_atomic_dependent_weight
 
         # Kernel for mixing input atom feats across channel, separate for each rank
         if use_linear_channel_input:
@@ -105,13 +107,18 @@ class Layer(nn.Module):
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
-        self.linear_channel_atomic = SlicedLinearMap2(
-            F,
-            F,
-            [3**l for l in range(L3 + 1)],
-            num_atom_types=num_atom_types,
-            bias=True,
-        )
+        if use_atomic_dependent_weight:
+            self.linear_channel_atomic = SlicedLinearMap2(
+                F,
+                F,
+                [3**l for l in range(L3 + 1)],
+                num_atom_types=num_atom_types,
+                bias=True,
+            )
+        else:
+            self.linear_channel_atomic = SlicedLinearMap(
+                F, F, [3**l for l in range(L3 + 1)], bias=True
+            )
 
         self.hyper_moment = HyperMoment(
             F=self.F,
@@ -172,13 +179,18 @@ class Layer(nn.Module):
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
 
         if self.residual and use_linear_channel_residual:
-            self.linear_channel_residual = SlicedLinearMap2(
-                F,
-                F,
-                [3**l for l in range(self.min_max_out_L_L1 + 1)],
-                num_atom_types=num_atom_types,
-                bias=True,
-            )
+            if use_atomic_dependent_weight:
+                self.linear_channel_residual = SlicedLinearMap2(
+                    F,
+                    F,
+                    [3**l for l in range(self.min_max_out_L_L1 + 1)],
+                    num_atom_types=num_atom_types,
+                    bias=True,
+                )
+            else:
+                self.linear_channel_residual = SlicedLinearMap(
+                    F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
+                )
         else:
             self.register_buffer("linear_channel_residual", None)
 
@@ -213,7 +225,10 @@ class Layer(nn.Module):
         am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
 
         # Mix atomic moments across channel
-        am = self.linear_channel_atomic(am, atom_type)  # (Na, F, T3)
+        if self.use_atomic_dependent_weight:
+            am = self.linear_channel_atomic(am, atom_type)  # (Na, F, T3)
+        else:
+            am = self.linear_channel_atomic(am)  # (Na, F, T3)
 
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am)
@@ -254,7 +269,10 @@ class Layer(nn.Module):
             feats_skip = atom_feats[..., :size]
 
             if self.linear_channel_residual is not None:
-                feats_skip = self.linear_channel_residual(feats_skip, atom_type)
+                if self.use_atomic_dependent_weight:
+                    feats_skip = self.linear_channel_residual(feats_skip, atom_type)
+                else:
+                    feats_skip = self.linear_channel_residual(feats_skip)
 
             hm[..., :size] += feats_skip
 

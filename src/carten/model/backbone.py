@@ -63,6 +63,7 @@ class Backbone(nn.Module):
         use_linear_channel_residual: bool = True,
         # TODO, remove the option, and use torch embedding for all
         use_torch_embedding: bool = False,
+        use_atomic_dependent_weight: bool = True,
     ):
         super().__init__()
         self.F = F
@@ -132,6 +133,7 @@ class Backbone(nn.Module):
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
                     use_linear_channel_residual=use_linear_channel_residual,
+                    use_atomic_dependent_weight=use_atomic_dependent_weight,
                 )
             )
 

@@ -208,15 +208,25 @@ class AtomicTensor(nn.Module):
             end = (3 ** (l + 1) - 1) // 2
             self.slice[l] = slice(start, end)
 
+            if target_scale is not None:
+                scale = target_scale[l]
+            else:
+                scale = None
+
             if l == 0:
+                if target_shift is not None:
+                    shift = target_shift[l]
+                else:
+                    shift = None
+
                 layer = _AtomicScalar(
                     num_layers=num_layers,
                     in_features=in_features,
                     hidden_features=hidden_features,
                     out_features=n,
                     num_atom_types=num_atom_types,
-                    atomic_shift=target_shift[l],
-                    atomic_scale=target_scale[l],
+                    atomic_shift=shift,
+                    atomic_scale=scale,
                     element_bias=element_bias,
                     num_atom_feats=num_atom_feats,
                 )
@@ -226,7 +236,7 @@ class AtomicTensor(nn.Module):
                     in_features=in_features,
                     out_features=n,
                     num_atom_types=num_atom_types,
-                    atomic_scale=target_scale[l],
+                    atomic_scale=scale,
                     num_atom_feats=num_atom_feats,
                 )
 
