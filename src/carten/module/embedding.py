@@ -2,6 +2,9 @@ import torch
 from torch import Tensor, nn
 
 
+# TODO, given that we are using consecutive integers as input, we could use
+#  `torch.nn.Embedding` module instead of implementing our own embedding layer.
+#  The below should be replaced.
 class Embedding(nn.Module):
     """
     Embed integers 0, 1, 2, ... as learnable fixed-size vectors.

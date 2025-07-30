@@ -44,7 +44,6 @@ class Backbone(nn.Module):
         num_atom_types: int,
         r_cut: float,
         num_layers: int,
-        # TODO, do we need num_average_neigh?
         num_average_neigh: float,
         # angular
         max_out_L: int = None,
@@ -62,6 +61,8 @@ class Backbone(nn.Module):
         # optional layers
         use_linear_channel_input: bool = False,
         use_linear_channel_residual: bool = True,
+        # TODO, remove the option, and use torch embedding for all
+        use_torch_embedding: bool = False,
     ):
         super().__init__()
         self.F = F
@@ -80,7 +81,10 @@ class Backbone(nn.Module):
         self.atomic_moment_mode = atomic_moment_mode
 
         # Embed atom number as vectors
-        self.atom_embedding = Embedding(num_atom_types, F)
+        if use_torch_embedding:
+            self.atom_embedding = nn.Embedding(num_atom_types, F)
+        else:
+            self.atom_embedding = Embedding(num_atom_types, F)
 
         # First layer and last layer are a bit special.
         # For the first layer, the input features are only scalars (embedding of atom

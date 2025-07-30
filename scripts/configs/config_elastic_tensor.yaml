@@ -58,6 +58,7 @@ model:
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   target_scale: auto # scale dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   use_layer_norm: true # use layer norm in the output head
+  use_torch_embedding: true
 
 loss:
   # ratio of the loss for each rank of natural tensor

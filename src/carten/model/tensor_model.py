@@ -43,6 +43,8 @@ class AtomicTensorModel(nn.Module):
         output_from_all_layers: bool = False,
         element_bias: bool = True,
         use_layer_norm: bool = True,  # layer normalization for the readout
+        #
+        use_torch_embedding: bool = False,
     ):
         """
         Args:
@@ -98,6 +100,7 @@ class AtomicTensorModel(nn.Module):
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_residual=use_linear_channel_residual,
+            use_torch_embedding=use_torch_embedding,
         )
 
         self.readout = AtomicTensor(
@@ -190,6 +193,7 @@ class StructureTensorModel(nn.Module):
         output_from_all_layers: bool = False,
         element_bias: bool = True,
         use_layer_norm: bool = True,  # layer normalization for the readout
+        use_torch_embedding: bool = False,
     ):
         super().__init__()
 
@@ -218,6 +222,7 @@ class StructureTensorModel(nn.Module):
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_residual=use_linear_channel_residual,
+            use_torch_embedding=use_torch_embedding,
         )
 
         self.readout = StructureTensor(
