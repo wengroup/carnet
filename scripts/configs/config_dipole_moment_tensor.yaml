@@ -11,19 +11,18 @@ data:
   #
   #  NOTE, in the dataset file, the tensor should be given with the name
   #  `[target_name]_[target_mode]`, e.g. `elastic_tensor_natural`
-  target_name: nmr_tensor
+  target_name: dipole_moment_tensor
   target_mode: natural # options: `natural`, `full`, `voigt`
   target_signature: # {rank: number} of the natural tensor
-    0: 1
-    2: 1
-  target_symmetry: ij=ji # this is only needed when target_mode is `full` or `voigt`
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json
+    1: 1
+  target_symmetry: i # this is only needed when target_mode is `full` or `voigt`
+  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
+  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
+  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250701/ethanol_n20.json
   r_cut: 5.0
-  train_batch_size: 4
-  val_batch_size: 4
-  test_batch_size: 4
+  train_batch_size: 8
+  val_batch_size: 8
+  test_batch_size: 8
 
 model:
   atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
@@ -59,6 +58,7 @@ model:
   use_layer_norm: true # use layer norm in the output head
   use_torch_embedding: true
   use_atomic_dependent_weight: true
+  reduce: sum
 
 loss:
   # ratio of the loss for each rank of natural tensor
@@ -66,9 +66,8 @@ loss:
   # where y_i is the model prediction for natural tensor of rank i, and \hat y_i is corresponding target;
   # w_i is the weight for the loss of natural tensor of rank i.
   ratio:
-    ## NMR tensor
-    0: 1.0
-    2: 1.0
+    # dipole moment tensor
+    1: 1.0
 
 metrics:
   type: mae
@@ -78,11 +77,11 @@ optimizer:
   class_path: torch.optim.AdamW
   init_args:
     lr: 0.01
-    weight_decay: 0.0
+    weight_decay: 1.0e-8
 
 lr_scheduler:
   # TODO, use combination metric of all ranks
-  monitor: val/mae_rank-0
+  monitor: val/mae_rank-1
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -126,14 +125,14 @@ trainer:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_rank-1
         mode: min
         save_top_k: 3
         verbose: false
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_rank-1
         mode: min
         patience: 200
         verbose: true
