@@ -26,6 +26,9 @@ data:
   test_batch_size: 4
 
 model:
+  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  tp_path_mode: full # options: `full`, `lite`, `camp`
+
   F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
@@ -38,16 +41,24 @@ model:
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
-  # activation for intermediate layers
-  activation: silu
+  #
+  layer_norm: false
+  activation: null
+  last_layer_activation: false # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
+  residual: true
+
+  # optional layers
+  use_linear_channel_input: false
+  use_linear_channel_residual: true
 
   # output
-  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
-  output_from_all_layers: false
+  output_from_all_layers: true
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   target_scale: auto # scale dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   use_layer_norm: true # use layer norm in the output head
+  use_torch_embedding: true
+  use_atomic_dependent_weight: true
 
 loss:
   # ratio of the loss for each rank of natural tensor
@@ -131,3 +142,5 @@ trainer:
 #      init_args:
 #        swa_lrs: 0.001
 #        swa_epoch_start: 0.8
+
+wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top

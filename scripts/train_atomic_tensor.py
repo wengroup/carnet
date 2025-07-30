@@ -1,6 +1,8 @@
 import itertools
+import os
 import shutil
 from pathlib import Path
+from pprint import pprint
 
 import lightning as L
 import pandas as pd
@@ -240,12 +242,13 @@ def main(config: dict):
     # Get model
     restore_checkpoint = config.pop("restore_checkpoint")
 
-    # create new model
-    if restore_checkpoint is None:
-        config = update_model_configs(config, train_loader.dataset)
-        config = update_loss_configs(config)
-        config["git_commit"] = get_git_commit()
+    # Update configs
+    config = update_model_configs(config, train_loader.dataset)
+    config = update_loss_configs(config)
+    config["git_commit"] = get_git_commit()
 
+    # Create new model
+    if restore_checkpoint is None:
         model = get_model(
             config["model"],  # do not pop to pass to other_hparams to track with WandB
             loss_hparams=config.pop("loss"),
@@ -255,11 +258,31 @@ def main(config: dict):
             ema_hparams=config.pop("ema"),
             other_hparams=config,
         )
-
     # Load from checkpoint
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
-        model = load_model(AtomicTensorLitModule, AtomicTensorModel, restore_checkpoint)
+
+        # Pass the model hyperparameters to override the ones saved in the checkpoint.
+        # This becomes useful when changing the way to train the model, e.g. using a
+        # different loss weight.
+        # Note, optimizer and lr_scheduler, will not be effective although they are
+        # passed here, as they will be restored from the checkpoint below with
+        # trainer.fit(ckpt_path=restore_checkpoint).
+        names = {
+            "loss": "loss_hparams",
+            "metrics": "metrics_hparams",
+            # "optimizer": "optimizer_hparams",
+            # "lr_scheduler": "lr_scheduler_hparams",
+            "ema": "ema_hparams",
+        }
+        overrides = {v: config.pop(k) for k, v in names.items()}
+
+        model = load_model(
+            AtomicTensorLitModule,
+            AtomicTensorModel,
+            restore_checkpoint,
+            overrides=overrides,
+        )
 
     # Train
     try:
@@ -272,9 +295,9 @@ def main(config: dict):
 
         ## TODO, for DEBUG only, should be commented out
         ## log gradients, parameter histogram and model topology
-        ## for test run with small max_epoch, you might need to set `log_freq` such that
-        ## this is executed at least once
-        # logger.watch(model, log="all", log_graph=False)
+        ## For test run with small max_epoch, you might need to set `log_freq` to a
+        ## smaller value (default is 100) so that this is executed at least once.
+        # logger.watch(model, log="all", log_graph=False, log_freq=1)
     except KeyError:
         logger = None
 
@@ -282,6 +305,11 @@ def main(config: dict):
 
     # Note, passing ckpt_path to trainer.fit() to restore epoch, optimizer state,
     # lr_scheduler state, etc.
+    # See: https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
+    # Note, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
+    # and new values are provided in `config`, they won't be updated in the training
+    # process, since the below `fit` method has `ckpt_path` as an argument, which will
+    # override the hyperparameters from the config file (set in the above line).
     trainer.fit(
         model,
         train_dataloaders=train_loader,
@@ -316,9 +344,21 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    config_file = Path(__file__).parent / "configs" / "config_nmr_tensor.yaml"
+    config_file = Path(__file__).parent / "configs" / "config_shielding_tensor.yaml"
 
     config = get_args(config_file)
+    pprint(config)
+
+    # Set wandb proxy
+    os.environ["WANDB_BASE_URL"] = config.pop("wandb_base_url")
+
+    ## If the above does not work, use the below
+    # import swanlab
+    #
+    # # Hijack WandB to use SwanLab
+    # # This makes WandB to run in `offline` mode
+    # swanlab.sync_wandb(wandb_run=False)
+
     main(config)
 
     # Remove the processed data directory to save space

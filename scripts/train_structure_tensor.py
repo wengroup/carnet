@@ -13,12 +13,8 @@ from torch_geometric.loader.dataloader import DataLoader
 from carten.data.dataset import DatasetTensor
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.pl.pl_tensor_model import StructureTensorLitModule
-from carten.model.pl.utils import (
-    get_args,
-    get_git_commit,
-    instantiate_class,
-    load_model,
-)
+from carten.model.pl.utils import (get_args, get_git_commit, instantiate_class,
+                                   load_model)
 from carten.model.tensor_model import StructureTensorModel
 
 
@@ -348,6 +344,8 @@ if __name__ == "__main__":
     # config_file = (
     #     Path(__file__).parent / "configs" / "config_polarizability_tensor.yaml"
     # )
+    # config_file = Path(__file__).parent / "configs" / "config_dipole_moment_tensor.yaml"
+
     config = get_args(config_file)
     pprint(config)
 

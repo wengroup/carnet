@@ -60,6 +60,7 @@ model:
   use_layer_norm: true # use layer norm in the output head
   use_torch_embedding: true
   use_atomic_dependent_weight: false
+  reduce: mean
 
 loss:
   # ratio of the loss for each rank of natural tensor
