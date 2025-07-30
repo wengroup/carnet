@@ -174,7 +174,7 @@ class DatasetIP(BaseDataset):
 
 
 class DatasetTensor(BaseDataset):
-    """Dataset for tensor property prediciton."""
+    """Dataset for tensor property prediction."""
 
     def read_data(self, filename: str) -> list[Config]:
         df = pd.read_json(filename)
@@ -186,8 +186,14 @@ class DatasetTensor(BaseDataset):
             # TODO, this is hard coded for `full` and `voigt` tensors
             for k, v in y.items():
                 if k.endswith("_full"):
-                    # Add additional dim for batching
-                    y[k] = np.expand_dims(v, 0)
+
+                    # TODO, this is hard coded for `atomic tensor`, we do not need a
+                    #   new dim for batching.
+                    if "shielding" in k or "nmr" in k:
+                        y[k] = v
+                    else:
+                        # Add additional dim for batching for `structure tensor`.
+                        y[k] = np.expand_dims(v, 0)
 
                 if k.endswith("_voigt"):
                     # Add additional dim for batching, and flatten the tensor dim
