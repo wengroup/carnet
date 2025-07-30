@@ -135,16 +135,16 @@ if __name__ == "__main__":
     e_mae = torch.mean(torch.abs(e_ref - e_pred))
     e_mae_per_atom = torch.mean(torch.abs(e_ref - e_pred) / n_atoms)
     f_mae = torch.mean(torch.abs(f_ref - f_pred))
-    print(f"MAE of energy: {e_mae:.4f}")
-    print(f"MAE of energy/atom: {e_mae_per_atom:.4f}")
-    print(f"MAE of forces: {f_mae:.4f}")
+    print(f"MAE of energy: {e_mae:.4e}")
+    print(f"MAE of energy/atom: {e_mae_per_atom:.4e}")
+    print(f"MAE of forces: {f_mae:.4e}")
 
     e_rmse = torch.sqrt(torch.mean((e_ref - e_pred) ** 2))
     e_rmse_per_atom = torch.sqrt(torch.mean((e_ref / n_atoms - e_pred / n_atoms) ** 2))
     f_rmse = torch.sqrt(torch.mean((f_ref - f_pred) ** 2))
-    print(f"RMSE of energy: {e_rmse:.4f}")
-    print(f"RMSE of energy/atom: {e_rmse_per_atom:.4f}")
-    print(f"RMSE of forces: {f_rmse:.4f}")
+    print(f"RMSE of energy: {e_rmse:.4e}")
+    print(f"RMSE of energy/atom: {e_rmse_per_atom:.4e}")
+    print(f"RMSE of forces: {f_rmse:.4e}")
 
     # Distribution of energy errors
     # e_diff = e_pred - e_ref
