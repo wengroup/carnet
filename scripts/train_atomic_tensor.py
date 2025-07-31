@@ -13,12 +13,8 @@ from torch_geometric.loader.dataloader import DataLoader
 from carten.data.dataset import DatasetTensor
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.pl.pl_tensor_model import AtomicTensorLitModule
-from carten.model.pl.utils import (
-    get_args,
-    get_git_commit,
-    instantiate_class,
-    load_model,
-)
+from carten.model.pl.utils import (get_args, get_git_commit, instantiate_class,
+                                   load_model)
 from carten.model.tensor_model import AtomicTensorModel
 
 
@@ -344,6 +340,7 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
+    # config_file = Path(__file__).parent / "configs" / "config_nmr_tensor.yaml"
     config_file = Path(__file__).parent / "configs" / "config_shielding_tensor.yaml"
 
     config = get_args(config_file)

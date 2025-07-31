@@ -14,12 +14,8 @@ from carten.data.dataset import DatasetMultiTask
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.multitask_model import MultiTaskModel
 from carten.model.pl.pl_multitask_model import MultiTaskLitModule
-from carten.model.pl.utils import (
-    get_args,
-    get_git_commit,
-    instantiate_class,
-    load_model,
-)
+from carten.model.pl.utils import (get_args, get_git_commit, instantiate_class,
+                                   load_model)
 
 
 def get_dataset(
@@ -307,7 +303,7 @@ def main(config: dict):
         ## log gradients, parameter histogram and model topology
         ## for test run with small max_epoch, you might need to set `log_freq` such that
         ## this is executed at least once
-        # logger.watch(model, log="all", log_graph=False)
+        # logger.watch(model, log="all", log_graph=False, log_freq=1)
     except KeyError:
         logger = None
 

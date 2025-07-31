@@ -49,18 +49,17 @@ model:
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
 
   # angular
-  max_L: 4 # max rank of natural tensor
+  max_L: 2 # max rank of natural tensor
   max_degree: 3 # max correlation degree
-  max_out_L: 2 # max rank of output tensor
 
   # radial
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
   #
-  layer_norm: true
-  activation: silu
-  last_layer_activation: true # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
+  layer_norm: false
+  activation: null
+  last_layer_activation: false # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
   residual: true
 
   # optional layers
@@ -161,4 +160,4 @@ trainer:
 #        swa_lrs: 0.001
 #        swa_epoch_start: 0.8
 
-wandb_base_url: https://api.wandb-cn.top # https://api.bandw.top
+wandb_base_url: https://api.bandw.top
