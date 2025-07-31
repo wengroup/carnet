@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -11,6 +11,8 @@ from tqdm import tqdm
 
 from carten.core.convert import Converter
 from carten.model.elastic import get_voigt_projection_tensor
+
+logging.basicConfig(level=logging.INFO)  # Set log level to INFO
 
 
 class BasePyTorchTrainer:
@@ -478,8 +480,8 @@ class BasePyTorchTrainer:
         raise NotImplementedError("Subclass must implement this method.")
 
 
-class StructureTensorPyTorchTrainer(BasePyTorchTrainer):
-    """PyTorch trainer for structure tensor prediction."""
+class TensorPyTorchTrainer(BasePyTorchTrainer):
+    """PyTorch trainer for structure and atomic tensors."""
 
     def compute_loss_nat(self, pred: dict, ref: dict):
         """Weighted MSE loss for natural tensors."""

@@ -3,18 +3,19 @@ instead of the one from PyTorch Lightning.
 """
 
 import itertools
+import os
 import shutil
 from pathlib import Path
+from pprint import pprint
 
 import lightning as L
 import pandas as pd
-import swanlab
 import torch
 from torch_geometric.loader.dataloader import DataLoader
 
 from carten.data.dataset import DatasetTensor
 from carten.data.transform import ConsecutiveAtomType
-from carten.model.pl.trainer import StructureTensorPyTorchTrainer
+from carten.model.pl.trainer import TensorPyTorchTrainer
 from carten.model.pl.utils import get_args, get_git_commit
 from carten.model.tensor_model import StructureTensorModel
 
@@ -58,7 +59,9 @@ def get_dataloaders(
         raise ValueError(f"Unknown target mode: {target_mode}.")
 
     trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
-    train_loader = DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
+    train_loader = DataLoader(
+        trainset, batch_size=train_batch_size, shuffle=True, drop_last=True
+    )
 
     valset = get_dataset(valset_filename, names, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
@@ -202,11 +205,13 @@ def main(config: dict):
     # Get model
     restore_checkpoint = config.pop("restore_checkpoint")
 
-    # create new model
+    # Update configs
+    config = update_model_configs(config, train_loader.dataset)
+    config = update_loss_configs(config)
+    config["git_commit"] = get_git_commit()
+
+    # Create new model
     if restore_checkpoint is None:
-        config = update_model_configs(config, train_loader.dataset)
-        config = update_loss_configs(config)
-        config["git_commit"] = get_git_commit()
 
         model = StructureTensorModel(**config["model"])
 
@@ -215,9 +220,7 @@ def main(config: dict):
         print(f"Loading model from checkpoint: {restore_checkpoint}")
         raise NotImplementedError
 
-    print(model)
-
-    trainer = StructureTensorPyTorchTrainer(
+    trainer = TensorPyTorchTrainer(
         model=model,
         loss_hparams=config.pop("loss"),
         metrics_hparams=config.pop("metrics"),
@@ -265,17 +268,22 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    # Hijack WandB to use SwanLab
-    # This makes WandB to run in `offline` mode
-    swanlab.sync_wandb(wandb_run=False)
-
-    # Remove the processed data directory
-    shutil.rmtree("./processed", ignore_errors=True)
-
     # config_file = Path(__file__).parent / "configs" / "config_dielectric_tensor.yaml"
     config_file = Path(__file__).parent / "configs" / "config_elastic_tensor.yaml"
 
     config = get_args(config_file)
+    pprint(config)
+
+    # Set wandb proxy
+    os.environ["WANDB_BASE_URL"] = config.pop("wandb_base_url")
+
+    ## If the above does not work, use the below
+    # import swanlab
+    #
+    # # Hijack WandB to use SwanLab
+    # # This makes WandB to run in `offline` mode
+    # swanlab.sync_wandb(wandb_run=False)
+
     main(config)
 
     # Remove the processed data directory
