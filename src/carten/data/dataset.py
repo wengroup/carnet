@@ -189,7 +189,7 @@ class DatasetTensor(BaseDataset):
 
                     # TODO, this is hard coded for `atomic tensor`, we do not need a
                     #   new dim for batching.
-                    if "shielding" in k or "nmr" in k:
+                    if "shielding" in k:
                         y[k] = v
                     else:
                         # Add additional dim for batching for `structure tensor`.
