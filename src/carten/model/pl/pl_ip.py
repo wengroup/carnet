@@ -9,8 +9,6 @@ import torch
 from ema_pytorch import EMA
 from lightning import LightningModule
 from lightning.pytorch.cli import instantiate_class
-from lightning.pytorch.utilities import grad_norm
-from lightning.pytorch.utilities.types import STEP_OUTPUT
 from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
@@ -428,15 +426,3 @@ class InteratomicPotentialLitModule(LightningModule):
         )
 
         return edge_vector
-
-    ## TODO, for DEBUG only, should be commented out
-    # Grad norm computation should be called after `configure_gradient_clipping()` in
-    # case we are clipping the gradients and wand to show the clipped gradients.
-    # For the fit loop hook calling order,
-    # see https://lightning.ai/docs/pytorch/2.2.1/common/lightning_module.html#hooks
-    #
-    # You might need to increase max_epoch for this to be executed and show up in wandb
-    # Compute the 2-norm for each layer
-    # def on_train_batch_end(self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int):
-    #     norms = grad_norm(self.model, norm_type=2)
-    #     self.log_dict(norms, prog_bar=False)
