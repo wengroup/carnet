@@ -20,7 +20,6 @@ class MultiTaskModel(nn.Module):
         r_cut: float,
         num_layers: int,
         num_average_neigh: float,
-        max_out_L: int = 2,
         # angular
         max_degree: int = 3,
         # radial
@@ -35,7 +34,6 @@ class MultiTaskModel(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
-        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         # output
         target_name: list[str] = None,
@@ -46,6 +44,8 @@ class MultiTaskModel(nn.Module):
         output_from_all_layers: bool = False,
         element_bias: bool = True,
         use_layer_norm: bool = True,
+        use_atomic_dependent_weight: bool = True,
+        use_torch_embedding: bool = True,
     ):
         super().__init__()
 
@@ -54,6 +54,8 @@ class MultiTaskModel(nn.Module):
             num_atom_feats = num_layers
         else:
             num_atom_feats = 1
+
+        max_out_L = max([max(d.keys()) for k, d in output_signature.items()])
 
         self.backbone = Backbone(
             F=F,
@@ -74,6 +76,8 @@ class MultiTaskModel(nn.Module):
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_residual=use_linear_channel_residual,
+            use_torch_embedding=use_torch_embedding,
+            use_atomic_dependent_weight=use_atomic_dependent_weight,
         )
 
         # There will be multiple output head
