@@ -258,12 +258,13 @@ class AtomicTensor(nn.Module):
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
 
         # Apply layer norm to the last layer's atomic feats
+        new_atom_feats = atom_feats.copy()  # Avoid modifying the input list
         if self.layer_norm is not None:
-            atom_feats[-1] = self.layer_norm(atom_feats[-1])
+            new_atom_feats[-1] = self.layer_norm(new_atom_feats[-1])
 
         output = {}
         for l, s in self.slice.items():
-            data = [x[..., s] for x in atom_feats]
+            data = [x[..., s] for x in new_atom_feats]
             fn = self.kernel[str(l)]
             output[l] = fn(data, atom_type)
 

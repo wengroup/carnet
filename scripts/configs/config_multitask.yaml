@@ -65,7 +65,10 @@ model:
   # optional layers
   use_linear_channel_input: false
   use_linear_channel_residual: true
-  use_layer_norm: false
+  use_layer_norm: true
+  use_torch_embedding: true
+  use_atomic_dependent_weight: true
+
 
 
   # output
