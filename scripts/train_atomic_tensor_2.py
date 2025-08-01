@@ -235,11 +235,12 @@ def main(config: dict):
     trainer.fit(
         train_loader=train_loader,
         val_loader=val_loader,
-        max_epochs=4,
+        max_epochs=config.pop("trainer").pop("max_epochs"),
         checkpoint_dir="./checkpoints",
+        monitor="val_ema/mae_rank-0",
     )
 
-    trainer.test(test_loader)
+    trainer.test(test_loader, checkpoint_path="./checkpoints/best_model.pth")
 
     # # Save the last epoch model
     # # The behavior of  `save_last` in ModelCheckpoint callback is buggy; save manually
