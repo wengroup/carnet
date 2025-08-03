@@ -134,6 +134,7 @@ class Backbone(nn.Module):
                     use_linear_channel_input=use_linear_channel_input,
                     use_linear_channel_residual=use_linear_channel_residual,
                     use_atomic_dependent_weight=use_atomic_dependent_weight,
+                    layer_index=i,
                 )
             )
 

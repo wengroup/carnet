@@ -36,6 +36,7 @@ class Layer(nn.Module):
         use_linear_channel_input: bool = False,
         use_linear_channel_residual: bool = True,
         use_atomic_dependent_weight: bool = True,
+        layer_index: None = int,
     ):
         """
 
@@ -92,6 +93,16 @@ class Layer(nn.Module):
             AM = AtomicMoment2
         else:
             raise ValueError(f"Unknown atomic_moment_mode: {atomic_moment_mode}")
+
+        # For the first layer, atom features only have scalars, set it to `full` mode.
+        # `camp` will be the same as `full` for the first layer.
+        # This is mainly to deal with `lite`, which treats X and Y conversely as in
+        # `camp` mode.
+        if layer_index is not None and layer_index == 0:
+            am_tp_path_mode = "full"
+        else:
+            am_tp_path_mode = tp_path_mode
+
         self.atomic_moment = AM(
             F=F,
             L1=L1,
@@ -103,7 +114,7 @@ class Layer(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
             mode=atomic_moment_mode,
-            tp_path_mode=tp_path_mode,
+            tp_path_mode=am_tp_path_mode,
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank

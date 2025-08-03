@@ -65,7 +65,7 @@ class TensorProduct(nn.Module):
             normalize: normalization method for the output tensor. Options are:
                 `unity` or `none`. See `carten.core.tp.tp_even`.
             path_mode: mode to construct the paths from L1 and L2 to L3. Options are:
-                `full`, `mid`, or `lite`. See `carten.module.utils.get_paths`.
+                `full`, `camp`, or `lite`. See `carten.module.utils.get_paths`.
             for_atomic_moment: If False, this is for a general tensor product,
                 which is simply a wrapper around the tp_even and tp_odd functions.
                 When it is True, it is used in the context of atomic moments,

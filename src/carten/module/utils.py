@@ -36,10 +36,21 @@ def get_paths(
         L1: maximum rank of the natural tensor in the first input feature tensor.
         L2: maximum rank of the natural tensor in the second input feature tensor.
         L3: ranks of the output feature tensor.
-        mode: how to compute the paths. Supported modes are `full`, `lite`, and `camp`.
+        mode: how to compute the paths. Supported modes are `full`, `camp`, and `lite`.
             In `full` mode, all paths satisfying `abs(l1 - l2) <= l3 <= l1 + l2` are
             generated.
-            The `camp` is the same rule as used in the CAMP model.
+            The `camp` is the same rule as used in the CAMP model. See the supplemental
+            information of the CAMP paper for details.
+            The `lite` model is the same as `camp`, but with switching the order
+            of the two tensors. In the `camp` mode, give two tensors X and Y,
+            we require the rank of X is smaller than or equal to the rank of Y,
+            and requiring that X is fully contracted, Here, we do the reverse, requiring
+            that the rank of Y is smaller than or equal to the rank of X, and requiring
+            that Y is fully contracted. Why? Because in the implementation, X is
+            typically the features and Y is typically the dyadics. Then in the `camp`
+            mode, important features can be discarded. This may not be a huge problem
+            for interatomic potentials like CAMP, but can be bad for modeling high-rank
+            tensors.
             In `lite` mode, the tensors X of rank l1 and Y of rank l2 are to be
             contracted by rank k. Same as the `camp` mode, it is required that
             l3 = l1 + l2 - 2 * k, but unlike `camp`, where it is required that
@@ -59,19 +70,16 @@ def get_paths(
                 for l in range(abs(l1 - l2), l1 + l2 + 1):
                     if l in L3:
                         paths[l].append((l1, l2, l))
-            elif mode == "lite":
-                for i in range((l1 + l2) // 2 + 1):
-                    if i > l1 or i > l2:
-                        continue
-                    l = l1 + l2 - 2 * i
-                    if l in L3:
-                        paths[l].append((l1, l2, l))
             elif mode == "camp":
                 if l1 <= l2:
                     l = l1 + l2 - 2 * l1
                     if l in L3:
                         paths[l].append((l1, l2, l))
-
+            elif mode == "lite":
+                if l2 <= l1:
+                    l = l1 + l2 - 2 * l2
+                    if l in L3:
+                        paths[l].append((l1, l2, l))
             else:
                 raise ValueError(f"Invalid mode: {mode}.")
 
