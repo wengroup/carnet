@@ -26,6 +26,7 @@ class InteratomicPotential(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
+        level: int = None,
         #
         layer_norm: bool = False,
         activation: str = None,
@@ -67,6 +68,7 @@ class InteratomicPotential(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
+            level=level,
             layer_norm=layer_norm,
             activation=activation,
             last_layer_activation=last_layer_activation,

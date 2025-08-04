@@ -43,6 +43,7 @@ class HyperMoment(nn.Module):
         max_out_L: int = None,
         max_degree: int = 3,
         tp_path_mode: str = "full",
+        level: int = None,
     ):
         super().__init__()
 
@@ -82,7 +83,15 @@ class HyperMoment(nn.Module):
             else:
                 out_L = L
             self.tp.append(
-                TensorProduct(F, L, L, out_L, normalize="unity", path_mode=tp_path_mode)
+                TensorProduct(
+                    F,
+                    L,
+                    L,
+                    out_L,
+                    normalize="unity",
+                    path_mode=tp_path_mode,
+                    level=level,
+                )
             )
 
         # Linear combination of different degree

@@ -28,7 +28,7 @@ data:
 
 model:
   atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
-  tp_path_mode: lite # options: `full`, `lite`, `camp`
+  tp_path_mode: full # options: `full`, `camp`, `lite`, or `level`
 
   F: 8 # number of channels
   num_layers: 2 # number of layers

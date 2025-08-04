@@ -53,6 +53,7 @@ class Backbone(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
+        level: int = None,
         #
         layer_norm: bool = False,
         activation: str = None,
@@ -128,6 +129,7 @@ class Backbone(nn.Module):
                     max_degree=self.max_degree,
                     atomic_moment_mode=self.atomic_moment_mode,
                     tp_path_mode=tp_path_mode,
+                    level=level,
                     layer_norm=layer_norm,
                     activation=act,
                     residual=residual,

@@ -46,6 +46,7 @@ class TensorProduct(nn.Module):
         L3: int | list[int] = None,
         normalize: str = "unity",
         path_mode: str = "full",
+        level: int = None,
         for_atomic_moment: bool = False,
     ):
         """
@@ -80,7 +81,11 @@ class TensorProduct(nn.Module):
         self.path_mode = path_mode
         self.for_atomic_moment = for_atomic_moment
 
-        self.paths = get_paths(self.L1, self.L2, self.L3, mode=path_mode)
+        # Set default value for level
+        if path_mode == "level" and level is None:
+            level = max(L1, L2)
+
+        self.paths = get_paths(self.L1, self.L2, self.L3, path_mode, level)
 
         # Kernel parameters for linear combination of paths to each l3
         # Each (l1, l2, l3) has its own kernel parameters

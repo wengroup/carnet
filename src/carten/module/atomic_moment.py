@@ -38,6 +38,7 @@ class AtomicMoment(nn.Module):
         envelope: int = 6,
         mode: str = None,  # dummy argument to give the same signature as AtomicMoment2
         tp_path_mode: str = "full",
+        level: int = None,
     ):
         super().__init__()
         self.F = F
@@ -51,6 +52,7 @@ class AtomicMoment(nn.Module):
         self.r_cut = r_cut
         self.envelope = envelope
         self.tp_path_mode = tp_path_mode
+        self.level = level
 
         # Tensor product
         self.tp = TensorProduct(
@@ -60,6 +62,7 @@ class AtomicMoment(nn.Module):
             L3,
             normalize="unity",
             path_mode=tp_path_mode,
+            level=level,
             for_atomic_moment=True,
         )
 

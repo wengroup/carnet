@@ -30,6 +30,7 @@ class Layer(nn.Module):
         max_degree: int = 3,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
+        level: int = None,
         layer_norm: bool = False,
         activation: str = None,
         residual: bool = True,
@@ -94,15 +95,6 @@ class Layer(nn.Module):
         else:
             raise ValueError(f"Unknown atomic_moment_mode: {atomic_moment_mode}")
 
-        # For the first layer, atom features only have scalars, set it to `full` mode.
-        # `camp` will be the same as `full` for the first layer.
-        # This is mainly to deal with `lite`, which treats X and Y conversely as in
-        # `camp` mode.
-        if layer_index is not None and layer_index == 0:
-            am_tp_path_mode = "full"
-        else:
-            am_tp_path_mode = tp_path_mode
-
         self.atomic_moment = AM(
             F=F,
             L1=L1,
@@ -114,7 +106,8 @@ class Layer(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
             mode=atomic_moment_mode,
-            tp_path_mode=am_tp_path_mode,
+            tp_path_mode=tp_path_mode,
+            level=level,
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
@@ -137,6 +130,7 @@ class Layer(nn.Module):
             max_out_L=self.max_out_L,
             max_degree=self.max_degree,
             tp_path_mode=tp_path_mode,
+            level=level,
         )
 
         # Layer normalization
