@@ -28,41 +28,72 @@ def check_rank(L1: int, L2: int, L3: int | list[int] | None) -> list[int]:
 
 
 def get_paths(
-    L1: int, L2: int, L3: list[int], mode: str = "full"
+    L1: int, L2: int, L3: list[int], mode: str = "full", level: int = None
 ) -> dict[int, list[tuple[int, int, int]]]:
     """Get the paths from L1 and L2 to L3.
+
 
     Args:
         L1: maximum rank of the natural tensor in the first input feature tensor.
         L2: maximum rank of the natural tensor in the second input feature tensor.
         L3: ranks of the output feature tensor.
-        mode: how to compute the paths. Supported modes are `full`, `camp`, and `lite`.
-            In `full` mode, all paths satisfying `abs(l1 - l2) <= l3 <= l1 + l2` are
-            generated.
-            The `camp` is the same rule as used in the CAMP model. See the supplemental
-            information of the CAMP paper for details.
-            The `lite` model is the same as `camp`, but with switching the order
-            of the two tensors. In the `camp` mode, give two tensors X and Y,
-            we require the rank of X is smaller than or equal to the rank of Y,
-            and requiring that X is fully contracted, Here, we do the reverse, requiring
-            that the rank of Y is smaller than or equal to the rank of X, and requiring
-            that Y is fully contracted. Why? Because in the implementation, X is
-            typically the features and Y is typically the dyadics. Then in the `camp`
-            mode, important features can be discarded. This may not be a huge problem
-            for interatomic potentials like CAMP, but can be bad for modeling high-rank
-            tensors.
-            In `lite` mode, the tensors X of rank l1 and Y of rank l2 are to be
-            contracted by rank k. Same as the `camp` mode, it is required that
-            l3 = l1 + l2 - 2 * k, but unlike `camp`, where it is required that
-            l1<l2, here, we do not require that. Also, `camp` requires l1 to be fully
-            contracted, while `lite` does not.
-            In terms of the number of allowed paths, full>lite>camp.
+        mode: method to select the paths. Supported modes are `full`, `camp`,
+            `lite`, and `level`.
+
+            In a nutshell:
+            - `full` allows all paths, but can be computationally expensive.
+            - `camp` and `lite` are designed to allow message passing from higher-rank
+               tensors to lower-rank tensors. This is good for modeling low-rank values,
+               e.g. the scalar interatomic potential energy. One is suggested to use
+               `lite` instead of `camp` for symmetric behaviors (see below).
+            - `level` favors interactions of between low-rank tensors and balances
+               tensors of all ranks. It provides a way to limit the number of paths,
+               and it is fully controllable. For good choice of `level`, see below.
+
+            For all modes discussed below, it is required that:
+            - abs(l1 - l2) <= l3 <= l1 + l2;
+            - l3 should be in L3.
+            And additional rules apply for each mode.
+
+            Z = X @ Y, where l1 is the rank of X, l2 is the rank of Y, and l3 is the
+            rank of Z.
+
+            In `full` mode, there is no additional restriction on the paths.
+
+            In `camp` mode, the paths are selected in the same way as in the CAMP model.
+            It requires l1 to be fully contracted, and as a result,
+            l3 = l1 + l2 - 2 * l1.
+
+            The camp mode is not symmetric, meaning that the order of the two tensors
+            matters. Z = X @ Y, where X is fully contracted, and Y is not. This can
+            be non-optimal since X is typically the features and Y the dyadics.
+
+            In the `lite` mode, we make the `camp` mode symmetric, allowing:
+            l3 = l1 + l2 - 2 * l1 and l3 = l1 + l2 - 2 * l2.
+
+            If mode == `level`, additional argument `level` (see below) is used to
+            specify the maximum allowed sum of l1 and l2. The paths are selected
+            based on:
+            l1+l2 <= level.
+
+            Note, this is not applied for l3=0 (scalars), but only for higher ranks.
+
+            This becomes the same as the `full` mode when level is set to a value larger
+            than `L1 + L2`. A good choice for `level` to start with is max(L1, L2).
+
+        level: level value for the `level` mode. Ignored for other modes.
 
     Returns:
         Dictionary of paths from L1 and L2 to L3: {l3: [(l1, l2, l3)]}, where each
         tuple is a valid path from l1 and l2 to l3.
     """
     paths = defaultdict(list)
+
+    if level is not None and mode != "level":
+        raise ValueError(
+            "`level` is provided,  but not needed for mode other than `level`."
+            "Set to `None` if not needed."
+        )
 
     for l1 in range(L1 + 1):
         for l2 in range(L2 + 1):
@@ -78,8 +109,20 @@ def get_paths(
             elif mode == "lite":
                 if l2 <= l1:
                     l = l1 + l2 - 2 * l2
+                else:
+                    l = l1 + l2 - 2 * l1
+                if l in L3:
+                    paths[l].append((l1, l2, l))
+            elif mode == "level":
+                if level is None:
+                    raise ValueError("level must be specified when mode is 'level'.")
+                for l in range(abs(l1 - l2), l1 + l2 + 1):
+                    # For scalars, we don't apply the level restriction
+                    if l != 0 and l1 + l2 > level:
+                        continue
                     if l in L3:
                         paths[l].append((l1, l2, l))
+
             else:
                 raise ValueError(f"Invalid mode: {mode}.")
 
