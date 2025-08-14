@@ -118,7 +118,7 @@ class CartenCalculator(Calculator):
 
         energy = self.model(
             edge_vector,
-            data.edge_idx,
+            data.edge_index,
             data.atom_type,
             data.num_atoms,
             data.atomic_number,
