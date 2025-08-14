@@ -47,7 +47,7 @@ class ZBL(torch.nn.Module):
         Compute ZBL energy of each atom.
         """
 
-        # Indices of center atoms (i) and neighbor atoms (j); (n_edges,)
+        # Indices of center atoms i and neighbor atoms j; (n_edges,)
         i_idx = edge_idx[0]
         j_idx = edge_idx[1]
 
@@ -71,8 +71,14 @@ class ZBL(torch.nn.Module):
         )
         v_edges = (14.3996 * Z_u * Z_v) / r * phi
 
+        # TODO, in fact, it is not needed to have an envelope, directly using v_edges
+        #  should be fine
+        # Make it exactly zero outside r_max
         r_max = self.covalent_radii[Z_u] + self.covalent_radii[Z_v]
         envelope = dimenet_envelope(r / r_max, self.p)
+
+        # r can be larger than r_max; this ensures the envelope is zero outside r_max
+        envelope = envelope * (r < r_max)
 
         # 0.5: half to i and half to j
         v_edges = 0.5 * v_edges * envelope

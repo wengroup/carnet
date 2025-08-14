@@ -6,18 +6,14 @@ data:
   trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
   valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
   testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
-  #
+
+  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
+
   #  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
   #  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
   #  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/ethanol_n20.json
-  #
-  #  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
-  #  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
-  #  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/rmd17/20250702/json_data/rmd17_aspirin_val.json
-  #
-  #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
-  #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
-  #  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/3BPA/3BPA/val_300K.json
   #
   #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
   #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
