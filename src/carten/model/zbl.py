@@ -76,9 +76,7 @@ class ZBL(torch.nn.Module):
         # Make it exactly zero outside r_max
         r_max = self.covalent_radii[Z_u] + self.covalent_radii[Z_v]
         envelope = dimenet_envelope(r / r_max, self.p)
-
-        # r can be larger than r_max; this ensures the envelope is zero outside r_max
-        envelope = envelope * (r < r_max)
+        envelope[r > r_max] = 0.0
 
         # 0.5: half to i and half to j
         v_edges = 0.5 * v_edges * envelope
