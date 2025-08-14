@@ -38,6 +38,9 @@ def dimenet_envelope(r: Tensor, p: int = 6):
 
     1 - (p+1)(p+2)/2*x**p + p*(p+2)*x**(p+1) - p*(p+1)/2*x**(p+2)
 
+    Args:
+        r: normalized distance, in the range [0, 1].
+
     This is also the envelope function used hybrid NN of Mingjian Wen when p = 3.
     """
     if p == 6:

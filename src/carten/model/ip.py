@@ -1,9 +1,13 @@
 """CARTEN interatomic potential model."""
 
+import torch
 from torch import Tensor, nn
+
+from carten.module.scatter import scatter
 
 from .backbone import Backbone
 from .readout import StructureScalar
+from .zbl import ZBL
 
 
 class InteratomicPotential(nn.Module):
@@ -42,6 +46,8 @@ class InteratomicPotential(nn.Module):
         element_bias: bool = True,
         use_torch_embedding: bool = False,
         use_atomic_dependent_weight: bool = True,
+        # zbl
+        use_zbl: bool = False,
     ):
         """
         Args:
@@ -91,12 +97,18 @@ class InteratomicPotential(nn.Module):
             element_bias=element_bias,
         )
 
+        if use_zbl:
+            self.zbl = ZBL()
+        else:
+            self.register_buffer("zbl", None)
+
     def forward(
         self,
         edge_vector: Tensor,
         edge_idx: Tensor,
         atom_type: Tensor,
         num_atoms: Tensor,
+        atomic_number: Tensor = None,
     ) -> Tensor:
         """
         Args:
@@ -104,6 +116,10 @@ class InteratomicPotential(nn.Module):
             edge_idx: Edge index tensor. Shape (2, n_edges).
             atom_type: Atomic type of each atom. Shape (n_atoms,).
             num_atoms: Number of atoms in each atomic configuration. Shape (n_config,).
+            atomic_number: Atomic number in each atomic configuration. Shape (n_atoms,).
+                Note, this should be distinguished from `atom_type`. For example,
+                for a system with three atoms, [H, H, O], the `atom_type` is [0, 0, 1]
+                (H is type 0 and O is type 1), while the `atomic_number` is [1, 1, 8].
 
         Returns:
             Total energy of each atomic configuration. Shape (n_config,).
@@ -120,5 +136,16 @@ class InteratomicPotential(nn.Module):
 
         # Compute the total energy
         energy = self.readout(all_scalar_feats, atom_type, num_atoms)
+
+        if self.zbl is not None:
+            # ZBL energy of each atom
+            zbl = self.zbl(edge_vector, edge_idx, atomic_number)
+
+            # ZBL energy of each configuration
+            zbl_conf = scatter(
+                zbl, torch.repeat_interleave(num_atoms), reduce="sum", dim=0
+            )
+
+            energy = energy + zbl_conf
 
         return energy

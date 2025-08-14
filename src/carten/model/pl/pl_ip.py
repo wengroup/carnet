@@ -91,6 +91,7 @@ class InteratomicPotentialLitModule(LightningModule):
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
+            atomic_number=batch.atomic_number,
         )
         f_pred = compute_forces(e_pred, batch.pos, self.training)
 
@@ -107,6 +108,7 @@ class InteratomicPotentialLitModule(LightningModule):
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
+            atomic_number=batch.atomic_number,
         )
         f_pred = compute_forces(e_pred, batch.pos, self.training)
 
