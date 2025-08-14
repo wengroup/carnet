@@ -7,7 +7,7 @@ from carten.module.scatter import scatter
 
 from .backbone import Backbone
 from .readout import StructureScalar
-from .zbl import ZBL
+from .zbl import ZBL, zbl_energy
 
 
 class InteratomicPotential(nn.Module):
@@ -102,6 +102,8 @@ class InteratomicPotential(nn.Module):
         else:
             self.register_buffer("zbl", None)
 
+        self.use_zbl = use_zbl
+
     def forward(
         self,
         edge_vector: Tensor,
@@ -137,9 +139,13 @@ class InteratomicPotential(nn.Module):
         # Compute the total energy
         energy = self.readout(all_scalar_feats, atom_type, num_atoms)
 
-        if self.zbl is not None:
+        # if self.zbl is not None:
+        #     # ZBL energy of each atom
+        #     zbl = self.zbl(edge_vector, edge_idx, atomic_number)
+
+        if self.use_zbl:
             # ZBL energy of each atom
-            zbl = self.zbl(edge_vector, edge_idx, atomic_number)
+            zbl = zbl_energy(edge_vector, edge_idx, atomic_number)
 
             # ZBL energy of each configuration
             zbl_conf = scatter(
