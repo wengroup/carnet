@@ -105,7 +105,7 @@ class Config(Data):
             num_edges = None
 
         # TODO, shift vec is needed for IP, because we need to compute edge_vector as
-        #  of the pos to properly compute stress. However, is stress is not needed,
+        #  of the pos to properly compute stress. However, if stress is not needed,
         #  we can directly use edge_vector here.
         #  Also, for structure property prediction model, we don't need any derivative
         #  w.r.t. pos, so we can ignore the shift_vec and directly use edge_vector.

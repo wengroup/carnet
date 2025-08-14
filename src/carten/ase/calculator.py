@@ -115,11 +115,14 @@ class CartenCalculator(Calculator):
             data.cell = strained_cell
 
         edge_vector = self._get_edge_vector(data)
-        edge_idx = data.edge_index
-        atom_type = data.atom_type
-        num_atoms = data.num_atoms
 
-        energy = self.model(edge_vector, edge_idx, atom_type, num_atoms)
+        energy = self.model(
+            edge_vector,
+            data.edge_idx,
+            data.atom_type,
+            data.num_atoms,
+            data.atomic_number,
+        )
 
         # compute energy, forces, and stress
         if self.need_stress:
