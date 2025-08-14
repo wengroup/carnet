@@ -13,8 +13,6 @@ class ZBL(torch.nn.Module):
     https://github.com/ACEsuit/mace/blob/9d31ac2c86ebc88c7a843fa7a3dfe360b276f08b/mace/modules/radial.py#L147C1-L219C1
     """
 
-    p: torch.Tensor
-
     def __init__(self, p: int = 6, trainable: bool = False):
         super().__init__()
 
@@ -51,32 +49,46 @@ class ZBL(torch.nn.Module):
         i_idx = edge_idx[0]
         j_idx = edge_idx[1]
 
-        Z_u = atomic_number[j_idx]
-        Z_v = atomic_number[i_idx]
+        Z_i = atomic_number[i_idx]
+        Z_j = atomic_number[j_idx]
 
-        a = (
-            self.a_prefactor
-            * 0.529
-            / (torch.pow(Z_u, self.a_exp) + torch.pow(Z_v, self.a_exp))
-        )
+        # a = (
+        #     self.a_prefactor
+        #     * 0.529
+        #     / (torch.pow(Z_u, self.a_exp) + torch.pow(Z_v, self.a_exp))
+        # )
+
+        Z_pow = torch.pow(atomic_number, self.a_exp)
+        a = self.a_prefactor * 0.529 / (Z_pow[i_idx] + Z_pow[j_idx])
 
         r = edge_vector.norm(p=2, dim=-1)
         r_over_a = r / a
 
-        phi = (
-            self.c[0] * torch.exp(-3.2 * r_over_a)
-            + self.c[1] * torch.exp(-0.9423 * r_over_a)
-            + self.c[2] * torch.exp(-0.4028 * r_over_a)
-            + self.c[3] * torch.exp(-0.2016 * r_over_a)
-        )
-        v_edges = (14.3996 * Z_u * Z_v) / r * phi
+        # phi = (
+        #     self.c[0] * torch.exp(-3.2 * r_over_a)
+        #     + self.c[1] * torch.exp(-0.9423 * r_over_a)
+        #     + self.c[2] * torch.exp(-0.4028 * r_over_a)
+        #     + self.c[3] * torch.exp(-0.2016 * r_over_a)
+        # )
 
-        # TODO, in fact, it is not needed to have an envelope, directly using v_edges
-        #  should be fine
+        # Optimized way to compute phi by calling exp once
+        exponents = torch.stack(
+            [
+                -3.2 * r_over_a,
+                -0.9423 * r_over_a,
+                -0.4028 * r_over_a,
+                -0.2016 * r_over_a,
+            ],
+            dim=-1,
+        )  # Shape: (n_edges, 4)
+        phi = torch.sum(self.c * torch.exp(exponents), dim=-1)
+
+        v_edges = (14.3996 * Z_j * Z_i) / r * phi
+
         # Make it exactly zero outside r_max
-        r_max = self.covalent_radii[Z_u] + self.covalent_radii[Z_v]
+        r_max = self.covalent_radii[Z_j] + self.covalent_radii[Z_i]
         envelope = dimenet_envelope(r / r_max, self.p)
-        envelope[r > r_max] = 0.0
+        envelope.masked_fill_(r > r_max, 0.0)
 
         # 0.5: half to i and half to j
         v_edges = 0.5 * v_edges * envelope
