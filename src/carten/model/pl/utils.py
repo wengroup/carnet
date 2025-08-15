@@ -50,9 +50,10 @@ def load_model(
     # create the model to load, using the same hyperparameters saved in the checkpoint
     d = torch.load(checkpoint, map_location=map_location, weights_only=True)
 
-    # dtype
-    dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
-    torch.set_default_dtype(getattr(torch, dtype))
+    # We should not do the below: what if a user what to run in a different dtype,
+    # e.g. for better numerical stability?
+    # dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
+    # torch.set_default_dtype(getattr(torch, dtype))
 
     # create model
     model_hparams = d["hyper_parameters"]["other_hparams"]["model"]

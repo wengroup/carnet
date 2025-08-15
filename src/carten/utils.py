@@ -4,7 +4,6 @@ import math
 from pathlib import Path
 from typing import Literal
 
-import numpy as np
 import torch
 from torch import Tensor, nn
 
@@ -32,7 +31,7 @@ def get_rotation_matrix(
     angles: tuple[float, float, float],
     order: Literal["xyz", "xzy", "yxz", "yzx", "zxy", "zyx"] = "xyz",
     degrees: bool = False,
-) -> np.ndarray:
+) -> Tensor:
     """
     Create a 3D rotation matrix from Euler angles.
 
@@ -42,7 +41,7 @@ def get_rotation_matrix(
         degrees: whether angles are in degrees (default: radians)
 
     Returns:
-        3x3 rotation matrix as numpy array
+        3x3 rotation matrix
     """
     if degrees:
         angles = [math.radians(angle) for angle in angles]
