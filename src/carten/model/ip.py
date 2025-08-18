@@ -97,11 +97,12 @@ class InteratomicPotential(nn.Module):
             element_bias=element_bias,
         )
 
-        if use_zbl:
-            self.zbl = ZBL()
-        else:
-            self.register_buffer("zbl", None)
-
+        # # TODO, commnt out this
+        # if use_zbl:
+        #     self.zbl = ZBL()
+        # else:
+        #     self.register_buffer("zbl", None)
+        #
         self.use_zbl = use_zbl
 
     def forward(
@@ -142,7 +143,6 @@ class InteratomicPotential(nn.Module):
         # if self.zbl is not None:
         #     # ZBL energy of each atom
         #     zbl = self.zbl(edge_vector, edge_idx, atomic_number)
-
         if self.use_zbl:
             # ZBL energy of each atom
             zbl = zbl_energy(edge_vector, edge_idx, atomic_number)
