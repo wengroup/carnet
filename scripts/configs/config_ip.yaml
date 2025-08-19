@@ -41,9 +41,6 @@ model:
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
   # layer structure
-  layer_norm: false
-  activation: null
-  last_layer_activation: false # has to be `false` if `activation` is `null`
   residual: true
 
   # optional

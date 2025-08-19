@@ -1,13 +1,10 @@
 """CARTEN layer module."""
 
-import torch
 from torch import Tensor, nn
 
-from .activation import elu, shifted_softplus, silu
 from .atomic_moment import AtomicMoment
 from .hyper_moment import HyperMoment
 from .linear import SlicedLinearMap, SlicedLinearMap2
-from .normalize import LayerNorm
 
 
 class Layer(nn.Module):
@@ -31,8 +28,6 @@ class Layer(nn.Module):
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
         level: int = None,
-        layer_norm: bool = False,
-        activation: str = None,
         residual: bool = True,
         use_linear_channel_input: bool = False,
         use_linear_channel_residual: bool = True,
@@ -133,50 +128,6 @@ class Layer(nn.Module):
             level=level,
         )
 
-        # Layer normalization
-        if layer_norm:
-            self.layer_norm = LayerNorm(
-                dim=F,
-                slice_sizes=[3**l for l in range(self.max_out_L + 1)],
-            )
-        else:
-            self.register_buffer("layer_norm", None)
-
-        # Nonlinear activation
-        if activation is None:
-            self.register_buffer("activation", None)
-        elif activation == "elu":
-            self.activation = silu
-        elif activation == "silu":
-            self.activation = elu
-        elif activation == "shifted_softplus":
-            self.activation = shifted_softplus
-        else:
-            supported = ["silu", "elu", "shifted_softplus"]
-            raise ValueError(
-                f"got unsupported activation function: {activation}. "
-                f"Supported are: {supported}."
-            )
-
-        # If activation is used, add another linear layer after it
-        if activation is not None:
-            # If activation is used, the scalars in the above layer_norm are used to
-            # create the gate scalar for the activation,
-            # i.e. the scalars are used as x in g(x)*t.
-            # Then, we create additional layer norm for the scalar features.
-            # This is the same as the equiformer way of doing activation.
-
-            if layer_norm:
-                self.layer_norm_scalar = LayerNorm(dim=F, slice_sizes=[1])
-            else:
-                self.register_buffer("layer_norm_scalar", None)
-
-            self.linear_after_activation = SlicedLinearMap(
-                F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
-            )
-        else:
-            self.register_buffer("linear_after_activation", None)
-
         # Residual connection, separate for each rank
         if self.residual:
             # Only do it for the ranks that exist in both the input atom feats and the
@@ -237,36 +188,6 @@ class Layer(nn.Module):
 
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am)
-
-        # Normalize
-        if self.layer_norm is not None:
-            hm_2 = self.layer_norm(hm)
-        else:
-            hm_2 = hm
-
-        # Activation
-        if self.activation is None:
-            hm = hm_2
-        else:
-            hm_2 = self.activation(hm_2)
-
-            # If activation is not None, then self.layer_norm are for the high-rank
-            # tensors. Generate it for scalars.
-            hm_scalar = hm[..., 0:1]
-
-            if self.layer_norm_scalar is not None:
-                hm_scalar = self.layer_norm_scalar(hm_scalar)
-
-            # Apply activation to the scalar features
-            hm_scalar = self.activation(hm_scalar)
-
-            # hm_2 will have the scalar part due to the fact that we use the
-            # general activation function g(x) * t, where x is the scalar features.
-            # But, we want the scalar part to be separate, so we select the 1:
-            # high-rank tensor part and concatenate with the separate scalar part.
-            hm = torch.cat([hm_scalar, hm_2[..., 1:]], dim=-1)
-
-            hm = self.linear_after_activation(hm)
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:

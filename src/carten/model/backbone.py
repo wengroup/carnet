@@ -30,10 +30,6 @@ class Backbone(nn.Module):
             layer is set to `max_u + 1`, the number of radial basis functions.
         atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
             or `variant2`.
-        layer_norm: Whether to apply layer normalization after each layer.
-        activation: Nonlinear activation function to apply after each layer.
-        last_layer_activation: Whether to apply the activation function after the last
-            layer.
         residual: Whether to use residual connection.
     """
 
@@ -55,9 +51,6 @@ class Backbone(nn.Module):
         tp_path_mode: str = "full",
         level: int = None,
         #
-        layer_norm: bool = False,
-        activation: str = None,
-        last_layer_activation: bool = False,
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
@@ -109,10 +102,8 @@ class Backbone(nn.Module):
                 #  we only need ranks 0, 2, and 4. The current implementation that uses
                 #  `max_out_L=4` will compute the features of ranks 0 to 4.
                 out_L = self.max_out_L
-                act = activation if last_layer_activation else None
             else:
                 out_L = self.max_L
-                act = activation
 
             self.layers.append(
                 Layer(
@@ -130,8 +121,6 @@ class Backbone(nn.Module):
                     atomic_moment_mode=self.atomic_moment_mode,
                     tp_path_mode=tp_path_mode,
                     level=level,
-                    layer_norm=layer_norm,
-                    activation=act,
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
                     use_linear_channel_residual=use_linear_channel_residual,

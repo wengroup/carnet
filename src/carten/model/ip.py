@@ -32,9 +32,6 @@ class InteratomicPotential(nn.Module):
         tp_path_mode: str = "full",
         level: int = None,
         #
-        layer_norm: bool = False,
-        activation: str = None,
-        last_layer_activation: bool = False,
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
@@ -77,9 +74,6 @@ class InteratomicPotential(nn.Module):
             atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
-            layer_norm=layer_norm,
-            activation=activation,
-            last_layer_activation=last_layer_activation,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_residual=use_linear_channel_residual,
