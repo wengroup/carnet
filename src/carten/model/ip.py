@@ -43,7 +43,6 @@ class InteratomicPotential(nn.Module):
         atomic_energy_shift: Tensor = None,
         atomic_energy_scale: Tensor = None,
         element_bias: bool = True,
-        use_torch_embedding: bool = False,
         use_atomic_dependent_weight: bool = True,
         # zbl
         use_zbl: bool = False,
@@ -81,7 +80,6 @@ class InteratomicPotential(nn.Module):
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
-            use_torch_embedding=use_torch_embedding,
             use_atomic_dependent_weight=use_atomic_dependent_weight,
         )
 

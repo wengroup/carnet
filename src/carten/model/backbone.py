@@ -57,8 +57,6 @@ class Backbone(nn.Module):
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
-        # TODO, remove the option, and use torch embedding for all
-        use_torch_embedding: bool = False,
         use_atomic_dependent_weight: bool = True,
     ):
         super().__init__()
@@ -78,10 +76,7 @@ class Backbone(nn.Module):
         self.atomic_moment_mode = atomic_moment_mode
 
         # Embed atom number as vectors
-        if use_torch_embedding:
-            self.atom_embedding = nn.Embedding(num_atom_types, F)
-        else:
-            self.atom_embedding = Embedding(num_atom_types, F)
+        self.atom_embedding = nn.Embedding(num_atom_types, F)
 
         # First layer and last layer are a bit special.
         # For the first layer, the input features are only scalars (embedding of atom
