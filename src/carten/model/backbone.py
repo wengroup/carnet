@@ -2,7 +2,6 @@
 
 from torch import Tensor, nn
 
-from carten.module.embedding import Embedding
 from carten.module.layer import Layer
 
 
