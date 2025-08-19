@@ -36,6 +36,7 @@ class InteratomicPotential(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
@@ -78,6 +79,7 @@ class InteratomicPotential(nn.Module):
             level=level,
             residual=residual,
             use_linear_channel_input=use_linear_channel_input,
+            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
             use_torch_embedding=use_torch_embedding,
             use_atomic_dependent_weight=use_atomic_dependent_weight,

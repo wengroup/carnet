@@ -31,6 +31,7 @@ class Layer(nn.Module):
         level: int = None,
         residual: bool = True,
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         use_atomic_dependent_weight: bool = True,
         layer_index: None = int,
@@ -130,6 +131,13 @@ class Layer(nn.Module):
             level=level,
         )
 
+        if use_linear_channel_hyper:
+            self.linear_channel_hyper = SlicedLinearMap(
+                F, F, [3**l for l in range(self.max_out_L + 1)], bias=True
+            )
+        else:
+            self.register_buffer("linear_channel_hyper", None)
+
         # Residual connection, separate for each rank
         if self.residual:
             # Only do it for the ranks that exist in both the input atom feats and the
@@ -190,6 +198,10 @@ class Layer(nn.Module):
 
         # Get hyper moments; (Na, F, T')
         hm = self.hyper_moment(am)
+
+        # Mix hyper moments across channel
+        if self.linear_channel_hyper is not None:
+            hm = self.linear_channel_hyper(hm)  # (Na, F, T')
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:

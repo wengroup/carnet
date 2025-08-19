@@ -55,6 +55,7 @@ class Backbone(nn.Module):
         residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         # TODO, remove the option, and use torch embedding for all
         use_torch_embedding: bool = False,
@@ -125,6 +126,7 @@ class Backbone(nn.Module):
                     level=level,
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
+                    use_linear_channel_hyper=use_linear_channel_hyper,
                     use_linear_channel_residual=use_linear_channel_residual,
                     use_atomic_dependent_weight=use_atomic_dependent_weight,
                     layer_index=i,
