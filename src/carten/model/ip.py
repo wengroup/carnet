@@ -27,6 +27,7 @@ class InteratomicPotential(nn.Module):
         max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
@@ -70,6 +71,7 @@ class InteratomicPotential(nn.Module):
             max_out_L=0,
             max_degree=max_degree,
             max_chebyshev_degree=max_chebyshev_degree,
+            radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,

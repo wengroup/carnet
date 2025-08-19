@@ -7,7 +7,7 @@ from carten.core.unit_vector import get_polyadics_from_vector
 
 from .mlp import MLP
 from .product import TensorProduct
-from .radial import radial_basis
+from .radial import RadialPart1, RadialPart2, RadialPart3, RadialPart4
 from .scatter import scatter
 from .utils import check_rank
 
@@ -33,6 +33,7 @@ class AtomicMoment(nn.Module):
         num_atom_types: int,
         num_average_neigh: float,
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
         r_cut: float = 5,
         envelope: int = 6,
@@ -48,6 +49,7 @@ class AtomicMoment(nn.Module):
         self.num_atom_types = num_atom_types
         self.num_average_neigh = num_average_neigh
         self.max_chebyshev_degree = max_chebyshev_degree
+        self.radial_part_type = radial_part_type
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
         self.r_cut = r_cut
         self.envelope = envelope
@@ -66,6 +68,22 @@ class AtomicMoment(nn.Module):
             for_atomic_moment=True,
         )
 
+        if radial_part_type == 1:
+            RadialPartCalss = RadialPart1
+        elif radial_part_type == 2:
+            RadialPartCalss = RadialPart2
+        elif radial_part_type == 3:
+            RadialPartCalss = RadialPart3
+        elif radial_part_type == 4:
+            RadialPartCalss = RadialPart4
+        else:
+            raise ValueError(f"Invalid radial_part_type: {self.radial_part_type}")
+
+        self.radial = RadialPartCalss(
+            F, num_atom_types, max_chebyshev_degree, r_cut, envelope
+        )
+        radial_output_dim = self.radial.output_dim
+
         # MLP on radial part, separate for each (l1, l2, l3)
         if isinstance(radial_mlp_hidden_layers, int):
             radial_mlp_hidden_layers = [F] * radial_mlp_hidden_layers
@@ -75,7 +93,7 @@ class AtomicMoment(nn.Module):
             for p in paths:
                 p = str(p)
                 self.radial_mlp[p] = MLP(
-                    in_features=max_chebyshev_degree + 1,  # +1 for degrees 0
+                    in_features=radial_output_dim,
                     out_features=F,
                     hidden_features=radial_mlp_hidden_layers,
                     out_activation=False,
@@ -117,12 +135,11 @@ class AtomicMoment(nn.Module):
             nn.functional.normalize(edge_vector, p=2.0, dim=-1), self.L2
         )
 
-        # Radial basis; (n_edges, max_chebyshev_degree + 1)
-        fu = radial_basis(
+        # Radial basis; (n_edges, output_dim)
+        fu = self.radial(
             torch.linalg.vector_norm(edge_vector, dim=-1),
-            self.max_chebyshev_degree,
-            r_cut=self.r_cut,
-            envelope=self.envelope,
+            atom_type[i_idx],
+            atom_type[j_idx],
         )
 
         # TODO, the radial_mlp might be batched

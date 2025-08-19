@@ -46,6 +46,7 @@ class Backbone(nn.Module):
         max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
         atomic_moment_mode: str = "vanilla",
         tp_path_mode: str = "full",
@@ -115,6 +116,7 @@ class Backbone(nn.Module):
                     num_average_neigh=self.num_average_neigh,
                     max_chebyshev_degree=self.max_chebyshev_degree,
                     r_cut=self.r_cut,
+                    radial_part_type=radial_part_type,
                     radial_mlp_hidden_layers=self.radial_mlp_hidden_layers,
                     max_out_L=out_L,
                     max_degree=self.max_degree,

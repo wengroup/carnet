@@ -37,6 +37,7 @@ model:
 
 
   # radial
+  radial_part_type: 4
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
