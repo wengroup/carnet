@@ -114,10 +114,8 @@ class CartenCalculator(Calculator):
             data.pos = strained_pos
             data.cell = strained_cell
 
-        edge_vector = self._get_edge_vector(data)
-
         energy = self.model(
-            edge_vector,
+            self._get_edge_vector(data),
             data.edge_index,
             data.atom_type,
             data.num_atoms,
