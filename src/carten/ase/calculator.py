@@ -138,21 +138,21 @@ class CartenCalculator(Calculator):
         self.results["forces"] = forces.detach().cpu().numpy()
         self.results["stress"] = stress
 
+    # This should be pretty much the same as the one in `src/carten/data/utils.py`
     @staticmethod
     def _get_edge_vector(config: Config):
         try:
             cell = config.cell
-            shift_vec = config.shift_vec
         except AttributeError:
             # this happens for molecules, no pbc needed, and no cell
             cell = None
-            shift_vec = None
 
         i_idx = config.edge_index[0]
         j_idx = config.edge_index[1]
         edge_vec = config.pos[j_idx] - config.pos[i_idx]
 
         if cell is not None:
+            shift_vec = config.shift_vector
             edge_vec = edge_vec + shift_vec @ cell
 
         return edge_vec
