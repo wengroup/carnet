@@ -49,7 +49,8 @@ model:
   use_linear_channel_hyper: true
   use_linear_channel_residual: true
   use_atomic_dependent_weight: true
-  use_zbl: true  # use ZBL potential for short-range repulsion
+  use_zbl: true # use ZBL potential for short-range repulsion
+  zbl_trainable: true # Train ZBL parameters or not; ignored if `use_zbl` is `false`
 
 
   # output

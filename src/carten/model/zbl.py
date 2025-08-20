@@ -1,39 +1,58 @@
 import ase.data
 import torch
-from torch import Tensor
+import torch.nn.functional as F
+from torch import Tensor, nn
 
 from carten.module.radial import dimenet_envelope
 from carten.module.scatter import scatter
 
 
-class ZBL(torch.nn.Module):
+class ZBLEnergy(torch.nn.Module):
     """Ziegler-Biersack-Littmark (ZBL) potential with a polynomial cutoff envelope.
 
-    Following the implementation in MACE:
-    https://github.com/ACEsuit/mace/blob/9d31ac2c86ebc88c7a843fa7a3dfe360b276f08b/mace/modules/radial.py#L147C1-L219C1
+    Following the implementation in SchNetPack:
+    https://github.com/atomistic-machine-learning/schnetpack/blob/30d86d9b17fe255ee7da72b84acf8bca1a0866fd/src/schnetpack/atomistic/nuclear_repulsion.py#L13
+
+
+    Note, this is designed to work with units in eV and Angstroms.
+
+
+    Args:
+        p: order of the polynomial envelope (default: 6).
+        trainable: whether the parameters `a_exp` and `a_prefactor` are trainable.
     """
 
-    def __init__(self, p: int = 6, trainable: bool = False):
+    def __init__(self, p: int = 6, trainable: bool = True):
         super().__init__()
 
         dtype = torch.get_default_dtype()
 
-        # Pre-calculate the p coefficients for the ZBL potential
-        self.register_buffer(
-            "c",
-            torch.tensor([0.1818, 0.5099, 0.2802, 0.02817], dtype=dtype),
-        )
+        # Optionally trainable parameters
+        # Since all quantities have a predefined sign, they are initialized to the
+        # inverse softplus and a softplus function is applied in the forward pass to
+        # guarantee the correct sign during training
+        a0 = 0.529  # Bohr radius in Angstroms
+        a_prefactor = inverse_softplus(torch.tensor(0.8854 * a0, dtype=dtype))
+        a_pow = inverse_softplus(torch.tensor(0.23, dtype=dtype))
+
+        self.a_prefactor = nn.Parameter(a_prefactor, requires_grad=trainable)
+        self.a_pow = nn.Parameter(a_pow, requires_grad=trainable)
+
+        # Do not make these trainable
+        exponents = torch.tensor([3.19980, 0.94229, 0.40290, 0.20162], dtype=dtype)
+        coefficients = torch.tensor([0.18175, 0.50986, 0.28022, 0.02817], dtype=dtype)
+        # e^2 / (4 * pi * epsilon_0) in eV * Angstrom
+        factor = torch.tensor(14.3996, dtype=dtype)
+
+        self.exponents = nn.Parameter(exponents, requires_grad=False)
+        self.coefficients = nn.Parameter(coefficients, requires_grad=False)
+        self.factor = nn.Parameter(factor, requires_grad=False)
+
+        # Other constants
         self.register_buffer("p", torch.tensor(p, dtype=torch.int))
         self.register_buffer(
             "covalent_radii", torch.tensor(ase.data.covalent_radii, dtype=dtype)
         )
-
-        if trainable:
-            self.a_exp = torch.nn.Parameter(torch.tensor(0.300, dtype=dtype))
-            self.a_prefactor = torch.nn.Parameter(torch.tensor(0.4543, dtype=dtype))
-        else:
-            self.register_buffer("a_exp", torch.tensor(0.300, dtype=dtype))
-            self.register_buffer("a_prefactor", torch.tensor(0.4543, dtype=dtype))
 
     def forward(
         self,
@@ -48,248 +67,32 @@ class ZBL(torch.nn.Module):
         # Indices of center atoms i and neighbor atoms j; (n_edges,)
         i_idx = edge_idx[0]
         j_idx = edge_idx[1]
+        Z = atomic_number
 
-        Z_i = atomic_number[i_idx]
-        Z_j = atomic_number[j_idx]
-
-        # a = (
-        #     self.a_prefactor
-        #     * 0.529
-        #     / (torch.pow(Z_u, self.a_exp) + torch.pow(Z_v, self.a_exp))
-        # )
-
-        Z_pow = torch.pow(atomic_number, self.a_exp)
-        a = self.a_prefactor * 0.529 / (Z_pow[i_idx] + Z_pow[j_idx])
+        Z_pow = Z ** F.softplus(self.a_pow)
+        a = F.softplus(self.a_prefactor) / (Z_pow[i_idx] + Z_pow[j_idx])
 
         r = edge_vector.norm(p=2, dim=-1)
         r_over_a = r / a
 
-        # phi = (
-        #     self.c[0] * torch.exp(-3.2 * r_over_a)
-        #     + self.c[1] * torch.exp(-0.9423 * r_over_a)
-        #     + self.c[2] * torch.exp(-0.4028 * r_over_a)
-        #     + self.c[3] * torch.exp(-0.2016 * r_over_a)
-        # )
-
-        # Optimized way to compute phi by calling exp once
-        exponents = torch.stack(
-            [
-                -3.2 * r_over_a,
-                -0.9423 * r_over_a,
-                -0.4028 * r_over_a,
-                -0.2016 * r_over_a,
-            ],
+        phi = torch.sum(
+            self.coefficients * torch.exp(-self.exponents * r_over_a.unsqueeze(-1)),
             dim=-1,
-        )  # Shape: (n_edges, 4)
-        phi = torch.sum(self.c * torch.exp(exponents), dim=-1)
+        )
 
-        v_edges = (14.3996 * Z_j * Z_i) / r * phi
+        v_edges = self.factor * Z[i_idx] * Z[j_idx] * phi / r
 
         # Make it exactly zero outside r_max
-        r_max = self.covalent_radii[Z_j] + self.covalent_radii[Z_i]
+        r_max = self.covalent_radii[Z[i_idx]] + self.covalent_radii[Z[j_idx]]
         envelope = dimenet_envelope(r / r_max, self.p)
         envelope.masked_fill_(r > r_max, 0.0)
 
         # 0.5: half to i and half to j
         v_edges = 0.5 * v_edges * envelope
-        V_ZBL = scatter(v_edges, i_idx, dim=0, reduce="sum")
+        v_atom = scatter(v_edges, i_idx, dim=0, reduce="sum")
 
-        return V_ZBL
+        return v_atom
 
 
-@torch.jit.script
-def zbl_energy(
-    edge_vector: Tensor,
-    edge_idx: Tensor,
-    atomic_number: Tensor,
-) -> torch.Tensor:
-    """
-    Compute ZBL energy of each atom.
-    """
-    dtype = edge_vector.dtype
-    device = edge_vector.device
-
-    # data from ase.data.covalent_radii
-    # covalent_radii[1] is for H, covalent_radii[0] is for dummy element
-    covalent_radii = torch.tensor(
-        [
-            0.2,
-            0.31,
-            0.28,
-            1.28,
-            0.96,
-            0.84,
-            0.76,
-            0.71,
-            0.66,
-            0.57,
-            0.58,
-            1.66,
-            1.41,
-            1.21,
-            1.11,
-            1.07,
-            1.05,
-            1.02,
-            1.06,
-            2.03,
-            1.76,
-            1.7,
-            1.6,
-            1.53,
-            1.39,
-            1.39,
-            1.32,
-            1.26,
-            1.24,
-            1.32,
-            1.22,
-            1.22,
-            1.2,
-            1.19,
-            1.2,
-            1.2,
-            1.16,
-            2.2,
-            1.95,
-            1.9,
-            1.75,
-            1.64,
-            1.54,
-            1.47,
-            1.46,
-            1.42,
-            1.39,
-            1.45,
-            1.44,
-            1.42,
-            1.39,
-            1.39,
-            1.38,
-            1.39,
-            1.4,
-            2.44,
-            2.15,
-            2.07,
-            2.04,
-            2.03,
-            2.01,
-            1.99,
-            1.98,
-            1.98,
-            1.96,
-            1.94,
-            1.92,
-            1.92,
-            1.89,
-            1.9,
-            1.87,
-            1.87,
-            1.75,
-            1.7,
-            1.62,
-            1.51,
-            1.44,
-            1.41,
-            1.36,
-            1.36,
-            1.32,
-            1.45,
-            1.46,
-            1.48,
-            1.4,
-            1.5,
-            1.5,
-            2.6,
-            2.21,
-            2.15,
-            2.06,
-            2.0,
-            1.96,
-            1.9,
-            1.87,
-            1.8,
-            1.69,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-        ],
-        dtype=dtype,
-        device=device,
-    )
-
-    coeff = torch.tensor([0.1818, 0.5099, 0.2802, 0.02817], dtype=dtype, device=device)
-
-    a_exp = 0.300
-    a_prefactor = 0.4543
-    p = 6
-
-    # Indices of center atoms i and neighbor atoms j; (n_edges,)
-    i_idx = edge_idx[0]
-    j_idx = edge_idx[1]
-
-    Z_i = atomic_number[i_idx]
-    Z_j = atomic_number[j_idx]
-
-    # a = (
-    #     self.a_prefactor
-    #     * 0.529
-    #     / (torch.pow(Z_u, self.a_exp) + torch.pow(Z_v, self.a_exp))
-    # )
-
-    Z_pow = torch.pow(atomic_number, a_exp)
-    a = a_prefactor * 0.529 / (Z_pow[i_idx] + Z_pow[j_idx])
-
-    r = edge_vector.norm(p=2, dim=-1)
-    r_over_a = r / a
-
-    # phi = (
-    #     self.c[0] * torch.exp(-3.2 * r_over_a)
-    #     + self.c[1] * torch.exp(-0.9423 * r_over_a)
-    #     + self.c[2] * torch.exp(-0.4028 * r_over_a)
-    #     + self.c[3] * torch.exp(-0.2016 * r_over_a)
-    # )
-
-    # Optimized way to compute phi by calling exp once
-    exponents = torch.stack(
-        [
-            -3.2 * r_over_a,
-            -0.9423 * r_over_a,
-            -0.4028 * r_over_a,
-            -0.2016 * r_over_a,
-        ],
-        dim=-1,
-    )  # Shape: (n_edges, 4)
-    phi = torch.sum(coeff * torch.exp(exponents), dim=-1)
-
-    v_edges = (14.3996 * Z_j * Z_i) / r * phi
-
-    # Make it exactly zero outside r_max
-    r_max = covalent_radii[Z_j] + covalent_radii[Z_i]
-    envelope = dimenet_envelope(r / r_max, p)
-    envelope.masked_fill_(r > r_max, 0.0)
-
-    # 0.5: half to i and half to j
-    v_edges = 0.5 * v_edges * envelope
-    V_ZBL = scatter(v_edges, i_idx, dim=0, reduce="sum")
-
-    return V_ZBL
+def inverse_softplus(x: Tensor):
+    return torch.log(torch.exp(x) - 1.0)

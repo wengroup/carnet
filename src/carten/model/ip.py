@@ -7,7 +7,7 @@ from carten.module.scatter import scatter
 
 from .backbone import Backbone
 from .readout import StructureScalar
-from .zbl import ZBL, zbl_energy
+from .zbl import ZBLEnergy
 
 
 class InteratomicPotential(nn.Module):
@@ -46,6 +46,7 @@ class InteratomicPotential(nn.Module):
         use_atomic_dependent_weight: bool = True,
         # zbl
         use_zbl: bool = False,
+        zbl_trainable: bool = True,
     ):
         """
         Args:
@@ -93,13 +94,10 @@ class InteratomicPotential(nn.Module):
             element_bias=element_bias,
         )
 
-        # # TODO, commnt out this
-        # if use_zbl:
-        #     self.zbl = ZBL()
-        # else:
-        #     self.register_buffer("zbl", None)
-        #
-        self.use_zbl = use_zbl
+        if use_zbl:
+            self.zbl = ZBLEnergy(trainable=zbl_trainable)
+        else:
+            self.register_buffer("zbl", None)
 
     def forward(
         self,
@@ -136,16 +134,13 @@ class InteratomicPotential(nn.Module):
         # Compute the total energy
         energy = self.readout(all_scalar_feats, atom_type, num_atoms)
 
-        # if self.zbl is not None:
-        #     # ZBL energy of each atom
-        #     zbl = self.zbl(edge_vector, edge_idx, atomic_number)
-        if self.use_zbl:
+        if self.zbl is not None:
             # ZBL energy of each atom
-            zbl = zbl_energy(edge_vector, edge_idx, atomic_number)
+            zbl_atom = self.zbl(edge_vector, edge_idx, atomic_number)
 
             # ZBL energy of each configuration
             zbl_conf = scatter(
-                zbl, torch.repeat_interleave(num_atoms), reduce="sum", dim=0
+                zbl_atom, torch.repeat_interleave(num_atoms), reduce="sum", dim=0
             )
 
             energy = energy + zbl_conf
