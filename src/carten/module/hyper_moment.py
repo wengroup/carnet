@@ -96,9 +96,13 @@ class HyperMoment(nn.Module):
 
         # Linear combination of different degree
         # H = \sum_d w_d H^d
-        self.linear_degree = SlicedLinearCombination(
-            max_degree, F, [3**l for l in range(self.max_out_L + 1)]
-        )
+        if max_degree <= 1:
+            # Do not need linear combination if max_degree is 1 or less
+            self.register_buffer("linear_degree", None)
+        else:
+            self.linear_degree = SlicedLinearCombination(
+                max_degree, F, [3**l for l in range(self.max_out_L + 1)]
+            )
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -114,6 +118,10 @@ class HyperMoment(nn.Module):
 
         # The number of tensor components to keep in the output
         size = int((3 ** (self.max_out_L + 1) - 1) // 2)
+
+        # Essentially, there is no hyper moment if max_degree is 1 or less.
+        if self.max_degree <= 1:
+            return x[..., :size]
 
         # Output hyper moments from different coupling degrees
         # Shape of each element is (..., F, T'), where T' is the size above
