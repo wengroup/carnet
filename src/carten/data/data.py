@@ -24,9 +24,11 @@ class Config(Data):
         cell: (3, 3) array of lattice vectors.
         edge_index: (2, num_edges) array of edge indices, where the first row is the
             source node index and the second row is the target node index.
-        shift_vec: (num_edges, 3) array of shift vectors. The number of cell boundaries
-            crossed by the bond between atom i and j. The distance vector between atom
-            j and atom i is given by `pos[j] - pos[i] + shift_vec.dot(cell)`.
+        shift_vector: (num_edges, 3) array of shift vectors. The number of cell
+            boundaries crossed by the bond between atom i and j. The distance vector
+            between atom j and atom i is given by:
+             `edge_vector = pos[j] - pos[i] + shift_vector.dot(cell)`.
+        edge_vector: (num_edges, 3) array of distance vectors.
         x: input to the model, e.g. initial node features.
         y: reference value for the output of the model, such as energy and forces.
         num_neigh: (num_atoms,) array of the number of neighbors for each atom.
@@ -50,7 +52,8 @@ class Config(Data):
         atomic_number: np.ndarray = None,
         cell: np.ndarray = None,
         edge_index: np.ndarray = None,
-        shift_vec: np.ndarray = None,
+        shift_vector: np.ndarray = None,
+        edge_vector: np.ndarray = None,
         x: dict[str, np.ndarray] = None,
         y: dict[str, np.ndarray] = None,
         num_neigh: Optional[np.ndarray] = None,
@@ -61,7 +64,7 @@ class Config(Data):
         # for name, v in [
         #     ("pos", pos),
         #     ("edge_index", edge_index),
-        #     ("shift_vec", shift_vec),
+        #     ("shift_vector", shift_vector),
         #     ("x", x),
         #     ("y", y),
         # ]:
@@ -107,23 +110,29 @@ class Config(Data):
         # as a function of pos to properly compute stress. But if stress is not
         # needed, we can directly use edge_vector here.
         # Also, for a structure--property model, we don't need any derivative  w.r.t.
-        # pos, so we can ignore the shift_vec and directly use edge_vector.
+        # pos, so we can ignore the shift_vector and directly use edge_vector.
         # Here, we add both.
         # But we need to make this optionally using one.
         # For IP, when training without stress, we can use edge_vector.
-        # When predicting using stress e.g. in MD, we can use shift_vec.
+        # When predicting using stress e.g. in MD, we can use shift_vector.
         # For structure tensor, we can use edge_vector.
         # This can boost the efficiency of the model per the profiling test, where
         # computing the edge_vector is expensive.
-        edge_vec = None
-        if shift_vec is not None:
-            shift_vec = torch.tensor(shift_vec, dtype=DTYPE)
-            if shift_vec.shape[0] != num_edges:
+        if shift_vector is not None:
+            shift_vector = torch.tensor(shift_vector, dtype=DTYPE)
+            if shift_vector.shape[0] != num_edges:
                 raise ValueError(
-                    f"Expect `shift_vec` to be of shape (num_edges, 3), got "
-                    f"{shift_vec.shape}."
+                    f"Expect `shift_vector` to be of shape (num_edges, 3), got "
+                    f"{shift_vector.shape}."
                 )
-            edge_vec = get_edge_vec_single(pos, shift_vec, cell, edge_index)
+
+        if edge_vector is not None:
+            edge_vector = torch.tensor(edge_vector, dtype=DTYPE)
+            if edge_vector.shape[0] != num_edges:
+                raise ValueError(
+                    f"Expect `edge_vector` to be of shape (num_edges, 3), got "
+                    f"{edge_vector.shape}."
+                )
 
         if num_neigh is not None:
             num_neigh = torch.as_tensor(num_neigh, dtype=DTYPE_INT)
@@ -179,8 +188,8 @@ class Config(Data):
             atomic_number=atomic_number,
             cell=cell,
             edge_index=edge_index,
-            shift_vector=shift_vec,
-            edge_vector=edge_vec,
+            shift_vector=shift_vector,
+            edge_vector=edge_vector,
             x=tensor_x,
             y=tensor_y,
             num_atoms=num_atoms,
@@ -286,7 +295,7 @@ class Config(Data):
         Returns:
 
         """
-        edge_index, shift_vec, num_neigh = get_neigh(
+        edge_index, shift_vector, edge_vector, num_neigh = get_neigh(
             coords=pos, r_cut=r_cut, pbc=pbc, cell=cell
         )
 
@@ -299,7 +308,8 @@ class Config(Data):
             atomic_number=atomic_number,
             cell=cell,
             edge_index=edge_index,
-            shift_vec=shift_vec,
+            shift_vector=shift_vector,
+            edge_vector=edge_vector,
             x=x,
             y=y,
             num_neigh=num_neigh,
@@ -379,7 +389,7 @@ def get_edge_vec_single(
 @torch.jit.script
 def get_edge_vec_batch(
     pos: Tensor,
-    shift_vec: Tensor,
+    shift_vector: Tensor,
     cell: Union[Tensor, None],
     edge_index: Tensor,
     batch: Tensor,
@@ -389,9 +399,9 @@ def get_edge_vec_batch(
 
     Args:
         pos: (n_nodes, 3) array of atomic positions.
-        shift_vec: (n_edges, 3) array of shift vectors. The number of cell boundaries
+        shift_vector: (n_edges, 3) array of shift vectors. The number of cell boundaries
             crossed by the bond between atom i and j. The distance vector between atom
-            j and atom i is given by `pos[j] - pos[i] + shift_vec.dot(cell)`. Ignored
+            j and atom i is given by `pos[j] - pos[i] + shift_vector.dot(cell)`. Ignored
             if cell is None.
         cell: (n_graph*3, 3) array of lattice vectors. If None, then no periodic
             boundary conditions are considered.
@@ -412,6 +422,6 @@ def get_edge_vec_batch(
         # create a cell for each edge, shape (num_edges, 3, 3)
         expanded_cell = cell.reshape(-1, 3, 3)[batch[i_idx]]
 
-        edge_vec = edge_vec + torch.einsum("ni, nij -> nj", shift_vec, expanded_cell)
+        edge_vec = edge_vec + torch.einsum("ni, nij -> nj", shift_vector, expanded_cell)
 
     return edge_vec

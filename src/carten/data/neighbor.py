@@ -9,7 +9,7 @@ def get_neigh(
     cell: np.ndarray | None = None,
     self_interaction: bool = False,
     periodic_self_interaction: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Create neighbor list for all points in a point cloud.
 
@@ -33,6 +33,7 @@ def get_neigh(
         shift_vec: (num_edges, 3) array of shift vectors. The number of cell boundaries
             crossed by the bond between atom i and j. The distance vector between atom
             j and atom i is given by `coords[j] - coords[i] + shift_vec.dot(cell)`.
+        edge_vec: (num_edges, 3) array of distance vector.
         num_neigh: (N,) array of the number of neighbors for each atom.
     """
     if isinstance(pbc, bool):
@@ -48,8 +49,8 @@ def get_neigh(
         else:
             raise RuntimeError("`cell` vectors not provided")
 
-    first_idx, second_idx, shift_vec = primitive_neighbor_list(
-        "ijS",
+    first_idx, second_idx, shift_vec, edge_vec = primitive_neighbor_list(
+        "ijSD",
         pbc=pbc,
         cell=cell,
         positions=coords,
@@ -69,6 +70,7 @@ def get_neigh(
         first_idx = first_idx[keep_edge]
         second_idx = second_idx[keep_edge]
         shift_vec = shift_vec[keep_edge]
+        edge_vec = edge_vec[keep_edge]
 
     # number of neighbors for each atom
     num_neigh = np.bincount(first_idx)
@@ -84,4 +86,4 @@ def get_neigh(
 
     edge_index = np.vstack((first_idx, second_idx))
 
-    return edge_index, shift_vec, num_neigh
+    return edge_index, shift_vec, edge_vec, num_neigh
