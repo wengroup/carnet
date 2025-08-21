@@ -12,7 +12,7 @@ from lightning.pytorch.cli import instantiate_class
 from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
-from carten.data.utils import get_edge_vec
+from carten.data.data import get_edge_vec_batch
 
 from ..force_stress import compute_forces
 
@@ -86,8 +86,13 @@ class InteratomicPotentialLitModule(LightningModule):
         # requires_grad to enable force computation
         batch.pos.requires_grad_(True)
 
+        cell = batch.cell if hasattr(batch, "cell") else None
+        edge_vector = get_edge_vec_batch(
+            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
+        )
+
         e_pred = self.model(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -103,8 +108,13 @@ class InteratomicPotentialLitModule(LightningModule):
         # requires_grad to enable force computation
         batch.pos.requires_grad_(True)
 
+        cell = batch.cell if hasattr(batch, "cell") else None
+        edge_vector = get_edge_vec_batch(
+            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
+        )
+
         e_pred = self.ema(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -412,19 +422,3 @@ class InteratomicPotentialLitModule(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {"scheduler": scheduler, "monitor": monitor},
             }
-
-    @staticmethod
-    def _get_edge_vector(batch):
-        try:
-            cell = batch.cell
-            shift_vec = batch.shift_vector
-        except AttributeError:
-            # this happens for molecules, no pbc needed, and no cell
-            cell = None
-            shift_vec = None
-
-        edge_vector = get_edge_vec(
-            batch.pos, shift_vec, cell, batch.edge_index, batch.batch
-        )
-
-        return edge_vector

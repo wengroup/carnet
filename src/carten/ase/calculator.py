@@ -4,7 +4,7 @@ import torch
 from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
 
-from carten.data.data import Config
+from carten.data.data import Config, get_edge_vec_single
 from carten.data.transform import ConsecutiveAtomType
 from carten.model.force_stress import (
     apply_strain_single_config,
@@ -114,8 +114,12 @@ class CartenCalculator(Calculator):
             data.pos = strained_pos
             data.cell = strained_cell
 
+        cell = data.cell if has_cell else None
+        edge_vector = get_edge_vec_single(
+            data.pos, data.shift_vector, cell, data.edge_index
+        )
         energy = self.model(
-            self._get_edge_vector(data),
+            edge_vector,
             data.edge_index,
             data.atom_type,
             data.num_atoms,
@@ -135,25 +139,6 @@ class CartenCalculator(Calculator):
         self.results["energy"] = energy[0].item()
         self.results["forces"] = forces.detach().cpu().numpy()
         self.results["stress"] = stress
-
-    # This should be pretty much the same as the one in `src/carten/data/utils.py`
-    @staticmethod
-    def _get_edge_vector(config: Config):
-        try:
-            cell = config.cell
-        except AttributeError:
-            # this happens for molecules, no pbc needed, and no cell
-            cell = None
-
-        i_idx = config.edge_index[0]
-        j_idx = config.edge_index[1]
-        edge_vec = config.pos[j_idx] - config.pos[i_idx]
-
-        if cell is not None:
-            shift_vec = config.shift_vector
-            edge_vec = edge_vec + shift_vec @ cell
-
-        return edge_vec
 
     def _check_species(self, atoms: Atoms):
         if set(atoms.get_atomic_numbers()) != self.supported_elements:

@@ -69,23 +69,14 @@ def get_rotation_matrix(
     return R
 
 
-@torch.jit.interface
-class JITInterface(nn.Module):
-    """
-    Interface to annotate ModuleList for TorchScript.
-
-    Note, this should have exactly the same signature (including argument name
-    `input` here) as the module it tries to annotate.
-
-    See https://github.com/pytorch/pytorch/issues/68568
-    """
-
-    def forward(self, input: Tensor) -> Tensor:
-        pass
-
-
 class BufferDict(nn.Module):
-    """A dictionary of buffers for PyTorch."""
+    """A dictionary of buffers for PyTorch.
+
+    In pytorch, you create a buffer by calling `register_buffer(name, tensor)`.
+
+    This class allows you to create a dictionary of buffers for a dictionary of tensors.
+
+    """
 
     def __init__(self, d: dict[str, Tensor]):
         super().__init__()

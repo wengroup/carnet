@@ -14,7 +14,7 @@ from torch import Tensor, nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
 from carten.core.convert import Converter
-from carten.data.utils import get_edge_vec
+from carten.data.data import get_edge_vec_batch
 
 from ..force_stress import compute_forces
 
@@ -84,8 +84,13 @@ class MultiTaskLitModule(LightningModule):
             None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
         )
 
+        cell = batch.cell if hasattr(batch, "cell") else None
+        edge_vector = get_edge_vec_batch(
+            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
+        )
+
         output = self.model(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -104,8 +109,14 @@ class MultiTaskLitModule(LightningModule):
         atomic_selector = (
             None if "atomic_selector" not in batch.y else batch.y["atomic_selector"]
         )
+
+        cell = batch.cell if hasattr(batch, "cell") else None
+        edge_vector = get_edge_vec_batch(
+            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
+        )
+
         output = self.ema(
-            edge_vector=self._get_edge_vector(batch),
+            edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
@@ -253,22 +264,6 @@ class MultiTaskLitModule(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {"scheduler": scheduler, "monitor": monitor},
             }
-
-    @staticmethod
-    def _get_edge_vector(batch):
-        try:
-            cell = batch.cell
-            shift_vec = batch.shift_vector
-        except AttributeError:
-            # this happens for molecules, no pbc needed, and no cell
-            cell = None
-            shift_vec = None
-
-        edge_vector = get_edge_vec(
-            batch.pos, shift_vec, cell, batch.edge_index, batch.batch
-        )
-
-        return edge_vector
 
     def to_cartesian(self, pred_nat: dict[str, Tensor]) -> dict[str, Tensor]:
         """Convert natural tensors to cartesian tensors.

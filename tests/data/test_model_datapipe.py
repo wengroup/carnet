@@ -1,6 +1,6 @@
 import pytest
 
-from carten.data.utils import get_edge_vec
+from carten.data.data import get_edge_vec_batch
 
 # from carten.model.carten import CARTEN
 #

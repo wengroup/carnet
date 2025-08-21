@@ -2,7 +2,7 @@ import pytest
 import torch
 from natt.symmetrize import symmetrize_and_remove_trace
 
-from carten.data.utils import get_edge_vec
+from carten.data.data import get_edge_vec_batch
 
 
 @pytest.fixture(scope="session")
@@ -165,7 +165,7 @@ def batched_config_info(config_info):
     cell = torch.vstack([cell, cell])
     batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
 
-    edge_vector = get_edge_vec(coords, shift_vec, cell, edge_idx, batch=batch)
+    edge_vector = get_edge_vec_batch(coords, shift_vec, cell, edge_idx, batch=batch)
 
     return coords, atom_types, edge_vector, edge_idx, num_atoms, num_atom_types
 
