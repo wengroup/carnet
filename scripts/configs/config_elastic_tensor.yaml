@@ -44,10 +44,10 @@ model:
 
   # optional layers
   use_linear_channel_input: false
-  use_linear_channel_hyper: true
-  use_linear_channel_residual: true
-  use_atomic_dependent_weight: true
+  use_linear_channel_hyper: false
   residual: true
+  use_linear_channel_residual: true # this is ignored if `residual` is `false`
+  use_atomic_dependent_weight: false
 
   # output
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
