@@ -1,4 +1,5 @@
 # CarNet
 
-Cartesian Tensors: irreducible representations, reduction, properties, tensor products,
-and other operations...
+Cartesian Natural Tensor Networks - atomistic machine learning for interatomic
+potentials, scalar properties, tensorial properties and beyond.
+
