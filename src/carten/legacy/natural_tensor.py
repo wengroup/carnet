@@ -4,7 +4,7 @@ from torch import Tensor
 
 from carten import SETTINGS
 from carten.core.utils import check_shape
-from carten.signature import Signature
+from carten.legacy.signature import Signature
 
 
 # TODO, this is a bit too complex, and not used for building the models currently,

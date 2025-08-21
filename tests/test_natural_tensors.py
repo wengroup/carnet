@@ -1,11 +1,11 @@
 import torch
 
-from carten.natural_tensor import (
+from carten.legacy.natural_tensor import (
     NaturalTensors,
     flatten_tensor_dims,
     unflatten_tensor_dims,
 )
-from carten.signature import Signature
+from carten.legacy.signature import Signature
 
 
 def test_NaturalTensors(

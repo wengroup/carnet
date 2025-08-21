@@ -8,8 +8,8 @@ import torch
 from natt.utils import dij, eijk, letter_index
 from torch import Tensor
 
-from carten.core.reduce import remove_trace
-from carten.natural_tensor import NaturalTensors
+from carten.legacy.natural_tensor import NaturalTensors
+from carten.legacy.reduce import remove_trace
 
 
 class TensorProduct:

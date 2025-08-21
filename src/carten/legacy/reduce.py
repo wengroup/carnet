@@ -6,7 +6,7 @@ from natt.symmetrize import remove_trace
 from natt.utils import dij, letter_index
 from torch import Tensor
 
-from carten.natural_tensor import NaturalTensors
+from carten.legacy.natural_tensor import NaturalTensors
 
 # TODO, this file seems not needed
 # Try not using NaturalTensors

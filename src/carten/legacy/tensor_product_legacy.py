@@ -8,9 +8,9 @@ import itertools
 import torch
 from torch import Tensor
 
-from carten.core.reduce import remove_trace
 from carten.core.utils import dij, eijk, letter_index
-from carten.natural_tensor import NaturalTensors
+from carten.legacy.natural_tensor import NaturalTensors
+from carten.legacy.reduce import remove_trace
 
 
 class TensorProduct:
