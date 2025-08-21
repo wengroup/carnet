@@ -1,9 +1,8 @@
-"""
+"""Tensor product between two natural tensors.
 
 Same as tp2.py, but:
 - change the rules H_ABCijkpqr X_ijk Y_pqr to H_D X_l Y_s, where D is the flattened
 version of ABC, l is the flattened version of ijk, and s is the flattened version of pqr.
-
 """
 
 from pathlib import Path

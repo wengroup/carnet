@@ -1,7 +1,9 @@
-"""
-Same as tp2.py, but:
-- use matrix multiplication instead of einsum
+"""Tensor product between two natural tensors.
+
+Same as tp3.py, but:
 - use sparse tensor H
+
+Tests shows that this does not help with speed.
 """
 
 from pathlib import Path

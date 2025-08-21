@@ -1,4 +1,4 @@
-"""Natural tensors constructed from unit vectors.
+"""Natural tensors of unit vector.
 
 This is the reference implementation, which can used to verify the performance of other
 optimized implementations.

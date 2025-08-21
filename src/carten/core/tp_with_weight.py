@@ -1,7 +1,6 @@
 """Tensor product between two natural tensors.
 
-Based on tp2-2.py, but adding weight into the tensor product..
-
+Based on tp2-2.py, but adding weight into the tensor product.
 """
 
 from pathlib import Path

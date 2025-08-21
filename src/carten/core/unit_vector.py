@@ -1,7 +1,9 @@
-"""
-This is a faster implementation to get natural tensors from a unit vector.
+"""Natural tensors of unit vector.
 
-N^l = H \cdot a^l, where H can be precomputed, and this can avoid loop.
+This is a faster implementation compared to unit_vector_1.py.
+Here, N^l = H \cdot a^l, where H can be precomputed, and this can avoid loop.
+
+This is a copy of unit_vector_2.py
 """
 
 from fractions import Fraction

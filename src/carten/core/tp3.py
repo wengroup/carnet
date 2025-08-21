@@ -1,6 +1,8 @@
-"""
+"""Tensor product between two natural tensors.
+
 Same as tp2.py, but:
 - use matrix multiplication instead of einsum
+- this can be slightly faster but requires much more memory for large l1, l2
 """
 
 from pathlib import Path
