@@ -92,7 +92,7 @@ lr_scheduler:
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   beta: 0.99
   update_after_step: 1000
-  update_every: 10
+  update_every: 1
   power: 0.75
   include_online_model: false
 
