@@ -17,7 +17,7 @@ from natt.symmetrize import get_random_natural_tensor
 from natt.utils import letter_index
 from torch import Tensor
 
-from carten.core.tp import tp_even
+from carnet.core.tp import tp_even
 
 
 def tp_even_general(X: Tensor, Y: Tensor, l1: int, l2: int, l3: int) -> Tensor:

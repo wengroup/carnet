@@ -2,7 +2,7 @@ import pytest
 import torch
 from natt.sym import symmetrize
 
-from carten.core.convert import Converter
+from carnet.core.convert import Converter
 
 
 @pytest.mark.parametrize(

@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from ase.io import read
 
-from carten.ase.calculator import CartenCalculator
-from carten.utils import get_rotation_matrix
+from carnet.ase.calculator import CarnetCalculator
+from carnet.utils import get_rotation_matrix
 
 torch.use_deterministic_algorithms(True)
 
@@ -25,7 +25,7 @@ def test_equivariance():
     filename = "./liquid-64.xyz"
     atoms = read(filename)
 
-    atoms.calc = CartenCalculator(
+    atoms.calc = CarnetCalculator(
         "/Users/mjwen/Downloads/checkpoint.ckpt", device="cpu"
     )
 

@@ -7,12 +7,12 @@ import tqdm
 from torch import Tensor
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.core.convert import Converter
-from carten.data.dataset import Dataset
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.pl.pl_tensor_model import AtomicTensorLitModule
-from carten.model.pl.utils import load_model
-from carten.model.tensor_model import AtomicTensorModel
+from carnet.core.convert import Converter
+from carnet.data.dataset import Dataset
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.pl.pl_tensor_model import AtomicTensorLitModule
+from carnet.model.pl.utils import load_model
+from carnet.model.tensor_model import AtomicTensorModel
 
 
 def get_dataloader(
@@ -181,11 +181,11 @@ if __name__ == "__main__":
 
     target_name = "nmr_tensor_natural"
 
-    filename = "/Users/mjwen/Packages/carten_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json"
+    filename = "/Users/mjwen/Packages/carnet_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json"
 
     # To generate an example checkpoint, first run `train_atomic_tensor.py` and then
-    # checkout `./carten_proj` to get the checkpoint you want to use.
-    checkpoint = "./carten_proj/n228kouh/checkpoints/epoch=1-step=10.ckpt"
+    # checkout `./carnet_proj` to get the checkpoint you want to use.
+    checkpoint = "./carnet_proj/n228kouh/checkpoints/epoch=1-step=10.ckpt"
 
     symmetry = "ij"  # for NMR tensor
     compute_metrics(target_name, symmetry, filename, checkpoint)

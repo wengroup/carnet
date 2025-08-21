@@ -18,9 +18,9 @@ data:
     0: 2
     2: 2
     4: 1
-  trainset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
-  valset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
-  testset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/elastic_tensor/20250606/crystal_elasticity_filtered_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
@@ -111,7 +111,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
-      project: carten_proj
+      project: carnet_proj
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.ModelSummary

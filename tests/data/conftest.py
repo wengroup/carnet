@@ -4,16 +4,16 @@ from pathlib import Path
 import pytest
 from torch_geometric.loader.dataloader import DataLoader
 
-import carten
-from carten.data.dataset import DatasetIP
-from carten.data.transform import ConsecutiveAtomType
+import carnet
+from carnet.data.dataset import DatasetIP
+from carnet.data.transform import ConsecutiveAtomType
 
 
 @pytest.fixture
 def dataset():
     shutil.rmtree("processed", ignore_errors=True)
 
-    filename = Path(carten.__file__).parents[2] / "example" / "dataset" / "SiC.json"
+    filename = Path(carnet.__file__).parents[2] / "example" / "dataset" / "SiC.json"
 
     dataset = DatasetIP(
         filename=filename,

@@ -1,13 +1,13 @@
 import torch
 from natt.utils import is_symmetric_traceless, letter_index
 
-from carten.core.legendre import legendre
-from carten.core.unit_vector_1 import (
+from carnet.core.legendre import legendre
+from carnet.core.unit_vector_1 import (
     get_nt_from_vector,
     get_nt_from_vector_rule,
     get_polyadics_from_vector,
 )
-from carten.core.unit_vector_2 import get_nt_from_vector as get_nt_from_vector_2
+from carnet.core.unit_vector_2 import get_nt_from_vector as get_nt_from_vector_2
 
 
 def test_get_nt_from_vector_rule():

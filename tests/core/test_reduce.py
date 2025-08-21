@@ -2,8 +2,8 @@ import torch
 from natt.symmetrize import symmetrize
 from natt.utils import is_symmetric, is_traceless
 
-from carten.legacy.natural_tensor import NaturalTensors
-from carten.legacy.reduce import reduce_symmetric_tensor
+from carnet.legacy.natural_tensor import NaturalTensors
+from carnet.legacy.reduce import reduce_symmetric_tensor
 
 
 def test_reduce_symmetric_tensor(T3, T4):

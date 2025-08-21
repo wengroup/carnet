@@ -13,11 +13,11 @@ import pandas as pd
 import torch
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import DatasetTensor
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.pl.trainer import TensorPyTorchTrainer
-from carten.model.pl.utils import get_args, get_git_commit
-from carten.model.tensor_model import StructureTensorModel
+from carnet.data.dataset import DatasetTensor
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.pl.trainer import TensorPyTorchTrainer
+from carnet.model.pl.utils import get_args, get_git_commit
+from carnet.model.tensor_model import StructureTensorModel
 
 
 def get_dataset(

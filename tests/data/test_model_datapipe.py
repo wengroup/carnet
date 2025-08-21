@@ -1,13 +1,13 @@
 import pytest
 
-from carten.data.data import get_edge_vec_batch
+from carnet.data.data import get_edge_vec_batch
 
-# from carten.model.carten import CARTEN
+# from carnet.model.carnet import CarNet
 #
 #
 # @pytest.fixture
 # def model():
-#     m = CARTEN(num_atom_types=2, max_v=2, max_u=2, num_average_neigh=5.0)
+#     m = CarNet(num_atom_types=2, max_v=2, max_u=2, num_average_neigh=5.0)
 #     return m
 #
 #

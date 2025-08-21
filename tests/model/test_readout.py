@@ -1,6 +1,6 @@
 import torch
 
-from carten.model.readout import AtomicTensor, StructureScalar, StructureTensor
+from carnet.model.readout import AtomicTensor, StructureScalar, StructureTensor
 
 
 def test_StructureScalar(batched_config_info):

@@ -1,6 +1,6 @@
 import torch
 
-from carten.module.normalize import LayerNorm
+from carnet.module.normalize import LayerNorm
 
 
 def test_normalize():

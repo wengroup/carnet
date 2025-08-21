@@ -1,6 +1,6 @@
 from natt.utils import is_symmetric, is_traceless
 
-from carten.model.backbone import Backbone
+from carnet.model.backbone import Backbone
 
 
 def test_Backbone(batched_config_info):

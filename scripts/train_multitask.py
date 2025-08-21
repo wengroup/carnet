@@ -10,11 +10,11 @@ import torch
 from lightning import Trainer
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import DatasetMultiTask
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.multitask_model import MultiTaskModel
-from carten.model.pl.pl_multitask_model import MultiTaskLitModule
-from carten.model.pl.utils import (
+from carnet.data.dataset import DatasetMultiTask
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.multitask_model import MultiTaskModel
+from carnet.model.pl.pl_multitask_model import MultiTaskLitModule
+from carnet.model.pl.utils import (
     get_args,
     get_git_commit,
     instantiate_class,

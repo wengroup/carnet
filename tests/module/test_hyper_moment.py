@@ -1,6 +1,6 @@
 from natt.utils import is_symmetric, is_traceless
 
-from carten.module.hyper_moment import HyperMoment
+from carnet.module.hyper_moment import HyperMoment
 
 from ..conftest import create_feature_tensors
 

@@ -11,9 +11,9 @@ data:
   #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
   #  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
 
-  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
-  #  valset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
-  #  testset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
+  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
 
   #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
   #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
@@ -102,7 +102,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
-      project: carten_proj
+      project: carnet_proj
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.ModelSummary

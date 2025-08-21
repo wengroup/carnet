@@ -1,6 +1,6 @@
 from natt.utils import is_symmetric, is_traceless
 
-from carten.module.atomic_moment import AtomicMoment, AtomicMoment2
+from carnet.module.atomic_moment import AtomicMoment, AtomicMoment2
 
 from ..conftest import create_feature_tensors
 

@@ -1,7 +1,7 @@
 import torch
 
-from carten.model.force_stress import compute_forces
-from carten.model.ip import InteratomicPotential
+from carnet.model.force_stress import compute_forces
+from carnet.model.ip import InteratomicPotential
 
 
 def test_InteratomicPotential(batched_config_info):

@@ -1,6 +1,6 @@
 import torch
 
-from carten.module.scatter import scatter
+from carnet.module.scatter import scatter
 
 
 def test_scatter():

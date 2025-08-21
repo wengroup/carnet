@@ -2,7 +2,7 @@ import pytest
 import torch
 from natt.symmetrize import symmetrize_and_remove_trace
 
-from carten.data.data import get_edge_vec_batch
+from carnet.data.data import get_edge_vec_batch
 
 
 @pytest.fixture(scope="session")

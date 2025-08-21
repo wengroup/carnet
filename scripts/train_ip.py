@@ -10,11 +10,11 @@ import torch
 from lightning import Trainer
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import DatasetIP
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.ip import InteratomicPotential
-from carten.model.pl.pl_ip import InteratomicPotentialLitModule
-from carten.model.pl.utils import (
+from carnet.data.dataset import DatasetIP
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.ip import InteratomicPotential
+from carnet.model.pl.pl_ip import InteratomicPotentialLitModule
+from carnet.model.pl.utils import (
     get_args,
     get_git_commit,
     instantiate_class,
@@ -47,7 +47,7 @@ def get_dataloaders(
     test_batch_size,
 ):
 
-    names = ("energy", "force")
+    names = ("energy", "forces")
     trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
     train_loader = DataLoader(
         trainset, batch_size=train_batch_size, shuffle=True, drop_last=True

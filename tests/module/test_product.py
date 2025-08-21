@@ -1,6 +1,6 @@
 import torch
 
-from carten.module.product import TensorProduct
+from carnet.module.product import TensorProduct
 
 
 def test_TensorProduct(NT0, NT1, NT2, NT3):

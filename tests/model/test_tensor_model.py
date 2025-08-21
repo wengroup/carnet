@@ -1,9 +1,9 @@
 import torch
 from natt.utils import is_symmetric, is_traceless
 
-from carten.core.convert import Converter
-from carten.model.tensor_model import AtomicTensorModel, StructureTensorModel
-from carten.utils import get_rotation_matrix
+from carnet.core.convert import Converter
+from carnet.model.tensor_model import AtomicTensorModel, StructureTensorModel
+from carnet.utils import get_rotation_matrix
 
 
 def test_AtomicTensorModel(batched_config_info):

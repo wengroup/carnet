@@ -2,7 +2,7 @@ import torch
 from natt.symmetrize import symmetrize, symmetrize_and_remove_trace
 from natt.utils import eijk, is_symmetric, is_traceless
 
-from carten.legacy.tensor_product_legacy_unbatched import (
+from carnet.legacy.tensor_product_legacy_unbatched import (
     get_asym_part,
     get_delta_contraction_rule,
     get_epsilon_delta_contraction_rule,

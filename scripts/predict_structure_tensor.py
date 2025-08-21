@@ -7,12 +7,12 @@ import tqdm
 from torch import Tensor
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.core.convert import Converter
-from carten.data.dataset import Dataset
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.pl.pl_tensor_model import StructureTensorLitModule
-from carten.model.pl.utils import load_model
-from carten.model.tensor_model import StructureTensorModel
+from carnet.core.convert import Converter
+from carnet.data.dataset import Dataset
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.pl.pl_tensor_model import StructureTensorLitModule
+from carnet.model.pl.utils import load_model
+from carnet.model.tensor_model import StructureTensorModel
 
 
 def get_dataloader(
@@ -183,11 +183,11 @@ if __name__ == "__main__":
 
     target_name = "elastic_tensor_natural"
 
-    filename = "/Users/mjwen/Packages/carten_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json"
+    filename = "/Users/mjwen/Packages/carnet_analysis/dataset/elastic_tensor/20230504/crystal_elasticity_filtered_n20.json"
 
     # To generate an example checkpoint, first run `train_structure_tensor.py` and then
-    # checkout `./carten_proj` to get the checkpoint you want to use.
-    checkpoint = "./carten_proj/uusbks8w/checkpoints/epoch=1-step=6.ckpt"
+    # checkout `./carnet_proj` to get the checkpoint you want to use.
+    checkpoint = "./carnet_proj/uusbks8w/checkpoints/epoch=1-step=6.ckpt"
 
     symmetry = "ijkl=jikl=klij"  # for elastic tensor
     compute_metrics(target_name, symmetry, filename, checkpoint)

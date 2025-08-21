@@ -1,9 +1,9 @@
 import torch
 from natt.utils import is_symmetric, is_traceless, letter_index
 
-from carten.core.legendre import legendre
-from carten.core.unit_vector import get_nt_from_vector
-from carten.legacy.tensor_product_unbatched import (
+from carnet.core.legendre import legendre
+from carnet.core.unit_vector import get_nt_from_vector
+from carnet.legacy.tensor_product_unbatched import (
     get_tp_even_rule,
     get_tp_odd_rule,
     tp_even,

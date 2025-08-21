@@ -32,9 +32,9 @@ data:
 #    dipole_moment_tensor: i # For rank-0 dipole moment, we don't need to convert
     polarizability_tensor: ij=ji
     shielding_tensor: ij
-  trainset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  valset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  testset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
@@ -126,7 +126,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
-      project: carten_proj
+      project: carnet_proj
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.ModelSummary

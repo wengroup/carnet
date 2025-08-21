@@ -10,16 +10,16 @@ import torch
 from lightning import Trainer
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import DatasetTensor
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.pl.pl_tensor_model import StructureTensorLitModule
-from carten.model.pl.utils import (
+from carnet.data.dataset import DatasetTensor
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.pl.pl_tensor_model import StructureTensorLitModule
+from carnet.model.pl.utils import (
     get_args,
     get_git_commit,
     instantiate_class,
     load_model,
 )
-from carten.model.tensor_model import StructureTensorModel
+from carnet.model.tensor_model import StructureTensorModel
 
 
 def get_dataset(

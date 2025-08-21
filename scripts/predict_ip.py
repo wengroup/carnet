@@ -7,11 +7,11 @@ import tqdm
 from torch import Tensor
 from torch_geometric.loader.dataloader import DataLoader
 
-from carten.data.dataset import DatasetIP
-from carten.data.transform import ConsecutiveAtomType
-from carten.model.ip import InteratomicPotential
-from carten.model.pl.pl_ip import InteratomicPotentialLitModule
-from carten.model.pl.utils import load_model
+from carnet.data.dataset import DatasetIP
+from carnet.data.transform import ConsecutiveAtomType
+from carnet.model.ip import InteratomicPotential
+from carnet.model.pl.pl_ip import InteratomicPotentialLitModule
+from carnet.model.pl.utils import load_model
 
 
 def get_dataloader(

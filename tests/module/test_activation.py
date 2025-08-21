@@ -3,7 +3,7 @@ import math
 import matplotlib.pylab as plt
 import torch
 
-from carten.module.activation import elu, relu, shifted_softplus, silu
+from carnet.module.activation import elu, relu, shifted_softplus, silu
 
 
 def assert_one(func, x: float, target):
