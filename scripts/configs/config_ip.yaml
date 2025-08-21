@@ -24,34 +24,31 @@ data:
   test_batch_size: 20
 
 model:
-  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  # general
   tp_path_mode: full # options: `full`, `lite`, `camp`
-
   F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
+
+  # ZBL repulsion
+  use_zbl: false # use ZBL potential for short-range repulsion
+  zbl_trainable: true # Train ZBL parameters or not; ignored if `use_zbl` is `false`
 
   # angular
   max_L: 3 # max rank of natural tensor
   max_degree: 3 # max correlation degree
 
-
   # radial
-  radial_part_type: 4
+  radial_part_type: 1
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
-  # layer structure
-  residual: true
-
-  # optional
+  # optional layers
   use_linear_channel_input: false
   use_linear_channel_hyper: true
   use_linear_channel_residual: true
   use_atomic_dependent_weight: true
-  use_zbl: true # use ZBL potential for short-range repulsion
-  zbl_trainable: true # Train ZBL parameters or not; ignored if `use_zbl` is `false`
-
+  residual: true
 
   # output
   output_mlp_hidden_layers: 2
@@ -69,11 +66,11 @@ metrics:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 0.01
-    weight_decay: 0.0
+    lr: 0.002
+    weight_decay: 1.0e-8
 
 lr_scheduler:
-  monitor: val/mae_f
+  monitor: val_ema/mae_e
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -81,15 +78,13 @@ lr_scheduler:
     patience: 100
     verbose: true
 #lr_scheduler:
-#  class_path: carten.model.pl.scheduler.LinearWarmupCosineAnnealingWarmRestarts
+#  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
 #  init_args:
-#    start_factor: 0.01
-#    warmup_epochs: 10
-#    T_0: 100
+#    T_max: 5 # should be equal to trainer.max_epochs
 
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
-  beta: 0.99
-  update_after_step: 100
+  beta: 0.999
+  update_after_step: 1000
   update_every: 10
   power: 0.75
   include_online_model: false
@@ -102,7 +97,7 @@ trainer:
   log_every_n_steps: 50
   detect_anomaly: false
   inference_mode: false # Enable calculation of gradients (forces) in val/test step
-  gradient_clip_val: 100.0
+  gradient_clip_val: 1.0
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
@@ -128,9 +123,5 @@ trainer:
         mode: min
         patience: 200
         verbose: true
-#    - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
-#      init_args:
-#        swa_lrs: 0.001
-#        swa_epoch_start: 0.8
 
 wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top

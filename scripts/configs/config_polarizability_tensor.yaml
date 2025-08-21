@@ -12,23 +12,22 @@ data:
   #  NOTE, in the dataset file, the tensor should be given with the name
   #  `[target_name]_[target_mode]`, e.g. `elastic_tensor_natural`
   target_name: polarizability_tensor
-  target_mode: natural # options: `natural`, `full`, `voigt`
+  target_mode: full # options: `natural`, `full`
+  target_symmetry: ij=ji # this is only needed when target_mode is `full`
   target_signature: # {rank: number} of the natural tensor
     0: 1
     2: 1
-  target_symmetry: ij=ji # this is only needed when target_mode is `full` or `voigt`
-  trainset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  valset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  testset_filename: /Users/mjwen/Packages/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Projects/carten_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
   test_batch_size: 8
 
 model:
-  atomic_moment_mode: vanilla # architecture of atomic moment, `vanilla`,  `variant1` or `variant2`
+  # general
   tp_path_mode: full # options: `full`, `lite`, `camp`
-
   F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
@@ -38,18 +37,16 @@ model:
   max_degree: 3 # max correlation degree
 
   # radial
+  radial_part_type: 1
   radial_mlp_hidden_layers: 2
   max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
 
-  #
-  layer_norm: false
-  activation: null
-  last_layer_activation: false # has to be `false` if `activation` is `null`; if true, it is the same as `activation`
-  residual: true
-
   # optional layers
   use_linear_channel_input: false
+  use_linear_channel_hyper: true
   use_linear_channel_residual: true
+  use_atomic_dependent_weight: true
+  residual: true
 
   # output
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
@@ -57,7 +54,6 @@ model:
   target_shift: auto # shift dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   target_scale: auto # scale dict {rank: tensor}. `auto` to determine it automatically from training set; `null` to not use it
   use_layer_norm: true # use layer norm in the output head
-  use_atomic_dependent_weight: true
   reduce: sum
 
 loss:
@@ -77,12 +73,11 @@ metrics:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 0.01
+    lr: 0.002
     weight_decay: 1.0e-8
 
 lr_scheduler:
-  # TODO, use combination metric of all ranks
-  monitor: val_ema/mae_rank-0
+  monitor: val_ema/mae_cartesian
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -96,7 +91,7 @@ lr_scheduler:
 
 ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
   beta: 0.99
-  update_after_step: 100
+  update_after_step: 1000
   update_every: 10
   power: 0.75
   include_online_model: false
@@ -125,21 +120,15 @@ trainer:
         logging_interval: null
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
-        # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_cartesian
         mode: min
         save_top_k: 3
         verbose: false
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        # TODO, use combination metric of all ranks
-        monitor: val_ema/mae_rank-0
+        monitor: val_ema/mae_cartesian
         mode: min
         patience: 200
         verbose: true
-#    - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
-#      init_args:
-#        swa_lrs: 0.001
-#        swa_epoch_start: 0.8
 
 wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top

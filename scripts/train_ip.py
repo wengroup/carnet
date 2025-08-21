@@ -22,10 +22,12 @@ from carten.model.pl.utils import (
 )
 
 
-def get_dataset(filename: Path, atomic_number: list[int], r_cut: float):
+def get_dataset(
+    filename: Path, target_names: list[str], atomic_number: list[int], r_cut: float
+):
     dataset = DatasetIP(
         filename=filename,
-        target_names=["energy", "forces"],
+        target_names=target_names,
         r_cut=r_cut,
         transform=ConsecutiveAtomType(atomic_number),
         log=False,
@@ -45,15 +47,16 @@ def get_dataloaders(
     test_batch_size,
 ):
 
-    trainset = get_dataset(trainset_filename, atomic_number, r_cut)
+    names = ("energy", "force")
+    trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
     train_loader = DataLoader(
         trainset, batch_size=train_batch_size, shuffle=True, drop_last=True
     )
 
-    valset = get_dataset(valset_filename, atomic_number, r_cut)
+    valset = get_dataset(valset_filename, names, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
 
-    testset = get_dataset(testset_filename, atomic_number, r_cut)
+    testset = get_dataset(testset_filename, names, atomic_number, r_cut)
     test_loader = DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
