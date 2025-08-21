@@ -1,4 +1,4 @@
-"""CARTEN interatomic potential model."""
+"""Interatomic potential model."""
 
 import torch
 from torch import Tensor, nn
@@ -12,7 +12,7 @@ from .zbl import ZBLEnergy
 
 class InteratomicPotential(nn.Module):
     """
-    CARTEN interatomic potential model.
+    Interatomic potential model.
     """
 
     def __init__(
@@ -29,21 +29,20 @@ class InteratomicPotential(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
-        atomic_moment_mode: str = "vanilla",
+        #
         tp_path_mode: str = "full",
         level: int = None,
-        #
-        residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
+        use_atomic_dependent_weight: bool = True,
+        residual: bool = True,
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         atomic_energy_shift: Tensor = None,
         atomic_energy_scale: Tensor = None,
         element_bias: bool = True,
-        use_atomic_dependent_weight: bool = True,
         # zbl
         use_zbl: bool = False,
         zbl_trainable: bool = True,
@@ -56,9 +55,6 @@ class InteratomicPotential(nn.Module):
                 corresponding hidden layer. If an integer, this will be the number of
                 hidden layers, and the number of units in each hidden layer is set to F,
                 the channel dimension of the feature tensor.
-            atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
-                or `variant2`.
-
         """
         super().__init__()
 
@@ -74,14 +70,13 @@ class InteratomicPotential(nn.Module):
             max_chebyshev_degree=max_chebyshev_degree,
             radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
-            atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
-            residual=residual,
             use_linear_channel_input=use_linear_channel_input,
             use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
             use_atomic_dependent_weight=use_atomic_dependent_weight,
+            residual=residual,
         )
 
         self.readout = StructureScalar(

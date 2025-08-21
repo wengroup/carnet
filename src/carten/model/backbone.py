@@ -27,8 +27,6 @@ class Backbone(nn.Module):
             layer in the MLP that is applied to the radial basis functions. If int,
             this gives the number of hidden layers, and the size of each hidden
             layer is set to `max_u + 1`, the number of radial basis functions.
-        atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
-            or `variant2`.
         residual: Whether to use residual connection.
     """
 
@@ -47,16 +45,15 @@ class Backbone(nn.Module):
         max_chebyshev_degree: int = 8,
         radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
-        atomic_moment_mode: str = "vanilla",
-        tp_path_mode: str = "full",
-        level: int = None,
         #
-        residual: bool = True,
+        tp_path_mode: str = "lite",
+        level: int = None,
         # optional layers
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         use_atomic_dependent_weight: bool = True,
+        residual: bool = True,
     ):
         super().__init__()
         self.F = F
@@ -71,8 +68,6 @@ class Backbone(nn.Module):
 
         self.max_chebyshev_degree = max_chebyshev_degree
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
-
-        self.atomic_moment_mode = atomic_moment_mode
 
         # Embed atom number as vectors
         self.atom_embedding = nn.Embedding(num_atom_types, F)
@@ -115,7 +110,6 @@ class Backbone(nn.Module):
                     radial_mlp_hidden_layers=self.radial_mlp_hidden_layers,
                     max_out_L=out_L,
                     max_degree=self.max_degree,
-                    atomic_moment_mode=self.atomic_moment_mode,
                     tp_path_mode=tp_path_mode,
                     level=level,
                     residual=residual,

@@ -1,4 +1,4 @@
-"""Carten model to predict tensorial properties of materials and molecules."""
+"""Model forpredicting tensorial properties of materials and molecules."""
 
 from torch import Tensor, nn
 
@@ -8,7 +8,7 @@ from .readout import AtomicTensor, StructureTensor
 
 class AtomicTensorModel(nn.Module):
     """
-    CARTEN model to predict a tensorial property for each atom in a system, such as
+    Model to predict a tensorial property for each atom in a system, such as
     NMR shielding tensors.
     """
 
@@ -24,28 +24,25 @@ class AtomicTensorModel(nn.Module):
         max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
-        atomic_moment_mode: str = "vanilla",
+        #
         tp_path_mode: str = "full",
         level: int = None,
-        #
-        layer_norm: bool = True,
-        activation: str = "silu",
-        last_layer_activation: bool = True,
-        residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
+        use_atomic_dependent_weight: bool = True,
+        residual: bool = True,
         # output
+        output_mlp_hidden_layers: list[int] | int = 2,
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
-        output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,
         use_layer_norm: bool = True,  # layer normalization for the readout
-        #
-        use_atomic_dependent_weight: bool = True,
     ):
         """
         Args:
@@ -56,8 +53,6 @@ class AtomicTensorModel(nn.Module):
                 the output of the model before computing the loss. Used together with
                 target_shift. y = scale*z + shift, where z is the output of the
                 network, and y is the predicted target.
-            atomic_moment_mode: Architecture of the atomic moment: `vanilla`, `variant1`,
-                or `variant2`.
             output_signature: A dictionary {l: n_l} that specifies the natural tensor
                 components to output for each atomic configuration. The key `l` gives
                 the rank of the natural tensor, and the value `n_l` gives the number of
@@ -92,17 +87,15 @@ class AtomicTensorModel(nn.Module):
             max_out_L=max(output_signature.keys()),
             max_degree=max_degree,
             max_chebyshev_degree=max_chebyshev_degree,
+            radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
-            atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
-            layer_norm=layer_norm,
-            activation=activation,
-            last_layer_activation=last_layer_activation,
-            residual=residual,
             use_linear_channel_input=use_linear_channel_input,
+            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
             use_atomic_dependent_weight=use_atomic_dependent_weight,
+            residual=residual,
         )
 
         self.readout = AtomicTensor(
@@ -176,28 +169,26 @@ class StructureTensorModel(nn.Module):
         max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
-        atomic_moment_mode: str = "vanilla",
+        #
         tp_path_mode: str = "full",
         level: int = None,
-        #
-        layer_norm: bool = True,
-        activation: str = "silu",
-        last_layer_activation: bool = False,
-        residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
+        use_atomic_dependent_weight: bool = True,
+        residual: bool = True,
         # output
+        output_mlp_hidden_layers: list[int] | int = 2,
         target_shift: dict[str, Tensor] = None,
         target_scale: dict[str, Tensor] = None,
-        output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         reduce: str = "mean",
         element_bias: bool = True,
         use_layer_norm: bool = True,  # layer normalization for the readout
-        use_atomic_dependent_weight: bool = True,
     ):
         super().__init__()
 
@@ -217,17 +208,15 @@ class StructureTensorModel(nn.Module):
             max_out_L=max(output_signature.keys()),
             max_degree=max_degree,
             max_chebyshev_degree=max_chebyshev_degree,
+            radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
-            atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
-            layer_norm=layer_norm,
-            activation=activation,
-            last_layer_activation=last_layer_activation,
-            residual=residual,
             use_linear_channel_input=use_linear_channel_input,
+            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
             use_atomic_dependent_weight=use_atomic_dependent_weight,
+            residual=residual,
         )
 
         self.readout = StructureTensor(

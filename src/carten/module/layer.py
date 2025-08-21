@@ -26,15 +26,14 @@ class Layer(nn.Module):
         radial_mlp_hidden_layers: int | list[int] = 2,
         max_out_L: int = None,
         max_degree: int = 3,
-        atomic_moment_mode: str = "vanilla",
-        tp_path_mode: str = "full",
+        tp_path_mode: str = "lite",
         level: int = None,
-        residual: bool = True,
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
         use_atomic_dependent_weight: bool = True,
-        layer_index: None = int,
+        residual: bool = True,
+        layer_index: int = None,
     ):
         """
 
@@ -74,8 +73,8 @@ class Layer(nn.Module):
         self.max_out_L = L3 if max_out_L is None else max_out_L
         self.max_degree = max_degree
         self.residual = residual
-        self.atomic_moment_mode = atomic_moment_mode
         self.use_atomic_dependent_weight = use_atomic_dependent_weight
+        self.layer_index = layer_index
 
         # Kernel for mixing input atom feats across channel, separate for each rank
         if use_linear_channel_input:
@@ -85,14 +84,7 @@ class Layer(nn.Module):
         else:
             self.register_buffer("linear_channel_input", None)
 
-        if atomic_moment_mode == "vanilla":
-            AM = AtomicMoment
-        elif atomic_moment_mode in ["variant1", "variant2"]:
-            AM = AtomicMoment2
-        else:
-            raise ValueError(f"Unknown atomic_moment_mode: {atomic_moment_mode}")
-
-        self.atomic_moment = AM(
+        self.atomic_moment = AtomicMoment(
             F=F,
             L1=L1,
             L2=L2,
@@ -103,7 +95,6 @@ class Layer(nn.Module):
             radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
-            mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
         )

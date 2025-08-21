@@ -23,7 +23,6 @@ class AtomicMoment(nn.Module):
         L3: Max rank for the tensor product of the atomic features and polyadics.
     """
 
-    # TODO, num_atom_types not used , delete
     def __init__(
         self,
         F: int,
@@ -37,8 +36,7 @@ class AtomicMoment(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         r_cut: float = 5,
         envelope: int = 6,
-        mode: str = None,  # dummy argument to give the same signature as AtomicMoment2
-        tp_path_mode: str = "full",
+        tp_path_mode: str = "lite",
         level: int = None,
     ):
         super().__init__()
@@ -107,7 +105,6 @@ class AtomicMoment(nn.Module):
         atom_feats: Tensor,
     ) -> Tensor:
         """
-
         Args:
             edge_vector: Edge vectors. Shape (n_edges, 3).
             edge_idx: Indices of center and neighbor atoms, that form the edges.

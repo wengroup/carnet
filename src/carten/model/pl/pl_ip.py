@@ -77,7 +77,7 @@ class InteratomicPotentialLitModule(LightningModule):
     def forward(self, batch):
         """Compute energy and forces."""
         # Note, it is tempting to compute the edge_vector in the collate_fn of the
-        # dataloader. However, this will not work will pytorch lightning, internally
+        # dataloader; however, this will not work will pytorch lightning. Internally
         # it does something to the batch, modifying both pos and edge_index. As a
         # result, the edge_vector is not directly derived from pos, and thus we won't
         # be able to compute the forces.

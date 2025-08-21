@@ -67,6 +67,7 @@ class TensorProduct(nn.Module):
                 `unity` or `none`. See `carten.core.tp.tp_even`.
             path_mode: mode to construct the paths from L1 and L2 to L3. Options are:
                 `full`, `camp`, or `lite`. See `carten.module.utils.get_paths`.
+            level: If path_mode is `level`, this is the maximum level of the paths.
             for_atomic_moment: If False, this is for a general tensor product,
                 which is simply a wrapper around the tp_even and tp_odd functions.
                 When it is True, it is used in the context of atomic moments,

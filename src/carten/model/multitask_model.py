@@ -1,4 +1,4 @@
-"""Carten model to predict tensorial properties of materials and molecules."""
+"""Model to predict tensorial properties of materials and molecules."""
 
 from torch import Tensor, nn
 
@@ -24,28 +24,26 @@ class MultiTaskModel(nn.Module):
         max_degree: int = 3,
         # radial
         max_chebyshev_degree: int = 8,
+        radial_part_type: int = 1,
         radial_mlp_hidden_layers: list[int] | int = 2,
-        atomic_moment_mode: str = "vanilla",
+        #
         tp_path_mode: str = "full",
         level: int = None,
-        #
-        layer_norm: bool = True,
-        activation: str = "silu",
-        last_layer_activation: bool = False,
-        residual: bool = True,
         # optional layers
         use_linear_channel_input: bool = False,
+        use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
+        use_atomic_dependent_weight: bool = True,
+        residual: bool = True,
         # output
+        output_mlp_hidden_layers: list[int] | int = 2,
         target_name: list[str] = None,
         target_shift: dict[str, dict[str, Tensor]] = None,
         target_scale: dict[str, dict[str, Tensor]] = None,
-        output_mlp_hidden_layers: list[int] | int = 2,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,
-        use_layer_norm: bool = True,
-        use_atomic_dependent_weight: bool = True,
+        use_layer_norm: bool = True,  # layer normalization for the output
     ):
         super().__init__()
 
@@ -67,17 +65,15 @@ class MultiTaskModel(nn.Module):
             max_out_L=max_out_L,
             max_degree=max_degree,
             max_chebyshev_degree=max_chebyshev_degree,
+            radial_part_type=radial_part_type,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
-            atomic_moment_mode=atomic_moment_mode,
             tp_path_mode=tp_path_mode,
             level=level,
-            layer_norm=layer_norm,
-            activation=activation,
-            last_layer_activation=last_layer_activation,
-            residual=residual,
             use_linear_channel_input=use_linear_channel_input,
+            use_linear_channel_hyper=use_linear_channel_hyper,
             use_linear_channel_residual=use_linear_channel_residual,
             use_atomic_dependent_weight=use_atomic_dependent_weight,
+            residual=residual,
         )
 
         # There will be multiple output head
