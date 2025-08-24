@@ -313,15 +313,20 @@ def chebyshev_first(n: int, x: Tensor) -> Tensor:
         A tensor of shape (*x.shape, n+1). The last dimension denotes the degree
         of the polynomial, e.g. T[:,1] is the result of the first degree polynomial.
     """
-    # T = [torch.ones_like(x), x]  # T0 and T1
-    # for i in range(2, n + 1):
-    #     T.append(2.0 * x * T[i - 1] - T[i - 2])
-    #
-    # T = torch.stack(T, dim=-1)
 
-    T = torch.stack(
-        [torch.special.chebyshev_polynomial_t(x, i) for i in range(n + 1)], dim=-1
-    )
+    ## WARNING, WARNING, WARNING
+    # Should not use torch.special.chebyshev_polynomial_t, because it does NOT
+    # support gradient calculation (upto torch v-2.8.1).
+    # T = torch.stack(
+    #     [torch.special.chebyshev_polynomial_t(x, i) for i in range(n + 1)], dim=-1
+    # )
+    #
+
+    T = [torch.ones_like(x), x]  # T0 and T1
+    for i in range(2, n + 1):
+        T.append(2.0 * x * T[i - 1] - T[i - 2])
+
+    T = torch.stack(T, dim=-1)
 
     return T
 
