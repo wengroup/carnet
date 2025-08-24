@@ -76,7 +76,6 @@ lr_scheduler:
     mode: min
     factor: 0.8
     patience: 100
-    verbose: true
 #lr_scheduler:
 #  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
 #  init_args:
@@ -97,7 +96,7 @@ trainer:
   log_every_n_steps: 50
   detect_anomaly: false
   inference_mode: false # Enable calculation of gradients (forces) in val/test step
-  gradient_clip_val: 1.0
+  gradient_clip_val: 100.0
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger

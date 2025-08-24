@@ -262,18 +262,20 @@ def main(config: dict):
     else:
         print(f"Loading model from checkpoint: {restore_checkpoint}")
 
-        # Pass the model hyperparameters to override the ones saved in the checkpoint.
-        # This becomes useful when changing the way to train the model, e.g. using a
-        # different loss weight.
-        # Note, optimizer and lr_scheduler, will not be effective although they are
-        # passed here, as they will be restored from the checkpoint below with
-        # trainer.fit(ckpt_path=restore_checkpoint).
+        # Pass model hyperparameters to override the ones saved in the checkpoint.
+        # This becomes useful when continuing training from a checkpoint but hoping to
+        # change some hyperparameters, e.g. using a different loss weight or ema ratio.
+        #
+        # Note, given that `ckpt_path=restore_checkpoint` is passed to trainer.fit()
+        # below, anything related to Lightning Trainer, such as lr_scheduler and
+        # optimizer, if changed here, will not be effective, as they will be restored
+        # from the checkpoint.
         names = {
             "loss": "loss_hparams",
             "metrics": "metrics_hparams",
+            "ema": "ema_hparams",
             # "optimizer": "optimizer_hparams",
             # "lr_scheduler": "lr_scheduler_hparams",
-            "ema": "ema_hparams",
         }
         overrides = {v: config.pop(k) for k, v in names.items()}
 
@@ -293,7 +295,7 @@ def main(config: dict):
     try:
         logger = instantiate_class(config["trainer"].pop("logger"))
 
-        ## TODO, for DEBUG only, should be commented out
+        ## For DEBUG only, should be commented out
         ## log gradients, parameter histogram and model topology
         ## For test run with small max_epoch, you might need to set `log_freq` to a
         ## smaller value (default is 100) so that this is executed at least once.
@@ -303,13 +305,21 @@ def main(config: dict):
 
     trainer = Trainer(callbacks=callbacks, logger=logger, **config["trainer"])
 
-    # Note, passing ckpt_path to trainer.fit() to restore epoch, optimizer state,
-    # lr_scheduler state, etc.
+    # Pass ckpt_path to trainer.fit() to restore epoch, optimizer state, lr_scheduler
+    # state, callbacks etc.
     # See: https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
-    # Note, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
-    # and new values are provided in `config`, they won't be updated in the training
-    # process, since the below `fit` method has `ckpt_path` as an argument, which will
-    # override the hyperparameters from the config file (set in the above line).
+    #
+    # So, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
+    # and new values are provided in the `config`, they won't be used in the training
+    # process, since their state will be restored from the checkpoint.
+    # Then, if you want to change the hyperparameters of the lr_scheduler, you can
+    # update the checkpoint file manually, e.g. via:
+    # carnet.model.pl.utils.update_checkpoint()
+    #
+    # This will only change stuff that is related to the training process that is
+    # native to lightning, like the ones mentioned above; it will not update stuff
+    # not native to lightning. For example, ema hyperparameters will not be restored
+    # since it is defined in the model class, not in the lightning module.
     trainer.fit(
         model,
         train_dataloaders=train_loader,
