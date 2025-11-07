@@ -75,6 +75,12 @@ def get_neigh(
     # number of neighbors for each atom
     num_neigh = np.bincount(first_idx)
 
+    # Some atoms do not have neighbors
+    # This guarantees the below `if len(num_neigh) != len(coords):` checking will not
+    # happen, which is what we prefer.
+    if set(first_idx) != set(range(len(coords))):
+        raise RuntimeError("Some atoms do not have neighbors.")
+
     # Some atoms with large index may not have neighbors due to the use of bincount.
     # As a concrete example, suppose we have 5 atoms and first_idx is [0,1,1,3,3,3,3],
     # then bincount will be [1, 2, 0, 4], which means atoms 0,1,2,3 have 1,2,0,4
