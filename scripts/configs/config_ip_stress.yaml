@@ -1,0 +1,121 @@
+seed_everything: 35
+default_dtype: float32
+restore_checkpoint: null # path to checkpoint to restore from; if `null`, train from scratch
+
+data:
+  trainset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+
+  r_cut: 5.0
+  train_batch_size: 4
+  val_batch_size: 20
+  test_batch_size: 20
+
+model:
+  # general
+  tp_path_mode: full # options: `full`, `lite`, `camp`
+  F: 8 # number of channels
+  num_layers: 2 # number of layers
+  num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
+
+  # ZBL repulsion
+  use_zbl: false # use ZBL potential for short-range repulsion
+  zbl_trainable: true # Train ZBL parameters or not; ignored if `use_zbl` is `false`
+
+  # angular
+  max_L: 3 # max rank of natural tensor
+  max_degree: 3 # max correlation degree
+
+  # radial
+  radial_part_type: 1
+  radial_mlp_hidden_layers: 2
+  max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
+
+  # optional layers
+  use_linear_channel_input: false
+  use_linear_channel_hyper: false
+  residual: true
+  use_linear_channel_residual: true # this is ignored if `residual` is `false`
+  use_atomic_dependent_weight: true
+
+  # output
+  output_mlp_hidden_layers: 2
+
+loss:
+  energy_ratio: 1.0
+  forces_ratio: 1.0
+  # Carnet adopts the usual stress convention. And virial = - stress * volume.
+  # Positive diagonal components of the stress tensor mean that the system is under
+  # tension (and wants to compress), whereas negative ones mean that the system is
+  # under compressive strain (and wants to expand).
+  # But in some DFT codes (e.g., VASP), the opposite convention is used.
+  stress_ratio: 1.0
+  normalize: true # normalize energy by number of atoms
+
+metrics:
+  type: mae
+  normalize: true # normalize energy by number of atoms
+  validation_start_epoch: 0 # start calculating metrics at this epoch
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.002
+    weight_decay: 1.0e-8
+
+lr_scheduler:
+  monitor: val_ema/mae_e
+  class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
+  init_args:
+    mode: min
+    factor: 0.8
+    patience: 100
+#lr_scheduler:
+#  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+#  init_args:
+#    T_max: 5 # should be equal to trainer.max_epochs
+
+ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
+  beta: 0.999
+  update_after_step: 1000
+  update_every: 1
+  power: 0.75
+  include_online_model: false
+
+trainer:
+  max_epochs: 2
+  accelerator: cpu
+  num_nodes: 1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  detect_anomaly: false
+  inference_mode: false # Enable calculation of gradients (forces) in val/test step
+  gradient_clip_val: 100.0
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: carnet_proj
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelSummary
+      init_args:
+        max_depth: -1
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: null
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val_ema/mae_e
+        mode: min
+        save_top_k: 3
+        verbose: false
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val_ema/mae_e
+        mode: min
+        patience: 200
+        verbose: true
+
+wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top
