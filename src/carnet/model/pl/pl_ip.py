@@ -13,8 +13,9 @@ from torch import nn
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
 from carnet.data.data import get_edge_vec_batch
+from carnet.model.force_stress import apply_strain
 
-from ..force_stress import compute_forces
+from ..force_stress import compute_forces, compute_forces_stress
 
 
 class InteratomicPotentialLitModule(LightningModule):
@@ -74,8 +75,28 @@ class InteratomicPotentialLitModule(LightningModule):
             }
         )
 
+        self.need_stress = self.loss_hparams.get("stress_ratio", 0.0) > 1e-6
+
+        if self.need_stress:
+            self.stress_metric = nn.ModuleDict(
+                {
+                    f"metrics_{mode}": MetricClass()
+                    for mode in ["train", "val", "test", "val_ema", "test_ema"]
+                }
+            )
+        else:
+            self.stress_metric = None
+
     def forward(self, batch):
-        """Compute energy and forces."""
+        return self._forward(batch, self.model)
+
+    def forward_ema(self, batch):
+        """Same as `forward, but use the EMA model instead of the original model."""
+        return self._forward(batch, self.ema)
+
+    def _forward(self, batch, func):
+        """Compute energy, forces, and stress."""
+
         # Note, it is tempting to compute the edge_vector in the collate_fn of the
         # dataloader; however, this will not work will pytorch lightning. Internally
         # it does something to the batch, modifying both pos and edge_index. As a
@@ -84,62 +105,75 @@ class InteratomicPotentialLitModule(LightningModule):
         # This is why we compute the edge_vector here.
 
         # requires_grad to enable force computation
-        batch.pos.requires_grad_(True)
+        pos = batch.pos
+        pos.requires_grad_(True)
 
         cell = batch.cell if hasattr(batch, "cell") else None
+        if cell is not None:
+            cell = cell.reshape(-1, 3, 3)  # (B*3, 3) -> (B, 3, 3)
+
+        # Need stress calculation
+        if self.need_stress:
+            if cell is not None:
+                # apply strain and get strained positions and cell
+                strain, strained_pos, strained_cell = apply_strain(
+                    pos, cell, batch.batch
+                )
+                pos = strained_pos
+                cell = strained_cell
+
+            else:
+                raise RuntimeError("Need stress but cell is not provided in the batch.")
+        else:
+            strain = None
+
         edge_vector = get_edge_vec_batch(
-            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
+            pos, batch.shift_vector, cell, batch.edge_index, batch.batch
         )
 
-        e_pred = self.model(
+        e_pred = func(
             edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_number=batch.atomic_number,
         )
-        f_pred = compute_forces(e_pred, batch.pos, self.training)
 
-        return e_pred, f_pred
+        if self.need_stress:
+            f_pred, s_pred = compute_forces_stress(
+                e_pred, pos, cell, strain, self.training
+            )
+            s_pred = s_pred.reshape(-1, 3)  # (B, 3, 3) -> (B*3, 3)
+        else:
+            f_pred = compute_forces(e_pred, pos, self.training)
+            s_pred = None
 
-    def forward_ema(self, batch):
-        """Same as `forward, but use the EMA model instead of the original model."""
-
-        # requires_grad to enable force computation
-        batch.pos.requires_grad_(True)
-
-        cell = batch.cell if hasattr(batch, "cell") else None
-        edge_vector = get_edge_vec_batch(
-            batch.pos, batch.shift_vector, cell, batch.edge_index, batch.batch
-        )
-
-        e_pred = self.ema(
-            edge_vector=edge_vector,
-            edge_idx=batch.edge_index,
-            atom_type=batch.atom_type,
-            num_atoms=batch.num_atoms,
-            atomic_number=batch.atomic_number,
-        )
-        f_pred = compute_forces(e_pred, batch.pos, self.training)
-
-        return e_pred, f_pred
+        return e_pred, f_pred, s_pred
 
     def training_step(self, batch, batch_idx):
 
         e_ref = batch.y["energy"]
         f_ref = batch.y["forces"]
+        s_ref = batch.y.get("stress", None)
+
         num_atoms = batch.num_atoms
         batch_size = batch.num_graphs
 
-        e_pred, f_pred = self(batch)
+        e_pred, f_pred, s_pred = self(batch)
 
         if self.loss_hparams["normalize"]:
             # losses = self.compute_loss_1(e_pred, f_pred, e_ref, f_ref, num_atoms)
-            losses = self.compute_loss_1_2(e_pred, f_pred, e_ref, f_ref, num_atoms)
+            losses = self.compute_loss_1_2(
+                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
+            )
         else:
             # losses = self.compute_loss_2(e_pred, f_pred, e_ref, f_ref, num_atoms)
-            losses = self.compute_loss_2_2(e_pred, f_pred, e_ref, f_ref, num_atoms)
-        metrics = self.compute_metrics(e_pred, f_pred, e_ref, f_ref, num_atoms, "train")
+            losses = self.compute_loss_2_2(
+                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
+            )
+        metrics = self.compute_metrics(
+            e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, "train"
+        )
         d = {**losses, **metrics}
 
         self.log_dict(
@@ -161,21 +195,25 @@ class InteratomicPotentialLitModule(LightningModule):
 
             e_ref = batch.y["energy"]
             f_ref = batch.y["forces"]
+            s_ref = batch.y.get("stress", None)
+
             num_atoms = batch.num_atoms
             batch_size = batch.num_graphs
 
             # use current model
             if self.current_epoch >= start_epoch:
-                e_pred, f_pred = self(batch)
+                e_pred, f_pred, s_pred = self(batch)
             else:
                 # dummy values to skip validation for the first few epochs
-                e_pred = f_pred = torch.zeros(1, dtype=e_ref.dtype, device=e_ref.device)
-                e_ref = f_ref = 1e10 * torch.ones(
+                e_pred = f_pred = s_pred = torch.zeros(
+                    1, dtype=e_ref.dtype, device=e_ref.device
+                )
+                e_ref = f_ref = s_ref = 1e10 * torch.ones(
                     1, dtype=e_ref.dtype, device=e_ref.device
                 )
 
             metrics = self.compute_metrics(
-                e_pred, f_pred, e_ref, f_ref, num_atoms, mode
+                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode
             )
             self.log_dict(
                 metrics,
@@ -187,16 +225,18 @@ class InteratomicPotentialLitModule(LightningModule):
 
             # use EMA model
             if self.current_epoch >= start_epoch:
-                e_pred, f_pred = self.forward_ema(batch)
+                e_pred, f_pred, s_pred = self.forward_ema(batch)
             else:
                 # dummy values to skip validation for the first few epochs
-                e_pred = f_pred = torch.zeros(1, dtype=e_ref.dtype, device=e_ref.device)
-                e_ref = f_ref = 1e10 * torch.ones(
+                e_pred = f_pred = s_pred = torch.zeros(
+                    1, dtype=e_ref.dtype, device=e_ref.device
+                )
+                e_ref = f_ref = s_ref = 1e10 * torch.ones(
                     1, dtype=e_ref.dtype, device=e_ref.device
                 )
 
             metrics = self.compute_metrics(
-                e_pred, f_pred, e_ref, f_ref, num_atoms, mode + "_ema"
+                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode + "_ema"
             )
             self.log_dict(
                 metrics,
@@ -251,7 +291,7 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return losses
 
-    def compute_loss_1_2(self, e_pred, f_pred, e_ref, f_ref, num_atoms):
+    def compute_loss_1_2(self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms):
         """
         A simplified version of `compute_loss_1` that only works for dataset with the
         same number of atoms in each config, i.e. N_k = N for all k.
@@ -266,13 +306,19 @@ class InteratomicPotentialLitModule(LightningModule):
         f_loss = self.loss_hparams["forces_ratio"] * nn.functional.mse_loss(
             f_pred, f_ref, reduction="mean"
         )
-        loss = e_loss + f_loss
 
-        losses = {
-            "train/loss_total": loss,
-            "train/loss_energy": e_loss,
-            "train/loss_forces": f_loss,
-        }
+        loss = e_loss + f_loss
+        losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
+
+        if self.need_stress:
+            s_loss = self.loss_hparams["stress_ratio"] * nn.functional.mse_loss(
+                s_pred, s_ref, reduction="mean"
+            )
+
+            loss += s_loss
+            losses["train/loss_stress"] = s_loss
+
+        losses["train/loss_total"] = loss
 
         return losses
 
@@ -315,7 +361,7 @@ class InteratomicPotentialLitModule(LightningModule):
 
         return losses
 
-    def compute_loss_2_2(self, e_pred, f_pred, e_ref, f_ref, num_atoms):
+    def compute_loss_2_2(self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms):
         """
         A simplified version of `compute_loss_2` that only works for dataset with the
         same number of atoms in each config, i.e. N_k = N for all k.
@@ -330,13 +376,17 @@ class InteratomicPotentialLitModule(LightningModule):
         f_loss = self.loss_hparams["forces_ratio"] * nn.functional.mse_loss(
             f_pred, f_ref, reduction="mean"
         )
-        loss = e_loss + f_loss
 
-        losses = {
-            "train/loss_total": loss,
-            "train/loss_energy": e_loss,
-            "train/loss_forces": f_loss,
-        }
+        loss = e_loss + f_loss
+        losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
+
+        if self.need_stress:
+            s_loss = self.loss_hparams["stress_ratio"] * nn.functional.mse_loss(
+                s_pred, s_ref, reduction="mean"
+            )
+
+            loss += s_loss
+            losses["train/loss_stress"] = s_loss
 
         return losses
 
@@ -355,7 +405,9 @@ class InteratomicPotentialLitModule(LightningModule):
             - a MACE model Eq (14) of https://doi.org/10.1063/5.0155322
         """
 
-    def compute_metrics(self, e_pred, f_pred, e_ref, f_ref, num_atoms, mode: str):
+    def compute_metrics(
+        self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode: str
+    ):
         """
         Energy MAE:
             MAE = mean_k |E_pred/N_k - E_ref/N_k|
@@ -384,6 +436,12 @@ class InteratomicPotentialLitModule(LightningModule):
             f"{mode}/{self.metrics_type}_e": self.energy_metric[f"metrics_{mode}"],
             f"{mode}/{self.metrics_type}_f": self.forces_metric[f"metrics_{mode}"],
         }
+
+        if self.need_stress:
+            self.stress_metric[f"metrics_{mode}"](s_pred, s_ref)
+            metrics[f"{mode}/{self.metrics_type}_s"] = self.stress_metric[
+                f"metrics_{mode}"
+            ]
 
         return metrics
 

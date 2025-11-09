@@ -403,7 +403,7 @@ def get_edge_vec_batch(
             crossed by the bond between atom i and j. The distance vector between atom
             j and atom i is given by `pos[j] - pos[i] + shift_vector.dot(cell)`. Ignored
             if cell is None.
-        cell: (n_graph*3, 3) array of lattice vectors. If None, then no periodic
+        cell: (n_graph, 3, 3) array of lattice vectors. If None, then no periodic
             boundary conditions are considered.
         edge_index: (2, n_edges) array of edge indices, where the first row is the
             source node index and the second row is the target node index.
@@ -420,7 +420,7 @@ def get_edge_vec_batch(
 
     if cell is not None:
         # create a cell for each edge, shape (num_edges, 3, 3)
-        expanded_cell = cell.reshape(-1, 3, 3)[batch[i_idx]]
+        expanded_cell = cell[batch[i_idx]]
 
         edge_vec = edge_vec + torch.einsum("ni, nij -> nj", shift_vector, expanded_cell)
 

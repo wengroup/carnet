@@ -55,11 +55,21 @@ def compute_forces_stress(
 
     forces = -grad[0]  # (n_atoms, 3)
 
+    # Stress convention: positive means tensile stress on the cell, and negative
+    # means compressive.
+    # No negative sign needed here, because:
+    # $\sigma = \frac{1}{V} \frac{\partial E}{ \partial \epsilon}$.
+    # See https://pure.mpg.de/rest/items/item_2085135_9/component/file_2156800/content
+    # This is also consistent with what implemented in schnetpack.
+    # See https://github.com/atomistic-machine-learning/schnetpack/blob/643c9a1ab17757b5fd1f94dabec50fb72dbde025/src/schnetpack/atomistic/response.py#L18
+    #
+    # But if one wants to compute the virial: the usual convention is that:
+    # virial = - stress * volume. This means grad[1] below is actually negative virial.
+    #
+
     # det is equal to a dot (b cross c)
-    # [B, 3, 3] -> [B]
-    volume = torch.linalg.det(cell).abs()
-    viral = grad[1]  # (B, 3, 3)
-    stress = viral / volume.view(-1, 1, 1)
+    volume = torch.linalg.det(cell).abs().view(-1, 1, 1)  # (B, 3, 3)->(B,)->(B, 1, 1)
+    stress = grad[1] / volume  # grad[1] is negative virial; (B, 3, 3)
 
     return forces, stress
 
@@ -92,8 +102,7 @@ def compute_forces_stress_single_config(
 
     # det is equal to a dot (b cross c)
     volume = torch.linalg.det(cell).abs()
-    viral = grad[1]  # (3, 3)
-    stress = viral / volume
+    stress = grad[1] / volume  #  grad[1] is negative virial; (3, 3)
 
     return forces, stress
 
@@ -118,7 +127,7 @@ def apply_strain(
     Args:
         pos: shape(n_atoms, 3), absolute positions of the atoms, batch of atoms from all
             configurations.
-        cell: shape(B, 3, 3), unit cell. B, batch size.
+        cell: shape(B*3, 3), unit cell. B, batch size.
         batch: shape(n_atoms,), batch index of each atom.
 
     Returns:
@@ -137,7 +146,7 @@ def apply_strain(
 
     # strain positions
     # batched [n_atoms, 1, 3] @ [n_atoms, 3, 3] -> [n_atoms, 1, 3] -> [n_atoms, 3]
-    strained_pos = pos + torch.bmm(pos.unsqueeze(-2), strain_sym[batch]).squeeze(1)
+    strained_pos = pos + torch.bmm(pos.unsqueeze(-2), strain_sym[batch]).squeeze(-2)
 
     # strain cell
     # [B, 3, 3] @ [B, 3, 3] -> [B, 3, 3]
