@@ -48,7 +48,7 @@ class InteratomicPotentialLitModule(LightningModule):
         self.ema_hparams = ema_hparams
         self.ema = EMA(self.model, **self.ema_hparams)
 
-        loss_type = self.loss_hparams.get("loss_type", "mse")
+        loss_type = self.loss_hparams.get("type", None)
         if loss_type == "mse":
             self.loss_func = nn.functional.mse_loss
         elif loss_type == "mae":
