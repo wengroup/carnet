@@ -43,6 +43,7 @@ model:
   output_mlp_hidden_layers: 2
 
 loss:
+  loss_type: mae
   energy_ratio: 1.0
   forces_ratio: 1.0
   # Carnet adopts the usual stress convention. And virial = - stress * volume.

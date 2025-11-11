@@ -48,6 +48,14 @@ class InteratomicPotentialLitModule(LightningModule):
         self.ema_hparams = ema_hparams
         self.ema = EMA(self.model, **self.ema_hparams)
 
+        loss_type = self.loss_hparams.get("loss_type", "mse")
+        if loss_type == "mse":
+            self.loss_func = nn.functional.mse_loss
+        elif loss_type == "mae":
+            self.loss_func = nn.functional.l1_loss
+        else:
+            raise ValueError(f"Unknown loss type: {loss_type}")
+
         self.metrics_type = self.metrics_hparams.get("type", None)
         if self.metrics_type == "mae":
             MetricClass = MeanAbsoluteError
@@ -269,7 +277,7 @@ class InteratomicPotentialLitModule(LightningModule):
 
         where N_k is the number of atoms in the k-th structure
         """
-        e_loss = self.loss_hparams["energy_ratio"] * nn.functional.mse_loss(
+        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
             e_pred / num_atoms, e_ref / num_atoms, reduction="mean"
         )
 
@@ -277,7 +285,7 @@ class InteratomicPotentialLitModule(LightningModule):
         K = len(num_atoms)  # batch size
         f_loss = (
             self.loss_hparams["forces_ratio"]
-            * nn.functional.mse_loss(f_pred / f_norm, f_ref / f_norm, reduction="sum")
+            * self.loss_func(f_pred / f_norm, f_ref / f_norm, reduction="sum")
             / (3 * K)
         )
 
@@ -300,10 +308,10 @@ class InteratomicPotentialLitModule(LightningModule):
             L_f = 1/(3KN) sum_k sum_i (F_pred - F_ref)^2
         """
 
-        e_loss = self.loss_hparams["energy_ratio"] * nn.functional.mse_loss(
+        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
             e_pred / num_atoms, e_ref / num_atoms, reduction="mean"
         )
-        f_loss = self.loss_hparams["forces_ratio"] * nn.functional.mse_loss(
+        f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(
             f_pred, f_ref, reduction="mean"
         )
 
@@ -311,7 +319,7 @@ class InteratomicPotentialLitModule(LightningModule):
         losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
 
         if self.need_stress:
-            s_loss = self.loss_hparams["stress_ratio"] * nn.functional.mse_loss(
+            s_loss = self.loss_hparams["stress_ratio"] * self.loss_func(
                 s_pred, s_ref, reduction="mean"
             )
 
@@ -339,7 +347,7 @@ class InteratomicPotentialLitModule(LightningModule):
             - MACE (eq 15) https://doi.org/10.48550/arXiv.2206.07697
         """
 
-        e_loss = self.loss_hparams["energy_ratio"] * nn.functional.mse_loss(
+        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
             e_pred, e_ref, reduction="mean"
         )
 
@@ -347,7 +355,7 @@ class InteratomicPotentialLitModule(LightningModule):
         f_norm = torch.repeat_interleave(num_atoms, num_atoms).sqrt().reshape(-1, 1)
         f_loss = (
             self.loss_hparams["forces_ratio"]
-            * nn.functional.mse_loss(f_pred / f_norm, f_ref / f_norm, reduction="sum")
+            * self.loss_func(f_pred / f_norm, f_ref / f_norm, reduction="sum")
             / (3 * K)
         )
 
@@ -370,10 +378,10 @@ class InteratomicPotentialLitModule(LightningModule):
         by using `reduction=mean`.
         """
 
-        e_loss = self.loss_hparams["energy_ratio"] * nn.functional.mse_loss(
+        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
             e_pred, e_ref, reduction="mean"
         )
-        f_loss = self.loss_hparams["forces_ratio"] * nn.functional.mse_loss(
+        f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(
             f_pred, f_ref, reduction="mean"
         )
 
@@ -381,7 +389,7 @@ class InteratomicPotentialLitModule(LightningModule):
         losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
 
         if self.need_stress:
-            s_loss = self.loss_hparams["stress_ratio"] * nn.functional.mse_loss(
+            s_loss = self.loss_hparams["stress_ratio"] * self.loss_func(
                 s_pred, s_ref, reduction="mean"
             )
 
