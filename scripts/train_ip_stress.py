@@ -14,8 +14,12 @@ from carnet.data.dataset import DatasetIP
 from carnet.data.transform import ConsecutiveAtomType
 from carnet.model.ip import InteratomicPotential
 from carnet.model.pl.pl_ip import InteratomicPotentialLitModule
-from carnet.model.pl.utils import (get_args, get_git_commit, instantiate_class,
-                                   load_model)
+from carnet.model.pl.utils import (
+    get_args,
+    get_git_commit,
+    instantiate_class,
+    load_model,
+)
 
 
 def get_dataset(
