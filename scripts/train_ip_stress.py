@@ -14,12 +14,8 @@ from carnet.data.dataset import DatasetIP
 from carnet.data.transform import ConsecutiveAtomType
 from carnet.model.ip import InteratomicPotential
 from carnet.model.pl.pl_ip import InteratomicPotentialLitModule
-from carnet.model.pl.utils import (
-    get_args,
-    get_git_commit,
-    instantiate_class,
-    load_model,
-)
+from carnet.model.pl.utils import (get_args, get_git_commit, instantiate_class,
+                                   load_model)
 
 
 def get_dataset(
@@ -113,6 +109,18 @@ def update_model_configs(config: dict, dataset: DatasetIP) -> dict:
         shift = "auto"
     if shift.lower() == "auto":
         shift = dataset.get_mean_atomic_energy()
+    else:
+        # Read atomic energy from file and set to zero for atomic numbers not present
+        if Path(shift).is_file():
+            df = pd.read_json(shift)
+            max_atomic_number = max(df["atomic_number"])
+            shift = torch.zeros(max_atomic_number + 1)
+            for _, row in df.iterrows():
+                shift[row["atomic_number"]] = row["energy"]
+        else:
+            raise ValueError(
+                f"File providing energy of individual atoms does not exist: {shift}"
+            )
 
     scale = config["model"].pop("atomic_energy_scale", None)
     if scale is None:

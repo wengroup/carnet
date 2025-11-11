@@ -81,13 +81,21 @@ class StructureScalar(nn.Module):
             self.register_parameter("element_bias", None)
 
     def forward(
-        self, atom_feats: list[Tensor], atom_type: Tensor, num_atoms: Tensor
+        self,
+        atom_feats: list[Tensor],
+        atom_type: Tensor,
+        atomic_number: Tensor,
+        num_atoms: Tensor,
     ) -> Tensor:
         """
         Args:
             atom_feats: list of scalar atomic features, each of shape (n_atoms, F, 1),
                 where `F` is the channel dimension.
             atom_type: The atomic type of each atom. Shape (n_atoms,).
+            atomic_number: The atomic numbers of each atom. 1D tensor. Note the
+                difference between atom_type and atomic_numbers: the former is the
+                consecutive index of the atomic species in the dataset, while the latter
+                is the actual atomic number according to the periodic table.
             num_atoms: The number of atoms in each atomic configuration.
                 Shape (n_config,)
 
@@ -100,19 +108,18 @@ class StructureScalar(nn.Module):
         for i, fn in enumerate(self.out_layers):
             V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
-        # TODO, allow the per species scale and shift?
         # Normalization
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
                 V *= self.atomic_scale
             else:
-                V *= self.atomic_scale[atom_type]
+                V *= self.atomic_scale[atomic_number]
 
         if self.atomic_shift is not None:
             if self.atomic_shift.ndim == 0:
                 V += self.atomic_shift
             else:
-                V += self.atomic_shift[atom_type]
+                V += self.atomic_shift[atomic_number]
 
         # Bias for each atomic type
         if self.element_bias is not None:

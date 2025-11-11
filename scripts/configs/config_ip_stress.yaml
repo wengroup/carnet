@@ -27,6 +27,12 @@ model:
   max_L: 3 # max rank of natural tensor
   max_degree: 3 # max correlation degree
 
+  # atomic energy shift and scale
+  # Final energy = scale*e + shift + element_bias (if element_bias is True)
+  atomic_energy_scale: auto
+  atomic_energy_shift: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_r2scan_atomic_energy.json
+  element_bias: False
+
   # radial
   radial_part_type: 1
   radial_mlp_hidden_layers: 2

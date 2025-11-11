@@ -127,7 +127,7 @@ class InteratomicPotential(nn.Module):
         )
 
         # Compute the total energy
-        energy = self.readout(all_scalar_feats, atom_type, num_atoms)
+        energy = self.readout(all_scalar_feats, atom_type, atomic_number, num_atoms)
 
         if self.zbl is not None:
             # ZBL energy of each atom
