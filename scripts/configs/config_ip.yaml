@@ -3,9 +3,14 @@ default_dtype: float32
 restore_checkpoint: null # path to checkpoint to restore from; if `null`, train from scratch
 
 data:
-  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
-  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
-  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+
+  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+
+  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
 
   #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
   #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
@@ -38,6 +43,11 @@ model:
   max_L: 3 # max rank of natural tensor
   max_degree: 3 # max correlation degree
 
+  # atomic energy shift and scale
+  # Final energy = scale*e + shift + element_bias (if element_bias is True)
+  atomic_energy_scale: auto
+  element_bias: True
+
   # radial
   radial_part_type: 1
   radial_mlp_hidden_layers: 2
@@ -54,6 +64,7 @@ model:
   output_mlp_hidden_layers: 2
 
 loss:
+  type: mse
   energy_ratio: 1.0
   forces_ratio: 1.0
   normalize: true # normalize energy by number of atoms

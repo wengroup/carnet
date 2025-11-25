@@ -314,7 +314,6 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    # config_file = Path(__file__).parent / "configs" / "config_ip.yaml"
     config_file = Path(__file__).parent / "configs" / "config_ip_stress.yaml"
 
     config = get_args(config_file)

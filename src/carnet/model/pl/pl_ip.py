@@ -129,7 +129,6 @@ class InteratomicPotentialLitModule(LightningModule):
                 )
                 pos = strained_pos
                 cell = strained_cell
-
             else:
                 raise RuntimeError("Need stress but cell is not provided in the batch.")
         else:
