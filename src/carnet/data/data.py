@@ -299,10 +299,6 @@ class Config(Data):
             coords=pos, r_cut=r_cut, pbc=pbc, cell=cell
         )
 
-        # To deal with molecules, were pbc=False
-        if not np.any(pbc):
-            cell = None
-
         return cls(
             pos=pos,
             atomic_number=atomic_number,

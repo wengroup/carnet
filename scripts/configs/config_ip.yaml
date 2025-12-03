@@ -4,9 +4,13 @@ restore_checkpoint: null # path to checkpoint to restore from; if `null`, train 
 
 data:
 
-  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+
+  #  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
 
   #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
   #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
