@@ -45,18 +45,18 @@ def get_dataloaders(
     train_batch_size,
     val_batch_size,
     test_batch_size,
+    target_names=("energy", "forces"),
 ):
 
-    names = ("energy", "forces")
-    trainset = get_dataset(trainset_filename, names, atomic_number, r_cut)
+    trainset = get_dataset(trainset_filename, target_names, atomic_number, r_cut)
     train_loader = DataLoader(
         trainset, batch_size=train_batch_size, shuffle=True, drop_last=True
     )
 
-    valset = get_dataset(valset_filename, names, atomic_number, r_cut)
+    valset = get_dataset(valset_filename, target_names, atomic_number, r_cut)
     val_loader = DataLoader(valset, batch_size=val_batch_size, shuffle=False)
 
-    testset = get_dataset(testset_filename, names, atomic_number, r_cut)
+    testset = get_dataset(testset_filename, target_names, atomic_number, r_cut)
     test_loader = DataLoader(testset, batch_size=test_batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
@@ -104,33 +104,47 @@ def update_model_configs(config: dict, dataset: DatasetIP) -> dict:
                 "config file. Please remove it from the `model` section."
             )
 
-    # params determined from dataset
-    # If not provided or set to "auto" in the config file, use the values determined
-    # from the dataset
-
+    # Atomic energy shift values
+    # None: to not use any shift;
+    # "auto": to value determined from dataset
+    # path to file: read atomic energy from file
+    # float/int: to a fixed value
     shift = config["model"].pop("atomic_energy_shift", None)
     if shift is None:
-        shift = "auto"
-    if shift.lower() == "auto":
-        shift = dataset.get_mean_atomic_energy()
-    else:
-        # Read atomic energy from file and set to zero for atomic numbers not present
-        if Path(shift).is_file():
-            df = pd.read_json(shift)
-            max_atomic_number = max(df["atomic_number"])
-            shift = torch.zeros(max_atomic_number + 1)
-            for _, row in df.iterrows():
-                shift[row["atomic_number"]] = row["energy"]
+        pass
+    elif isinstance(shift, (float, int)):
+        shift = torch.tensor(shift)
+    elif isinstance(shift, str):
+        if shift.lower() == "auto":
+            shift = dataset.get_mean_atomic_energy()
         else:
-            raise ValueError(
-                f"File providing energy of individual atoms does not exist: {shift}"
-            )
+            # Read atomic energy from file; set to zero for atomic numbers not present
+            if Path(shift).is_file():
+                df = pd.read_json(shift)
+                max_atomic_number = max(df["atomic_number"])
+                shift = torch.zeros(max_atomic_number + 1)
+                for _, row in df.iterrows():
+                    shift[row["atomic_number"]] = row["energy"]
+            else:
+                raise ValueError(
+                    f"File providing energy of individual atoms does not exist: {shift}"
+                )
+    else:
+        raise ValueError(
+            "`atomic_energy_shift` should be either a float/int, 'auto', or a path to "
+            "a file providing atomic energies."
+        )
 
     scale = config["model"].pop("atomic_energy_scale", None)
     if scale is None:
-        scale = "auto"
-    if scale.lower() == "auto":
-        scale = dataset.get_root_mean_square_force()
+        pass
+    elif isinstance(scale, str):
+        if scale.lower() == "auto":
+            scale = dataset.get_root_mean_square_force()
+        else:
+            raise ValueError(
+                f"`atomic_energy_scale` should be either `None` or `'auto'`; got {scale}"
+            )
 
     num_average_neigh = config["model"].pop("num_average_neigh", None)
     if num_average_neigh is None:
@@ -152,6 +166,17 @@ def update_model_configs(config: dict, dataset: DatasetIP) -> dict:
     print(f"Updated model configs - `num_average_neigh`: {num_average_neigh}")
 
     return config
+
+
+def check_configs(config: dict):
+    if (
+        config["loss"].get("stress_ratio", 0.0) > 1e-6
+        and "stress" not in config["data"]["target_names"]
+    ):
+        raise ValueError(
+            "Config inconsistence: `stress_ratio` is set in `loss`, but `stress` not "
+            "provided in `data.target_names`."
+        )
 
 
 def get_model(
@@ -203,9 +228,12 @@ def main(config: dict):
     # Get model
     restore_checkpoint = config.pop("restore_checkpoint")
 
-    # Update configs
+    # Update model
     config = update_model_configs(config, train_loader.dataset)
     config["git_commit"] = get_git_commit()
+
+    # Consistence checking
+    check_configs(config)
 
     # Create new model
     if restore_checkpoint is None:

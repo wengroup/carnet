@@ -1,6 +1,6 @@
 """Lightning model for interatomic potential.
 
-This is supposed to be used with the `carnet.model.ip.InteratomicPotenital` model.
+This is supposed to be used with the `carnet.model.ip.InteratomicPotential` model.
 """
 
 from typing import Any

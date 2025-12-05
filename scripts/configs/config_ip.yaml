@@ -4,29 +4,36 @@ restore_checkpoint: null # path to checkpoint to restore from; if `null`, train 
 
 data:
 
-  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
-  valset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
-  testset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
+  target_names:
+    - energy
+    - forces
+    - stress
 
-  #  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-  #  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-  #  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+#  valset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+#  testset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+#  target_names:
+#    - energy
+#    - forces
+#    - stress
 
-  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
-  #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
-  #  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/nequip_LiPS/train_10_LiPS.json
+#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+#  valset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+#  testset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+#  target_names:
+#    - energy
+#    - forces
 
-  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
-  #  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
-  #  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/20240923/train_water.json
+#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+#  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+#  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+#  target_names:
+#    - energy
+#    - forces
 
-  #  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
-  #  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
-  #  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250805/ethanol_n20.json
-
-  #  trainset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
-  #  valset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
-  #  testset_filename: /Users/mjwen/Packages/camp_analysis/dataset/bilayer_graphene/bilayer_graphene_small.json
   r_cut: 5.0
   train_batch_size: 4
   val_batch_size: 20
@@ -49,8 +56,13 @@ model:
 
   # atomic energy shift and scale
   # Final energy = scale*e + shift + element_bias (if element_bias is True)
+  # if `null`, not used
+  # if `auto`, automatically determined from dataset
   atomic_energy_scale: auto
-  element_bias: True
+  atomic_energy_shift: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_r2scan_atomic_energy.json
+  element_bias: False
+  #atomic_energy_shift: auto
+  #element_bias: True
 
   # radial
   radial_part_type: 1
@@ -71,6 +83,14 @@ loss:
   type: mse
   energy_ratio: 1.0
   forces_ratio: 1.0
+  # Carnet adopts the usual stress convention. And virial = - stress * volume.
+  # Positive diagonal components of the stress tensor mean that the system is under
+  # tension (and wants to compress), whereas negative ones mean that the system is
+  # under compressive strain (and wants to expand).
+  # But in some DFT codes (e.g., VASP), the opposite convention is used.
+  #
+  # If stress ratio is 0 or not set, stress is not used in training
+  stress_ratio: 1.0
   normalize: true # normalize energy by number of atoms
 
 metrics:
@@ -85,7 +105,7 @@ optimizer:
     weight_decay: 1.0e-8
 
 lr_scheduler:
-  monitor: val_ema/mae_e
+  monitor: val_ema/mae_f
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
     mode: min
@@ -127,13 +147,13 @@ trainer:
         logging_interval: null
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
-        monitor: val_ema/mae_e
+        monitor: val_ema/mae_f
         mode: min
         save_top_k: 3
         verbose: false
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        monitor: val_ema/mae_e
+        monitor: val_ema/mae_f
         mode: min
         patience: 200
         verbose: true
