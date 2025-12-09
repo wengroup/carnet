@@ -294,14 +294,17 @@ def main(config: dict):
     trainer = Trainer(callbacks=callbacks, logger=logger, **config["trainer"])
 
     # Pass ckpt_path to trainer.fit() to restore epoch, optimizer state, lr_scheduler
-    # state, callbacks etc.
-    # See: https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
+    # state, callbacks etc. See:
+    # https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
     #
-    # So, in a restoring training, if, e.g., lr_scheduler hyperparameters are changed
-    # and new values are provided in the `config`, they won't be used in the training
-    # process, since their state will be restored from the checkpoint.
-    # Then, if you want to change the hyperparameters of the lr_scheduler, you can
-    # update the checkpoint file manually, e.g. via:
+    # If you just want to use model parameters saved in a checkpoint, which is loaded
+    # above in load_model(), but not restore settings like epoch, comment out
+    # `ckpt_path = restore_checkpint`.
+    #
+    # In a restoring training, if, e.g., lr_scheduler hyperparameters are changed and
+    # new values are provided in `config`, they won't be effective, since their state
+    # will be restored from the checkpoint. Then, if you want to change them, you can
+    # manually update the checkpoint file, e.g. via:
     # carnet.model.pl.utils.update_checkpoint()
     #
     # This will only change stuff that is related to the training process that is
