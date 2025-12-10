@@ -52,7 +52,7 @@ class Backbone(nn.Module):
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
-        use_atomic_dependent_weight: bool = True,
+        use_atomic_dependent_weight: bool | str = True,
         residual: bool = True,
     ):
         super().__init__()

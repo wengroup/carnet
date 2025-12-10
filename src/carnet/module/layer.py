@@ -31,7 +31,7 @@ class Layer(nn.Module):
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
         use_linear_channel_residual: bool = True,
-        use_atomic_dependent_weight: bool = True,
+        use_atomic_dependent_weight: bool | str = True,
         residual: bool = True,
         layer_index: int = None,
     ):
@@ -76,6 +76,29 @@ class Layer(nn.Module):
         self.use_atomic_dependent_weight = use_atomic_dependent_weight
         self.layer_index = layer_index
 
+        # Process use atomic dependent weight option
+        if isinstance(use_atomic_dependent_weight, bool):
+            self.uadw_atomic_moment = use_atomic_dependent_weight
+            self.uadw_residual = use_atomic_dependent_weight
+        elif isinstance(use_atomic_dependent_weight, str):
+            if use_atomic_dependent_weight.lower() == "atomic_moment":
+                self.uadw_atomic_moment = True
+                self.uadw_residual = False
+            elif use_atomic_dependent_weight.lower() == "residual":
+                self.uadw_atomic_moment = False
+                self.uadw_residual = True
+            else:
+                expected = ["atomic_moment", "residual"]
+                raise ValueError(
+                    f"Expect use_atomic_dependent_weight to be a bool, or {expected}."
+                    f"Got {use_atomic_dependent_weight}."
+                )
+        else:
+            raise ValueError(
+                "use_atomic_dependent_weight should be bool or str. "
+                f"Got {type(use_atomic_dependent_weight)}."
+            )
+
         # Kernel for mixing input atom feats across channel, separate for each rank
         if use_linear_channel_input:
             self.linear_channel_input = SlicedLinearMap(
@@ -100,7 +123,7 @@ class Layer(nn.Module):
         )
 
         # Kernel for mixing channel of atomic moment, separate for each rank
-        if use_atomic_dependent_weight:
+        if self.uadw_atomic_moment:
             self.linear_channel_atomic = SlicedLinearMap2(
                 F,
                 F,
@@ -136,7 +159,7 @@ class Layer(nn.Module):
             self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
 
         if self.residual and use_linear_channel_residual:
-            if use_atomic_dependent_weight:
+            if self.uadw_residual:
                 self.linear_channel_residual = SlicedLinearMap2(
                     F,
                     F,
@@ -182,7 +205,7 @@ class Layer(nn.Module):
         am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
 
         # Mix atomic moments across channel
-        if self.use_atomic_dependent_weight:
+        if self.uadw_atomic_moment:
             am = self.linear_channel_atomic(am, atom_type)  # (Na, F, T3)
         else:
             am = self.linear_channel_atomic(am)  # (Na, F, T3)
@@ -200,7 +223,7 @@ class Layer(nn.Module):
             feats_skip = atom_feats[..., :size]
 
             if self.linear_channel_residual is not None:
-                if self.use_atomic_dependent_weight:
+                if self.uadw_residual:
                     feats_skip = self.linear_channel_residual(feats_skip, atom_type)
                 else:
                     feats_skip = self.linear_channel_residual(feats_skip)

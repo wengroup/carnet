@@ -74,7 +74,15 @@ model:
   use_linear_channel_hyper: false
   residual: true
   use_linear_channel_residual: true # this is ignored if `residual` is `false`
-  use_atomic_dependent_weight: true
+
+  # Whether to use weight that is dependent on atomic number in Eqs. 6 and 9 of the
+  # CarNet paper. Options are:
+  # `true`: use in both Eqs. 6 and 9
+  # `false`: not use in either equation
+  # `atomic_moment` : use only in Eq. 6
+  # `residual` : use only in Eq. 9. Note, this will only be effective when both
+  # `residual` and `use_linear_channel_residual` are `true`.
+  use_atomic_dependent_weight: atomic_moment
 
   # output
   output_mlp_hidden_layers: 2
