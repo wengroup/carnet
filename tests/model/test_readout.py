@@ -15,6 +15,9 @@ def test_StructureScalar(batched_config_info):
     n_configs = len(num_atoms)
     total_num_atoms = num_atoms.sum()
 
+    # create dummy atomic number
+    atomic_number = torch.ones(len(atom_type), dtype=torch.long)
+
     F = 5
     T = 1
     num_layers = 2
@@ -23,8 +26,13 @@ def test_StructureScalar(batched_config_info):
     atom_feats = torch.ones(total_num_atoms, F, T)
     atom_feats = [atom_feats] * num_layers
 
-    module = StructureScalar(num_layers=num_layers, in_features=F, hidden_features=2)
-    out = module(atom_feats, atom_type, num_atoms)
+    module = StructureScalar(
+        num_layers=num_layers,
+        in_features=F,
+        hidden_features=2,
+        num_atom_types=num_atom_types,
+    )
+    out = module(atom_feats, atom_type, atomic_number, num_atoms)
 
     assert out.shape == (n_configs,)
 
@@ -41,8 +49,8 @@ def test_AtomicTensor(batched_config_info):
     total_num_atoms = num_atoms.sum()
 
     F = 5
-    num_layers = 2
     T = (3 ** (2 + 1) - 1) // 2
+    num_layers = 2
 
     # create some dummy data
     atom_feats = torch.ones(total_num_atoms, F, T)
@@ -54,6 +62,7 @@ def test_AtomicTensor(batched_config_info):
         in_features=F,
         hidden_features=2,
         output_signature=output_signature,
+        num_atom_types=num_atom_types,
     )
     out = module(atom_feats, atom_type)
 
@@ -74,8 +83,8 @@ def test_StructureTensor(batched_config_info):
     total_num_atoms = num_atoms.sum()
 
     F = 5
-    num_layers = 2
     T = (3 ** (2 + 1) - 1) // 2
+    num_layers = 2
 
     # create some dummy data
     atom_feats = torch.ones(total_num_atoms, F, T)
@@ -87,6 +96,7 @@ def test_StructureTensor(batched_config_info):
         in_features=F,
         hidden_features=2,
         output_signature=output_signature,
+        num_atom_types=num_atom_types,
     )
     out = module(atom_feats, atom_type, num_atoms)
 

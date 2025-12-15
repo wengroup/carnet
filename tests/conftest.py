@@ -126,18 +126,17 @@ def config_info():
     """Create an atomic configuration with 4 atoms and 2 atom types."""
     # 4 atoms
     atom_types = torch.tensor([0, 1, 1, 1])
-    coords = 0.2 * torch.arange(12).reshape(4, 3).to(torch.get_default_dtype())
-    coords[0, 0] += 0.1
-    coords[1, 1] += 0.2
-    coords[2, 2] += 0.3
-    coords[3, 1] += 0.1
+    coords = torch.zeros(4, 3)
+    coords[1, 0] = 3.0
+    coords[2, 1] = 4.0
+    coords[3, 2] = 1.0
 
     coords.requires_grad_(True)
 
     edge_idx = torch.tensor(
         [
-            [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
-            [1, 2, 3, 0, 2, 3, 0, 1, 3, 0, 1, 2],
+            [0, 0, 0, 1, 1, 2, 2, 3, 3, 3],
+            [1, 2, 3, 0, 3, 0, 3, 0, 1, 2],
         ]
     )
     edge_vector = torch.stack([coords[j] - coords[i] for i, j in edge_idx.T])
@@ -162,7 +161,7 @@ def batched_config_info(config_info):
     shift_vec = torch.zeros_like(edge_vector)
     shift_vec = torch.vstack([shift_vec, shift_vec])
     cell = torch.eye(3)
-    cell = torch.vstack([cell, cell])
+    cell = torch.vstack([cell, cell]).reshape(2, 3, 3)
     batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
 
     edge_vector = get_edge_vec_batch(coords, shift_vec, cell, edge_idx, batch=batch)
