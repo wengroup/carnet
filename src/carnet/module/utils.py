@@ -28,7 +28,12 @@ def check_rank(L1: int, L2: int, L3: int | list[int] | None) -> list[int]:
 
 
 def get_paths(
-    L1: int, L2: int, L3: list[int], mode: str = "full", level: int = None
+    L1: int,
+    L2: int,
+    L3: list[int],
+    mode: str = "full",
+    polar_only: bool = False,
+    level: int = None,
 ) -> dict[int, list[tuple[int, int, int]]]:
     """Get the paths from L1 and L2 to L3.
 
@@ -69,7 +74,7 @@ def get_paths(
             be non-optimal since X is typically the features and Y the dyadics.
 
             In the `lite` mode, we make the `camp` mode symmetric, allowing:
-            l3 = l1 + l2 - 2 * l1 and l3 = l1 + l2 - 2 * l2.
+            l3 = l1 + l2 - 2 * l1 or l3 = l1 + l2 - 2 * l2.
 
             If mode == `level`, additional argument `level` (see below) is used to
             specify the maximum allowed sum of l1 and l2. The paths are selected
@@ -82,6 +87,15 @@ def get_paths(
             than `L1 + L2`. A good choice for `level` to start with is max(L1, L2).
 
         level: level value for the `level` mode. Ignored for other modes.
+
+        polar_only: If `Ture`, only include paths that produce polar tensors. This is
+            achieved by considering paths where l1 + l2 + l3 is even. This is useful to
+            keep the tensors in the polar tensor space, without generating axial tensors
+            (i.e., pseudotensors). For example, when l1=1, and l2=1, the value of l3 can
+            be 1. In this case, the tensor associated with l3 is a pseudotensor. Setting
+            this to `True` avoids such cases.
+            Note, for the `lite` and `camp` mode, `polar_only` is always guaranteed,
+            regardless of the value of this argument.
 
     Returns:
         Dictionary of paths from L1 and L2 to L3: {l3: [(l1, l2, l3)]}, where each
@@ -100,11 +114,15 @@ def get_paths(
             if mode == "full":
                 for l in range(abs(l1 - l2), l1 + l2 + 1):
                     if l in L3:
+                        if polar_only and (l1 + l2 + l) % 2 != 0:
+                            continue
                         paths[l].append((l1, l2, l))
             elif mode == "camp":
                 if l1 <= l2:
                     l = l1 + l2 - 2 * l1
                     if l in L3:
+                        if polar_only and (l1 + l2 + l) % 2 != 0:
+                            continue
                         paths[l].append((l1, l2, l))
             elif mode == "lite":
                 if l2 <= l1:
@@ -112,6 +130,8 @@ def get_paths(
                 else:
                     l = l1 + l2 - 2 * l1
                 if l in L3:
+                    if polar_only and (l1 + l2 + l) % 2 != 0:
+                        continue
                     paths[l].append((l1, l2, l))
             elif mode == "level":
                 if level is None:
@@ -121,6 +141,8 @@ def get_paths(
                     if l != 0 and l1 + l2 > level:
                         continue
                     if l in L3:
+                        if polar_only and (l1 + l2 + l) % 2 != 0:
+                            continue
                         paths[l].append((l1, l2, l))
 
             else:
@@ -131,12 +153,15 @@ def get_paths(
 
 if __name__ == "__main__":
 
-    L1 = 3
-    L2 = 3
-    L3 = list(range(3 + 1))
-    for mode in ["full", "lite", "camp"]:
-        paths = get_paths(L1, L2, L3, mode)
+    L1 = L2 = 3
+    L3 = list(range(L1 + 1))
+    for mode in ["full", "lite", "level", "camp"]:
+        if mode == "level":
+            level = L1
+        else:
+            level = None
+        paths = get_paths(L1, L2, L3, mode, polar_only=True, level=level)
         print("\n" + "#" * 40)
         print(f"mode: {mode}")
-        print({k: len(v) for k, v in paths.items()})
+        print("Number of paths:", {k: len(v) for k, v in paths.items()})
         pprint(paths)
