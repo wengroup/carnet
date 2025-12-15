@@ -1,4 +1,5 @@
 import torch
+from lightning import seed_everything
 from natt.utils import is_symmetric, is_traceless
 
 from carnet.core.convert import Converter
@@ -82,7 +83,7 @@ def test_StructureTensorModel(batched_config_info):
     assert is_traceless(structure_tensor[4], start_dim=2)
 
 
-def test_equivariance(config_info):
+def test_rotation(config_info):
     """
     Test the equivariance of the StructureTensorModel.
     R f(x) = f(R x)
@@ -120,3 +121,45 @@ def test_equivariance(config_info):
     fRx = fRx.squeeze(0)  # remove batch dimension
 
     assert torch.allclose(Rfx, fRx, rtol=1e-5, atol=1e-6)
+
+
+def test_inversion(config_info):
+    """
+    Test inversion of the StructureTensorModel.
+    f(x) = f(-x) for even parity
+    f(x) = -f(-x) for odd parity
+
+    """
+    seed_everything(35)
+
+    _, atom_type, edge_vector, edge_idx, num_atoms, num_atom_types = config_info
+
+    # tensor
+    signature = {0: 1, 1: 1, 2: 1, 3: 1, 4: 1}
+    model = StructureTensorModel(
+        F=6,
+        max_L=4,
+        num_atom_types=num_atom_types,
+        r_cut=4.0,
+        num_layers=2,
+        num_average_neigh=1.0,
+        output_signature=signature,
+        tp_path_mode="full",
+        tp_path_polar_only=True,  # This should be `True` to ensure inversion sym
+    )
+
+    # f(x)
+    N = num_atoms.view(1)  # make it a 1D tensor
+    nat_tensor = model(edge_vector, edge_idx, atom_type, N)
+
+    # f(-x)
+    inverted_edge_vector = -edge_vector
+    inverted_nat_tensor = model(inverted_edge_vector, edge_idx, atom_type, N)
+
+    for l, n in signature.items():
+        v1 = nat_tensor[l]
+        v2 = inverted_nat_tensor[l]
+        if l % 2 == 0:  # even rank polar tensor, sign not change
+            assert torch.allclose(v1, v2, rtol=1e-5, atol=1e-6)
+        else:  # odd rank polar tensor, sign changes
+            assert torch.allclose(v1, -v2, rtol=1e-5, atol=1e-6)
