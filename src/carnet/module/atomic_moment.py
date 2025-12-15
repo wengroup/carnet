@@ -37,6 +37,7 @@ class AtomicMoment(nn.Module):
         r_cut: float = 5,
         envelope: int = 6,
         tp_path_mode: str = "lite",
+        tp_path_polar_only: bool = False,
         level: int = None,
     ):
         super().__init__()
@@ -62,6 +63,7 @@ class AtomicMoment(nn.Module):
             L3,
             normalize="unity",
             path_mode=tp_path_mode,
+            path_polar_only=tp_path_polar_only,
             level=level,
             for_atomic_moment=True,
         )

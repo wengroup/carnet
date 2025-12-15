@@ -27,6 +27,7 @@ class Layer(nn.Module):
         max_out_L: int = None,
         max_degree: int = 3,
         tp_path_mode: str = "lite",
+        tp_path_polar_only: bool = False,
         level: int = None,
         use_linear_channel_input: bool = False,
         use_linear_channel_hyper: bool = False,
@@ -119,6 +120,7 @@ class Layer(nn.Module):
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
             r_cut=r_cut,
             tp_path_mode=tp_path_mode,
+            tp_path_polar_only=tp_path_polar_only,
             level=level,
         )
 
@@ -142,6 +144,7 @@ class Layer(nn.Module):
             max_out_L=self.max_out_L,
             max_degree=self.max_degree,
             tp_path_mode=tp_path_mode,
+            tp_path_polar_only=tp_path_polar_only,
             level=level,
         )
 

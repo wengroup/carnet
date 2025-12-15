@@ -43,6 +43,7 @@ class HyperMoment(nn.Module):
         max_out_L: int = None,
         max_degree: int = 3,
         tp_path_mode: str = "lite",
+        tp_path_polar_only: bool = False,
         level: int = None,
     ):
         super().__init__()
@@ -90,6 +91,7 @@ class HyperMoment(nn.Module):
                     out_L,
                     normalize="unity",
                     path_mode=tp_path_mode,
+                    path_polar_only=tp_path_polar_only,
                     level=level,
                 )
             )

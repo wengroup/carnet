@@ -47,6 +47,7 @@ class Backbone(nn.Module):
         radial_mlp_hidden_layers: list[int] | int = 2,
         #
         tp_path_mode: str = "lite",
+        tp_path_polar_only: bool = False,
         level: int = None,
         # optional layers
         use_linear_channel_input: bool = False,
@@ -111,6 +112,7 @@ class Backbone(nn.Module):
                     max_out_L=out_L,
                     max_degree=self.max_degree,
                     tp_path_mode=tp_path_mode,
+                    tp_path_polar_only=tp_path_polar_only,
                     level=level,
                     residual=residual,
                     use_linear_channel_input=use_linear_channel_input,
