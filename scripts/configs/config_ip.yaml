@@ -40,8 +40,17 @@ data:
   test_batch_size: 20
 
 model:
-  # general
-  tp_path_mode: full # options: `full`, `lite`, `camp`
+  # General
+  # `tp_path_mode` and `tp_path_polar_only` control the way to select the paths for
+  # tensor product.
+  # Options for `tp_path_mode` are: `full`, `lite`, `level`, and `camp`. See CarNet
+  # manuscript for details.
+  # If `tp_path_polar_only` is true, this further downselects paths that generate polar
+  # tensors, and paths that generate axial tensors are discarded.
+  # Note, `lite` or `camp` modes only generate polar tensors, so when using them,
+  # `tp_path_polar_only` has no effect.
+  tp_path_mode: lite
+  tp_path_polar_only: false
   F: 8 # number of channels
   num_layers: 2 # number of layers
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
