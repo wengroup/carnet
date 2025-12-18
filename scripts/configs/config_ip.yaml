@@ -46,9 +46,9 @@ model:
   # Options for `tp_path_mode` are: `full`, `lite`, `level`, and `camp`. See CarNet
   # manuscript for details.
   # If `tp_path_polar_only` is true, this further downselects paths that generate polar
-  # tensors, and paths that generate axial tensors are discarded.
-  # Note, `lite` or `camp` modes only generate polar tensors, so when using them,
-  # `tp_path_polar_only` has no effect.
+  # tensors, whereas paths that generate axial tensors are discarded.
+  # Note, `lite` or `camp` modes only generate polar tensors by construction, so when
+  # they are used, `tp_path_polar_only` has no effect.
   tp_path_mode: lite
   tp_path_polar_only: false
   F: 8 # number of channels
@@ -69,9 +69,9 @@ model:
   # if `auto`, automatically determined from dataset
   atomic_energy_scale: auto
   atomic_energy_shift: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_r2scan_atomic_energy.json
-  element_bias: False
+  element_bias: false
   #atomic_energy_shift: auto
-  #element_bias: True
+  #element_bias: true
 
   # radial
   radial_part_type: 1
@@ -87,7 +87,7 @@ model:
   # Whether to use weight that is dependent on atomic number in Eqs. 6 and 9 of the
   # CarNet paper. Options are:
   # `true`: use in both Eqs. 6 and 9
-  # `false`: not use in either equation
+  # `false`: do not use in either equation
   # `atomic_moment` : use only in Eq. 6
   # `residual` : use only in Eq. 9. Note, this will only be effective when both
   # `residual` and `use_linear_channel_residual` are `true`.
