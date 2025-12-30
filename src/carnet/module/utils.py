@@ -224,10 +224,10 @@ if __name__ == "__main__":
                     L2,
                     L3,
                     mode,
+                    level=level,
                     polar_only=polar,
                     l2_even_parity=l2_even_parity,
                     downward=True,
-                    level=level,
                 )
 
                 print("\n" + "#" * 20)

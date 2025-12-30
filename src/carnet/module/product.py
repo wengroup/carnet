@@ -88,7 +88,14 @@ class TensorProduct(nn.Module):
             level = max(L1, L2)
 
         self.paths = get_paths(
-            self.L1, self.L2, self.L3, path_mode, path_polar_only, level
+            self.L1,
+            self.L2,
+            self.L3,
+            path_mode,
+            level=level,
+            polar_only=path_polar_only,
+            l2_even_parity=False,
+            downward=False,
         )
 
         # Kernel parameters for linear combination of paths to each l3
