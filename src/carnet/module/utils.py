@@ -32,8 +32,10 @@ def get_paths(
     L2: int,
     L3: list[int],
     mode: str = "full",
-    polar_only: bool = False,
     level: int = None,
+    polar_only: bool = False,
+    l2_even_parity: bool = False,
+    downward: bool = False,
 ) -> dict[int, list[tuple[int, int, int]]]:
     """Get the paths from L1 and L2 to L3.
 
@@ -42,8 +44,9 @@ def get_paths(
         L1: maximum rank of the natural tensor in the first input feature tensor.
         L2: maximum rank of the natural tensor in the second input feature tensor.
         L3: ranks of the output feature tensor.
+
         mode: method to select the paths. Supported modes are `full`, `camp`,
-            `lite`, and `level`.
+            `lite`, and `level`, and `level2`.
 
             In a nutshell:
             - `full` allows all paths, but can be computationally expensive.
@@ -65,6 +68,19 @@ def get_paths(
 
             In `full` mode, there is no additional restriction on the paths.
 
+            If mode == `level`, additional argument `level` (see below) is used to
+            specify the maximum allowed sum of l1 and l2. The paths are selected
+            based on:
+            l1+l2 <= level.
+            Note, this is not applied for l3=0 (scalars), but only for higher ranks.
+            This becomes the same as the `full` mode when level is set to a value larger
+            than `L1 + L2`. A good choice for `level` to start with is max(L1, L2).
+
+            For the `level2` mode, everything is the same as `level` mode, except that
+            the restriction is:
+            l1 + l2 + l3 <= level.
+            This is similar to the `MTP` way of selecting the basis functions.
+
             In `camp` mode, the paths are selected in the same way as in the CAMP model.
             It requires l1 to be fully contracted, and as a result,
             l3 = l1 + l2 - 2 * l1.
@@ -76,92 +92,148 @@ def get_paths(
             In the `lite` mode, we make the `camp` mode symmetric, allowing:
             l3 = l1 + l2 - 2 * l1 or l3 = l1 + l2 - 2 * l2.
 
-            If mode == `level`, additional argument `level` (see below) is used to
-            specify the maximum allowed sum of l1 and l2. The paths are selected
-            based on:
-            l1+l2 <= level.
-
-            Note, this is not applied for l3=0 (scalars), but only for higher ranks.
-
-            This becomes the same as the `full` mode when level is set to a value larger
-            than `L1 + L2`. A good choice for `level` to start with is max(L1, L2).
 
         level: level value for the `level` mode. Ignored for other modes.
 
-        polar_only: If `Ture`, only include paths that produce polar tensors. This is
-            achieved by considering paths where l1 + l2 + l3 is even. This is useful to
-            keep the tensors in the polar tensor space, without generating axial tensors
-            (i.e., pseudotensors). For example, when l1=1, and l2=1, the value of l3 can
-            be 1. In this case, the tensor associated with l3 is a pseudotensor. Setting
-            this to `True` avoids such cases.
-            Note, for the `lite` and `camp` mode, `polar_only` is always guaranteed,
-            regardless of the value of this argument.
+        polar_only: If `Ture`, only include paths that produce polar tensors. This
+            should be used together with `l2_even_parity` (see below).
+
+        l2_even_parity: Whether the tensor associated with l2 is always of even
+            time reversal symmetry. This should be used together with `polar_only`.
+
+            `polar_only` and `l2_even_parity` together define the parity constraint on
+            the allowed paths.
+
+            When `polar_only` is `False`, (l2_even_parity` is ignored), no parity
+            constraint is applied and the paths are determined solely by the `mode`.
+
+            When `polar_only=True` and `l2_even_parity=False`, we restrict the paths to
+            only those that produce polar tensors. In addition, `l2_even_parity=False`
+            indicates that l2 is associated with a tensor whose parity is (-1)^l2.
+            In this case, given that l1 and l2 are the ranks of two polar tensors,
+            their parities are p1 = (-1)^l1 and p2 = (-1)^l2. Then the parity of l3 is
+            p3 = p1 * p2 = (-1)^(l1+l2). If we want to stay in the polar tensor space,
+            we need p3 = (-1)^l3, which leads to the condition that l1 + l2 - l3 should
+            be even.
+            Note, l1+l2-l3 is even is always true for the `lite` and `camp` modes by
+            construction, so no additional paths are removed in these two modes.
+
+            When `polar_only=True` and `l2_even_parity=False`, we restrict the paths to
+            only those that produce polar tensors, In addition, `l2_even_parity=True`
+            indicates that is associated with a tensor whose parity is always even,
+            i.e. p2=1. In this case, l1 is still associated with a polar tensor,
+            whose parity is p1 = (-1)^l1. Then, the output parity is p3 = p1 * p2 =
+            (-1)^l1. And, of course, we want p3 = (-1)^l3. This leads to the condition
+            that l1 - l3 should be even.
+
+            To sum:
+            - polar_only=False: no parity constraint.
+            - polar_only=True, l2_even_parity=False: l1 + l2 - l3 should be even. This
+              is automatically satisfied for `lite` and `camp` modes.
+            - polar_only=True, l2_even_parity=True: l1 - l3 should be even.
+
+        downward: Only paths that go from higher-rank tensors to lower-rank tensors
+            are allowed. This can be useful when the goal is to propagate information
+            from higher-rank tensors to lower-rank tensors.
+            Specifically, the allowed paths satisfy:
+            l3 <= max(l1, l2).
+
+            This, together with `mode`, defines how the paths are selected.
 
     Returns:
         Dictionary of paths from L1 and L2 to L3: {l3: [(l1, l2, l3)]}, where each
         tuple is a valid path from l1 and l2 to l3.
     """
-    paths = defaultdict(list)
 
-    if level is not None and mode != "level":
-        raise ValueError(
-            "`level` is provided,  but not needed for mode other than `level`."
-            "Set to `None` if not needed."
-        )
+    def is_polar(l1, l2, l, l2_even_parity):
+        if l2_even_parity:
+            return (l1 + l) % 2 == 0
+        else:
+            return (l1 + l2 + l) % 2 == 0
+
+    paths = defaultdict(list)
 
     for l1 in range(L1 + 1):
         for l2 in range(L2 + 1):
             if mode == "full":
-                for l in range(abs(l1 - l2), l1 + l2 + 1):
-                    if l in L3:
-                        if polar_only and (l1 + l2 + l) % 2 != 0:
-                            continue
-                        paths[l].append((l1, l2, l))
-            elif mode == "camp":
-                if l1 <= l2:
-                    l = l1 + l2 - 2 * l1
-                    if l in L3:
-                        if polar_only and (l1 + l2 + l) % 2 != 0:
-                            continue
-                        paths[l].append((l1, l2, l))
-            elif mode == "lite":
-                if l2 <= l1:
-                    l = l1 + l2 - 2 * l2
-                else:
-                    l = l1 + l2 - 2 * l1
-                if l in L3:
-                    if polar_only and (l1 + l2 + l) % 2 != 0:
-                        continue
-                    paths[l].append((l1, l2, l))
+                candidate = range(abs(l1 - l2), l1 + l2 + 1)
             elif mode == "level":
                 if level is None:
                     raise ValueError("level must be specified when mode is 'level'.")
-                for l in range(abs(l1 - l2), l1 + l2 + 1):
-                    # For scalars, we don't apply the level restriction
-                    if l != 0 and l1 + l2 > level:
-                        continue
-                    if l in L3:
-                        if polar_only and (l1 + l2 + l) % 2 != 0:
-                            continue
-                        paths[l].append((l1, l2, l))
-
+                candidate = [
+                    l
+                    for l in range(abs(l1 - l2), l1 + l2 + 1)
+                    if l == 0  # Don't apply level restriction for l=0
+                    or l1 + l2 <= level
+                ]
+            elif mode == "level2":
+                if level is None:
+                    raise ValueError("level must be specified when mode is 'level2'.")
+                candidate = [
+                    l
+                    for l in range(abs(l1 - l2), l1 + l2 + 1)
+                    if l == 0  # Don't apply level restriction for l=0
+                    or l1 + l2 + l <= level
+                ]
+            elif mode == "camp":
+                candidate = [l1 + l2 - 2 * l1] if l1 <= l2 else []
+            elif mode == "lite":
+                candidate = [l1 + l2 - 2 * l1] if l1 <= l2 else [l1 + l2 - 2 * l2]
             else:
                 raise ValueError(f"Invalid mode: {mode}.")
+
+            for l in candidate:
+                # Only keep l in L3
+                if l not in L3:
+                    continue
+
+                # Only keep downward paths
+                if downward and not l <= max(l1, l2):
+                    continue
+
+                # If polar_only, only keep paths that produce polar tensors
+                if polar_only and not is_polar(l1, l2, l, l2_even_parity):
+                    continue
+
+                paths[l].append((l1, l2, l))
 
     return paths
 
 
 if __name__ == "__main__":
 
-    L1 = L2 = 3
-    L3 = list(range(L1 + 1))
-    for mode in ["full", "lite", "level", "camp"]:
-        if mode == "level":
-            level = L1
-        else:
-            level = None
-        paths = get_paths(L1, L2, L3, mode, polar_only=True, level=level)
-        print("\n" + "#" * 40)
-        print(f"mode: {mode}")
-        print("Number of paths:", {k: len(v) for k, v in paths.items()})
-        pprint(paths)
+    L1 = 2
+    L2 = 2
+    L3 = list(range(L2 + 1))
+
+    for mode in ["full", "lite", "camp", "level", "level2"]:
+        print("\n" + "#" * 80)
+
+        for polar in [False, True]:
+            print("\n" + "#" * 40)
+
+            for l2_even_parity in [False, True]:
+                if mode in ["level"]:
+                    level = L2
+                elif mode in ["level2"]:
+                    level = L1 + L2 + 1
+                else:
+                    level = None
+                paths = get_paths(
+                    L1,
+                    L2,
+                    L3,
+                    mode,
+                    polar_only=polar,
+                    l2_even_parity=l2_even_parity,
+                    downward=True,
+                    level=level,
+                )
+
+                print("\n" + "#" * 20)
+                print(f"mode: {mode}")
+                print(f"polar_only: {polar}")
+                print(f"l2_even_parity: {l2_even_parity}")
+                print(f": {L1}")
+                print("Number of paths:", {k: len(v) for k, v in paths.items()})
+                pprint(paths)
