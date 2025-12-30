@@ -97,7 +97,8 @@ model:
   output_mlp_hidden_layers: 2
 
 loss:
-  type: mse
+  type: huber # options are `mse` `mae` and `huber`
+  delta: 0.01 # Hubber delta, only used if type is `huber`
   energy_ratio: 1.0
   forces_ratio: 1.0
   # Carnet adopts the usual stress convention. And virial = - stress * volume.

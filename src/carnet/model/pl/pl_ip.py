@@ -53,6 +53,13 @@ class InteratomicPotentialLitModule(LightningModule):
             self.loss_func = nn.functional.mse_loss
         elif loss_type == "mae":
             self.loss_func = nn.functional.l1_loss
+        elif loss_type == "huber":
+            delta = self.loss_hparams.get("delta", None)
+            if delta is None:
+                raise ValueError(
+                    "Please provide `delta` in loss params for huber loss."
+                )
+            self.loss_func = nn.HuberLoss(delta=delta, reduction="mean")
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
@@ -168,16 +175,9 @@ class InteratomicPotentialLitModule(LightningModule):
 
         e_pred, f_pred, s_pred = self(batch)
 
-        if self.loss_hparams["normalize"]:
-            # losses = self.compute_loss_1(e_pred, f_pred, e_ref, f_ref, num_atoms)
-            losses = self.compute_loss_1_2(
-                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
-            )
-        else:
-            # losses = self.compute_loss_2(e_pred, f_pred, e_ref, f_ref, num_atoms)
-            losses = self.compute_loss_2_2(
-                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
-            )
+        losses = self.compute_loss(
+            e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
+        )
         metrics = self.compute_metrics(
             e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, "train"
         )
@@ -253,6 +253,57 @@ class InteratomicPotentialLitModule(LightningModule):
                 batch_size=batch_size,
             )
 
+    def compute_loss(self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms):
+        """
+
+        Energy:
+
+        If not normalize:
+            L_e = (1/Nc) * L(E_pred, E_ref)
+
+        If normalize:
+            L_e = (1/Nc) * L(E_pred/Nc, E_ref/Nc)
+
+        Forces:
+            L_f = (1/Nf) * L(F_pred, F_ref)
+
+        Stress: (if needed)
+            L_s = (1/(9Nc)) * L(S_pred, S_ref)
+
+        where Nc is the number of configurations in the batch, Nf is the total number
+        of forces components in the batch (3 * total number of atoms in the batch).
+
+        Note, if the batch consists of configurations of different sizes, normalizing
+        the energy by the number of atoms ensures that the energy is treated on a
+        per-atom basis. In this case, it can avoid the situation where larger structures
+        dominate the energy loss.
+        For forces and stress, they system size normalization is already taken into
+        account.
+
+        If we want to treat each structure equally, use `compute_loss_1` instead.
+        """
+        if self.loss_hparams["normalize"]:
+            e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
+                e_pred / num_atoms, e_ref / num_atoms
+            )
+        else:
+            e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(e_pred, e_ref)
+
+        f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(f_pred, f_ref)
+
+        loss = e_loss + f_loss
+        losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
+
+        if self.need_stress:
+            s_loss = self.loss_hparams["stress_ratio"] * self.loss_func(s_pred, s_ref)
+
+            loss += s_loss
+            losses["train/loss_stress"] = s_loss
+
+        losses["train/loss_total"] = loss
+
+        return losses
+
     def compute_loss_1(self, e_pred, f_pred, e_ref, f_ref, num_atoms):
         """
         This loss
@@ -297,120 +348,6 @@ class InteratomicPotentialLitModule(LightningModule):
         }
 
         return losses
-
-    def compute_loss_1_2(self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms):
-        """
-        A simplified version of `compute_loss_1` that only works for dataset with the
-        same number of atoms in each config, i.e. N_k = N for all k.
-
-        In this case, the force term is simply:
-            L_f = 1/(3KN) sum_k sum_i (F_pred - F_ref)^2
-        """
-
-        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
-            e_pred / num_atoms, e_ref / num_atoms, reduction="mean"
-        )
-        f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(
-            f_pred, f_ref, reduction="mean"
-        )
-
-        loss = e_loss + f_loss
-        losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
-
-        if self.need_stress:
-            s_loss = self.loss_hparams["stress_ratio"] * self.loss_func(
-                s_pred, s_ref, reduction="mean"
-            )
-
-            loss += s_loss
-            losses["train/loss_stress"] = s_loss
-
-        losses["train/loss_total"] = loss
-
-        return losses
-
-    def compute_loss_2(self, e_pred, f_pred, e_ref, f_ref, num_atoms):
-        """
-        This loss
-            - not normalize energy
-            - normalize forces by N_k
-
-            L = 1/K sum_k^K [
-                (E_pred - E_ref)^2
-              + 1/(3N_k) sum_i^{N_k} (F_pred - F_ref)^2
-              ]
-
-        This is the used in
-            - NequIP (eq 9)
-            - Allegro (eq 29)
-            - MACE (eq 15) https://doi.org/10.48550/arXiv.2206.07697
-        """
-
-        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
-            e_pred, e_ref, reduction="mean"
-        )
-
-        K = len(num_atoms)  # batch size
-        f_norm = torch.repeat_interleave(num_atoms, num_atoms).sqrt().reshape(-1, 1)
-        f_loss = (
-            self.loss_hparams["forces_ratio"]
-            * self.loss_func(f_pred / f_norm, f_ref / f_norm, reduction="sum")
-            / (3 * K)
-        )
-
-        loss = e_loss + f_loss
-
-        losses = {
-            "train/loss_total": loss,
-            "train/loss_energy": e_loss,
-            "train/loss_forces": f_loss,
-        }
-
-        return losses
-
-    def compute_loss_2_2(self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms):
-        """
-        A simplified version of `compute_loss_2` that only works for dataset with the
-        same number of atoms in each config, i.e. N_k = N for all k.
-
-        Note, division by K for energy (3KN for forces) is considered with  `mse_loss`,
-        by using `reduction=mean`.
-        """
-
-        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
-            e_pred, e_ref, reduction="mean"
-        )
-        f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(
-            f_pred, f_ref, reduction="mean"
-        )
-
-        loss = e_loss + f_loss
-        losses = {"train/loss_energy": e_loss, "train/loss_forces": f_loss}
-
-        if self.need_stress:
-            s_loss = self.loss_hparams["stress_ratio"] * self.loss_func(
-                s_pred, s_ref, reduction="mean"
-            )
-
-            loss += s_loss
-            losses["train/loss_stress"] = s_loss
-
-        return losses
-
-    def compute_loss_3(self, e_pred, f_pred, e_ref, f_ref, num_atoms):
-        """
-        This loss
-            - normalize energy by N
-            - not normalize forces by N
-
-        L = 1/K sum_k^K [ 1/N_k^2 (E_pred - E_ref)^2 }
-                         + sum_i^{N_k} (F_pred - F_ref)^2 ]
-
-
-        This is used in
-            - the `vibrations` model of MTP
-            - a MACE model Eq (14) of https://doi.org/10.1063/5.0155322
-        """
 
     def compute_metrics(
         self, e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode: str
