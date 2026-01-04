@@ -116,7 +116,7 @@ def update_model_configs(config: dict, dataset: DatasetIP) -> dict:
         shift = torch.tensor(shift)
     elif isinstance(shift, str):
         if shift.lower() == "auto":
-            shift = dataset.get_mean_atomic_energy()
+            shift = dataset.get_linear_fit_atomic_energy()
         else:
             # Read atomic energy from file; set to zero for atomic numbers not present
             if Path(shift).is_file():
