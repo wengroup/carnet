@@ -4,6 +4,7 @@ from typing import Callable, Sequence
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.linear_model import LinearRegression
 from torch import Tensor
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data.data import BaseData
@@ -163,6 +164,14 @@ class DatasetIP(BaseDataset):
              Scalar tensor.
         """
         return _get_mean_atomic_energy(self)
+
+    def get_linear_fit_atomic_energy(self) -> Tensor:
+        """Get the atomic energy per element by linear fitting."""
+
+        atomic_numbers = [config["atomic_number"].tolist() for config in self]
+        energies = [config.y["energy"].item() for config in self]
+
+        return linear_fit_atomic_energy(atomic_numbers, energies)
 
     def get_root_mean_square_force(self) -> Tensor:
         """Get the root-mean-square force.
@@ -325,6 +334,47 @@ def _get_root_mean_square_force(self) -> Tensor:
     rms = (s / n) ** 0.5
 
     return rms
+
+
+def linear_fit_atomic_energy(
+    atomic_number: list[list[int]], energy: list[float]
+) -> Tensor:
+    """
+    Perform a linear fit to get the atomic energy per element.
+
+    Args:
+        atomic_number: list of atomic numbers for each configuration.
+        energy: total energy for each configuration.
+
+    Returns:
+        Atomic energy per element. The shape is (N+1,), where N max atomic number in the
+        dataset. The 0-th element is unused. As such, atomic_energy[Z] gives the atomic
+        energy for element with atomic number Z.
+    """
+    # Get unique atomic numbers and create mapping between atomic number and index
+    atomic_number_set = set().union(*(set(am) for am in atomic_number))
+    idx_to_atomic_number = {i: z for i, z in enumerate(sorted(atomic_number_set))}
+    atomic_number_to_idx = {v: k for k, v in idx_to_atomic_number.items()}
+
+    # Prepare feature matrix X, where X[i, j] is the count of element j in config i.
+    # Note, j is the index, not the atomic number
+    X = []
+    for am in atomic_number:
+        indices = [atomic_number_to_idx[z] for z in am]
+        x = np.bincount(indices, minlength=len(atomic_number_set))
+        X.append(x)
+
+    # Fit X*a = y to get atomic energy, intercept should not be used
+    model = LinearRegression(fit_intercept=False)
+    model.fit(X, energy)
+
+    # Convert to tensor with shape (max_atomic_number + 1,)
+    atomic_energy = torch.zeros(max(atomic_number_set) + 1)
+    for i, e in enumerate(model.coef_):
+        z = idx_to_atomic_number[i]
+        atomic_energy[z] = e
+
+    return atomic_energy
 
 
 def _get_tensor_shifts_and_scales(self, name):
