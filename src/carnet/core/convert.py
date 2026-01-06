@@ -1,5 +1,7 @@
 """Convertion between ordinary cartesian tensor T and natural tensors X."""
 
+import warnings
+
 import torch
 import torch.nn as nn
 from natt.GHS import get_G_H_S
@@ -32,6 +34,15 @@ class Converter(nn.Module):
     def __init__(self, symmetry: str):
         super().__init__()
         self.rank = len(set(symmetry.replace("=", "").replace(" ", "")))
+
+        if self.rank <= 1:
+            warnings.warn(
+                "Conversion to natural tensors is needed for rank-2 or higher tensors. "
+                "The provided summetry `{symmetry}` suggests a convertion for a "
+                f"a rank-{self.rank} tensor is requested. In this case, a simple "
+                "identity map is used."
+            )
+            return
 
         if "=" not in symmetry:
             self.symmetry = None
@@ -73,9 +84,14 @@ class Converter(nn.Module):
             and 3^l is the flattened dimension of the tensor. The second dimension F
             batches natural tensors of the same rank l, but different seniority p.
         """
+
+        # No conversion needed
+        if self.rank <= 1:
+            return {self.rank: T.unsqueeze(-2)}
+
         B = T.shape[: -self.rank]
 
-        # TODO, the looping is very inefficient, need to think about better ways
+        # TODO, the looping is inefficient, need to think about better ways
         out = {}
         for l, num_p in self.l_num_p.items():
             out[l] = torch.stack(
@@ -115,6 +131,10 @@ class Converter(nn.Module):
             If `flatten_tensor_dim` is True, the tensor dim will be flattened to a
             single dimension of size `3**rank`.
         """
+        # No conversion needed
+        if self.rank <= 1:
+            return X[self.rank].squeeze(-2)
+
         B = X[list(X.keys())[0]].shape[:-2]
 
         out = []
