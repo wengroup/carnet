@@ -84,12 +84,12 @@ model:
   residual: true
   use_linear_channel_residual: true # this is ignored if `residual` is `false`
 
-  # Whether to use weight that is dependent on atomic number in Eqs. 6 and 9 of the
+  # Whether to use weight that is dependent on atomic number in Eqs. 6 and 8 of the
   # CarNet paper. Options are:
-  # `true`: use in both Eqs. 6 and 9
+  # `true`: use in both Eqs. 6 and 8
   # `false`: do not use in either equation
   # `atomic_moment` : use only in Eq. 6
-  # `residual` : use only in Eq. 9. Note, this will only be effective when both
+  # `residual` : use only in Eq. 8. Note, this will only be effective when both
   # `residual` and `use_linear_channel_residual` are `true`.
   use_atomic_dependent_weight: atomic_moment
 
