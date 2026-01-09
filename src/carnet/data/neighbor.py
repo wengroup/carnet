@@ -8,7 +8,6 @@ def get_neigh(
     pbc: bool | tuple[bool, bool, bool] = False,
     cell: np.ndarray | None = None,
     self_interaction: bool = False,
-    periodic_self_interaction: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Create neighbor list for all points in a point cloud.
@@ -23,9 +22,8 @@ def get_neigh(
             Ignored if `pbc == False` or pbc == None`.
         self_interaction: Whether to include self-interaction, i.e. an atom being the
             neighbor of itself in the neighbor list. Should be False for most
-            applications.
-        periodic_self_interaction: Whether to include interactions of an atom with its
-            periodic images. Should be True for most applications.
+            applications. Note, an atom will always interact with its periodic image.
+            This setting does not control that.
 
     Returns:
         edge_index: (2, num_edges) array of edge indices. The first row contains the
@@ -39,10 +37,6 @@ def get_neigh(
     if isinstance(pbc, bool):
         pbc = [pbc] * 3
 
-    if not np.any(pbc):
-        self_interaction = False
-        periodic_self_interaction = False
-
     if cell is None:
         if not np.any(pbc):
             cell = np.eye(3)  # dummy cell to use
@@ -55,40 +49,16 @@ def get_neigh(
         cell=cell,
         positions=coords,
         cutoff=r_cut,
-        self_interaction=periodic_self_interaction,
+        self_interaction=self_interaction,
     )
 
-    # remove self interactions
-    if periodic_self_interaction and (not self_interaction):
-        bad_edge = first_idx == second_idx
-        bad_edge &= np.all(shift_vec == 0, axis=1)
-        keep_edge = ~bad_edge
-        if not np.any(keep_edge):
-            raise RuntimeError(
-                "After removing self interactions, no edges remain in this system."
-            )
-        first_idx = first_idx[keep_edge]
-        second_idx = second_idx[keep_edge]
-        shift_vec = shift_vec[keep_edge]
-        edge_vec = edge_vec[keep_edge]
-
-    # number of neighbors for each atom
-    num_neigh = np.bincount(first_idx)
-
     # Some atoms do not have neighbors
-    # This guarantees the below `if len(num_neigh) != len(coords):` checking will not
-    # happen, which is what we prefer.
-    if set(first_idx) != set(range(len(coords))):
+    n_atoms = len(coords)
+    if set(first_idx) != set(range(n_atoms)):
         raise RuntimeError("Some atoms do not have neighbors.")
 
-    # Some atoms with large index may not have neighbors due to the use of bincount.
-    # As a concrete example, suppose we have 5 atoms and first_idx is [0,1,1,3,3,3,3],
-    # then bincount will be [1, 2, 0, 4], which means atoms 0,1,2,3 have 1,2,0,4
-    # neighbors respectively. Although atom 2 is handled by bincount, atom 4 is not.
-    # The below part is to make this work.
-    if len(num_neigh) != len(coords):
-        extra = np.zeros(len(coords) - len(num_neigh), dtype=int)
-        num_neigh = np.concatenate((num_neigh, extra))
+    # Number of neighbors for each atom
+    num_neigh = np.bincount(first_idx, minlength=n_atoms)
 
     edge_index = np.vstack((first_idx, second_idx))
 
