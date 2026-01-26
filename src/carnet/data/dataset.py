@@ -393,7 +393,8 @@ def _get_tensor_shifts_and_scales(self, name):
                 scales[rank] += val.pow(2).sum()
 
     # Scale of tensors of rank > 0
-    # normalize by N*F*T, where:
+    # normalize each of scales by N*F*T (which is the total number of components summed
+    # in each of scales), where:
     # - N is the number of configurations;
     # - F is the number of natural tensors; Typically it is 1 for structure tensors,
     #   and it can be > 1 for atomic tensors where each configuration consists of
