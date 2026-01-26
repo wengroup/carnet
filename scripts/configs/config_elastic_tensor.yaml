@@ -58,6 +58,9 @@ model:
   reduce: mean
 
 loss:
+  type: mse
+#  type: huber
+#  delta: 0.01
   # ratio of the loss for each rank of natural tensor
   # The loss is: \sum w_i (y_i - \hat y_i)^2,
   # where y_i is the model prediction for natural tensor of rank i, and \hat y_i is corresponding target;

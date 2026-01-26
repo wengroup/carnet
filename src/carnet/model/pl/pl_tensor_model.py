@@ -46,6 +46,21 @@ class BaseLitModule(LightningModule):
         self.ema_hparams = ema_hparams
         self.ema = EMA(self.model, **self.ema_hparams)
 
+        loss_type = self.loss_hparams.get("type", None)
+        if loss_type == "mse":
+            self.loss_func = nn.functional.mse_loss
+        elif loss_type == "mae":
+            self.loss_func = nn.functional.l1_loss
+        elif loss_type == "huber":
+            delta = self.loss_hparams.get("delta", None)
+            if delta is None:
+                raise ValueError(
+                    "Please provide `delta` in loss params for huber loss."
+                )
+            self.loss_func = nn.HuberLoss(delta=delta, reduction="mean")
+        else:
+            raise ValueError(f"Unknown loss type: {loss_type}")
+
         self.metrics_type = self.metrics_hparams.get("type", None)
         if self.metrics_type == "mae":
             MetricClass = MeanAbsoluteError
@@ -326,16 +341,14 @@ class StructureTensorLitModule(BaseLitModule):
             r = ref[str(rank)]
 
             ratio = self.loss_hparams["ratio"][rank]
-            losses[f"train/loss_rank-{rank}"] = ratio * nn.functional.mse_loss(
-                p, r, reduction="mean"
-            )
+            losses[f"train/loss_rank-{rank}"] = ratio * self.loss_func(p, r)
 
         losses["train/loss_total"] = sum(losses.values())
 
         return losses
 
     def compute_loss_cart(self, pred: Tensor, ref: Tensor):
-        return {"train/loss_total": nn.functional.mse_loss(pred, ref, reduction="mean")}
+        return {"train/loss_total": self.loss_func(pred, ref)}
 
     def compute_metrics_nat(self, pred: dict, ref: dict, mode: str):
         """
