@@ -1,6 +1,8 @@
 from collections import defaultdict
 from pprint import pprint
 
+from torch import Tensor, nn
+
 
 def check_rank(L1: int, L2: int, L3: int | list[int] | None) -> list[int]:
     """Helper function to get valid l3.
@@ -198,6 +200,25 @@ def get_paths(
                 paths[l].append((l1, l2, l))
 
     return paths
+
+
+class BufferList(nn.Module):
+    """
+    A list of tensors registered as buffers.
+
+    Similar to nn.ParameterList, but for buffers.
+    """
+
+    def __init__(self, tensors: list[Tensor]):
+        super().__init__()
+        for i, tensor in enumerate(tensors):
+            self.register_buffer(str(i), tensor)
+
+    def __getitem__(self, idx: int) -> Tensor:
+        return getattr(self, str(idx))
+
+    def __len__(self) -> int:
+        return len(self._buffers)
 
 
 if __name__ == "__main__":

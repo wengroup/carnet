@@ -2,15 +2,15 @@
 Product of natural tensors.
 """
 
+from pathlib import Path
 from typing import Optional
 
 import torch
 from torch import Tensor, nn
 
-from carnet.core.tp import tp_even, tp_odd
-from carnet.core.tp_with_weight import tp_even_with_weight, tp_odd_with_weight
+from carnet.core.utils import load_H_tensor_and_rule
 from carnet.module.linear import LinearCombination
-from carnet.module.utils import check_rank, get_paths
+from carnet.module.utils import BufferList, check_rank, get_paths
 
 
 class TensorProduct(nn.Module):
@@ -101,14 +101,29 @@ class TensorProduct(nn.Module):
         # Kernel parameters for linear combination of paths to each l3
         # Each (l1, l2, l3) has its own kernel parameters
         self.kernels = nn.ModuleList()
+
+        # Buffers for H tensors for each path
+        self.path_H = nn.ModuleDict()
+
+        H_data = self._get_H_tensor_and_rule()
+
         for l3 in self.L3:
-            n = len(self.paths[l3])
-            if n == 1:
+            paths_l3 = self.paths[l3]
+            if len(paths_l3) == 1:
                 # If only one path, no need to do a linear combination.
                 # None as a placeholder, but never used below in forward()
                 self.kernels.append(None)
             else:
-                self.kernels.append(LinearCombination(n, F))
+                self.kernels.append(LinearCombination(len(paths_l3), F))
+
+            # Store H tensors for this l3 in a BufferList
+            Hs = []
+            for path in paths_l3:
+                l1, l2, _ = path
+                key = f"{l1}-{l2}-{l3}-{normalize}"
+                Hs.append(H_data[key]["H"])
+
+            self.path_H[str(l3)] = BufferList(Hs)
 
         self.z_tensor_dims = [3**l3 for l3 in self.L3]
 
@@ -136,51 +151,54 @@ class TensorProduct(nn.Module):
             assert R is not None, "Weights are needed for atomic moment, but R is None"
 
         z = []
-        for idx, kernel in enumerate(self.kernels):
-            l3 = self.L3[idx]
-            z_l3 = []  # z_l3 from all paths
-            for path in self.paths[l3]:
-                l1, l2, _ = path
+        for idx, l3 in enumerate(self.L3):
+            l3_H = self.path_H[str(l3)]
+            kernel = self.kernels[idx]
 
-                # x_l1: (..., F, 3**l1)
-                # y_l2: (..., F, 3**l2) or (..., 3**l2)
+            z_l3_list = []  # z_l3 from all paths
+            for j, (l1, l2, _) in enumerate(self.paths[l3]):
+                H = l3_H[j]
+
+                # x_l1: (..., F, 3^l1)
+                # y_l2: (..., F, 3^l2) or (..., 3^l2)
                 # int() needed for TorchScript
                 x_l1 = x[..., int((3**l1 - 1) // 2) : int((3 ** (l1 + 1) - 1) // 2)]
                 y_l2 = y[..., int((3**l2 - 1) // 2) : int((3 ** (l2 + 1) - 1) // 2)]
 
                 if self.for_atomic_moment:
-                    w = R[str(path)]  # (..., F)
-
-                    if (l1 + l2 - l3) % 2 == 0:
-                        z_tmp = tp_even_with_weight(
-                            x_l1, y_l2, w, l1, l2, l3, self.normalize
-                        )
-                    else:
-                        z_tmp = tp_odd_with_weight(
-                            x_l1, y_l2, w, l1, l2, l3, self.normalize
-                        )
-
-                else:
+                    w = R[str((l1, l2, l3))]
+                    # H: (3^l3, 3^l1, 3^l2)
+                    # x: (..., F, 3^l1)
+                    # y: (..., 3^l2)
+                    # w: (..., F)
                     # z_tmp: (..., F, 3**l3)
-                    if (l1 + l2 - l3) % 2 == 0:
-                        z_tmp = tp_even(x_l1, y_l2, l1, l2, l3, self.normalize)
-                    else:
-                        z_tmp = tp_odd(x_l1, y_l2, l1, l2, l3, self.normalize)
+                    z_tmp = torch.einsum("aAB,...FA,...B,...F->...Fa", H, x_l1, y_l2, w)
+                else:
+                    # H: (3^l3, 3^l1, 3^l2)
+                    # x: (..., F, 3^l1)
+                    # y: (..., F, 3^l2)
+                    # z_tmp: (..., F, 3**l3)
+                    z_tmp = torch.einsum("aAB,...A,...B->...a", H, x_l1, y_l2)
 
-                z_l3.append(z_tmp)  # list of tensors of shape (..., F, 3**l3)
+                z_l3_list.append(z_tmp)  # list of tensors of shape (..., F, 3**l3)
 
-            # Only one path to l3
-            if len(z_l3) == 1:
-                z_l3_combined = z_l3[0]  # (..., F, 3**l3)
-            # Multiple paths to l3
+            # Combine paths for current l3
+            if len(z_l3_list) == 1:
+                z_l3_combined = z_l3_list[0]  # (..., F, 3**l3)
             else:
-                z_l3 = torch.stack(z_l3, dim=-3)  # (..., Np, F, 3**l3)
-                # (..., F, 3**l3) Linear combination of all Np paths to l3
-                z_l3_combined = kernel(z_l3)
+                z_l3_stack = torch.stack(z_l3_list, dim=-3)  # (..., Np, F, 3**l3)
+                # Linear combination of all Np paths to l3, (..., F, 3 ** l3)
+                z_l3_combined = kernel(z_l3_stack)
 
             z.append(z_l3_combined)
 
-        # Combine z of different l3 in the last dim
+        # Combine all l3 ranks in the last dim
         z = torch.cat(z, dim=-1)  # (..., F, T3)
 
         return z
+
+    @classmethod
+    def _get_H_tensor_and_rule(cls) -> dict:
+        """Load the pre-computed H tensors."""
+        filename = Path(__file__).parent.parent / "core" / "H_tensor_and_rule.json.gz"
+        return load_H_tensor_and_rule(filename, mode="flatten")
