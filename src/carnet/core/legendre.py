@@ -3,6 +3,7 @@ Lengendre polynomials.
 
 See: https://en.wikipedia.org/wiki/Legendre_polynomials
 """
+
 import torch
 from torch import Tensor
 

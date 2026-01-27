@@ -1,4 +1,4 @@
-""" Normalization function and layer. """
+"""Normalization function and layer."""
 
 import torch
 from torch import Tensor, nn

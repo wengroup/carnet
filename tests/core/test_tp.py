@@ -6,7 +6,7 @@ from carnet.core.tp import tp_even, tp_odd
 from carnet.core.tp1 import get_tp_even_rule, get_tp_odd_rule
 from carnet.core.tp2 import tp_even as tp_even_2
 from carnet.core.tp2 import tp_odd as tp_odd_2
-from carnet.core.unit_vector import get_nt_from_vector, letter_index
+from carnet.core.unit_vector_1 import get_nt_from_vector, letter_index
 
 
 def test_tp_rule_even():

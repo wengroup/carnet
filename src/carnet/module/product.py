@@ -8,7 +8,7 @@ from typing import Optional
 import torch
 from torch import Tensor, nn
 
-from carnet.core.utils import load_H_tensor_and_rule
+from carnet.core.generate_H import load_H_tensor_and_rule
 from carnet.module.linear import LinearCombination
 from carnet.module.utils import BufferList, check_rank, get_paths
 

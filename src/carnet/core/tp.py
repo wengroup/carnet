@@ -13,7 +13,7 @@ import torch
 from natt.H_tp import get_H_numerical_even, get_H_numerical_odd
 from torch import Tensor
 
-from carnet.core.utils import load_H_tensor_and_rule
+from carnet.core.generate_H import load_H_tensor_and_rule
 
 # Load the pre-computed H tensor and einsum rule
 filename = Path(__file__).parent / "H_tensor_and_rule.json.gz"
