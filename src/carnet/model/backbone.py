@@ -1,8 +1,10 @@
 """CarNet backbone module that performs multiple iterations of feature updates."""
 
 from torch import Tensor, nn
-
+import torch
+from carnet.core.unit_vector import Polyadics
 from carnet.module.layer import Layer
+from carnet.module.radial import RadialPart1, RadialPart2, RadialPart3, RadialPart4
 
 
 class Backbone(nn.Module):
@@ -70,6 +72,25 @@ class Backbone(nn.Module):
         self.max_chebyshev_degree = max_chebyshev_degree
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
 
+        # Polyadics
+        self.polyadics_module = Polyadics(max_L, normalize="unity")
+
+        # Radial
+        if radial_part_type == 1:
+            RadialPartClass = RadialPart1
+        elif radial_part_type == 2:
+            RadialPartClass = RadialPart2
+        elif radial_part_type == 3:
+            RadialPartClass = RadialPart3
+        elif radial_part_type == 4:
+            RadialPartClass = RadialPart4
+        else:
+            raise ValueError(f"Invalid radial_part_type: {radial_part_type}")
+
+        self.radial_module = RadialPartClass(
+            F, num_atom_types, max_chebyshev_degree, r_cut, envelope=6
+        )
+
         # Embed atom number as vectors
         self.atom_embedding = nn.Embedding(num_atom_types, F)
 
@@ -105,9 +126,7 @@ class Backbone(nn.Module):
                     L3=self.max_L,
                     num_atom_types=self.num_atom_types,
                     num_average_neigh=self.num_average_neigh,
-                    max_chebyshev_degree=self.max_chebyshev_degree,
-                    r_cut=self.r_cut,
-                    radial_part_type=radial_part_type,
+                    radial_output_dim=self.radial_module.output_dim,
                     radial_mlp_hidden_layers=self.radial_mlp_hidden_layers,
                     max_out_L=out_L,
                     max_degree=self.max_degree,
@@ -159,13 +178,26 @@ class Backbone(nn.Module):
         # Embed atom number as scalar features of dim F; (n_atoms, F, 1)
         atom_feats = self.atom_embedding(atom_type).unsqueeze(-1)
 
-        # TODO, for the first layer, because atom_feats is special (only scalars), we
-        #  might be able to use a more constrained version of AtomicMoment in
-        #  `Layer` to save some computation.
+        # Precompute polyadics
+        polyadics = self.polyadics_module(
+            nn.functional.normalize(edge_vector, p=2.0, dim=-1)
+        )
+
+        # Precompute shared radial basis
+        i_idx = edge_idx[0]
+        j_idx = edge_idx[1]
+        radial_basis = self.radial_module(
+            torch.linalg.vector_norm(edge_vector, dim=-1),
+            atom_type[i_idx],
+            atom_type[j_idx],
+        )
+
         output = []
         for i, layer in enumerate(self.layers):
 
-            atom_feats = layer(edge_vector, edge_idx, atom_type, atom_feats)
+            atom_feats = layer(
+                edge_vector, edge_idx, atom_type, atom_feats, radial_basis, polyadics
+            )
 
             # Gather output
             if return_all or i == self.num_layers - 1:

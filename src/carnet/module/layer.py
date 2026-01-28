@@ -1,5 +1,7 @@
 """CarNet layer module."""
 
+from typing import Optional
+
 from torch import Tensor, nn
 
 from .atomic_moment import AtomicMoment
@@ -20,9 +22,7 @@ class Layer(nn.Module):
         L3: int,
         num_atom_types: int,
         num_average_neigh: float,
-        max_chebyshev_degree: int = 8,
-        r_cut: float = 5.0,
-        radial_part_type: int = 1,
+        radial_output_dim: int,
         radial_mlp_hidden_layers: int | list[int] = 2,
         max_out_L: int = None,
         max_degree: int = 3,
@@ -45,8 +45,7 @@ class Layer(nn.Module):
             L3:
             num_atom_types:
             num_average_neigh:
-            max_chebyshev_degree:
-            r_cut:
+            radial_output_dim:
             radial_mlp_hidden_layers: if list of int, this gives the size of each hidden
                 layer in the MLP that is applied to the radial basis functions. If int,
                 this gives the number of hidden layers, and the size of each hidden
@@ -68,8 +67,6 @@ class Layer(nn.Module):
         self.L3 = L3
         self.num_atom_types = num_atom_types
         self.num_average_neigh = num_average_neigh
-        self.max_chebyshev_degree = max_chebyshev_degree
-        self.r_cut = r_cut
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
         self.max_out_L = L3 if max_out_L is None else max_out_L
         self.max_degree = max_degree
@@ -115,10 +112,8 @@ class Layer(nn.Module):
             L3=L3,
             num_atom_types=num_atom_types,
             num_average_neigh=num_average_neigh,
-            max_chebyshev_degree=max_chebyshev_degree,
-            radial_part_type=radial_part_type,
+            radial_output_dim=radial_output_dim,
             radial_mlp_hidden_layers=radial_mlp_hidden_layers,
-            r_cut=r_cut,
             tp_path_mode=tp_path_mode,
             tp_path_polar_only=tp_path_polar_only,
             level=level,
@@ -183,6 +178,8 @@ class Layer(nn.Module):
         edge_idx: Tensor,
         atom_type: Tensor,
         atom_feats: Tensor,
+        radial_basis: Tensor,
+        polyadics: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Args:
@@ -193,6 +190,8 @@ class Layer(nn.Module):
             atom_type: Atom types. Shape (Na,), where Na is the number of atoms.
             atom_feats: shape (Na, F, T1), where Na is the number of atoms, F is the
                 number of features, and T1 = (3**(L1+1)-1)//2 is the tensor dim.
+            radial_basis: Precomputed shared radial basis. Shape (n_edges, radial_output_dim).
+            polyadics: Precomputed polyadic tensors of unit vectors. Shape (n_edges, T2).
 
         Returns:
             Updated atom feats. Shape (Na, F, T'), where T' is the number of tensor
@@ -205,7 +204,9 @@ class Layer(nn.Module):
             am = self.linear_channel_input(am)  # (Na, F, T1)
 
         # Get atomic moments; (Na, F, T3)
-        am = self.atomic_moment(edge_vector, edge_idx, atom_type, am)
+        am = self.atomic_moment(
+            edge_vector, edge_idx, atom_type, am, radial_basis, polyadics
+        )
 
         # Mix atomic moments across channel
         if self.uadw_atomic_moment:
