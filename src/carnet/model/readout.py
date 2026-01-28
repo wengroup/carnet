@@ -86,6 +86,7 @@ class StructureScalar(nn.Module):
         atom_type: Tensor,
         atomic_number: Tensor,
         num_atoms: Tensor,
+        batch: Tensor = None,
     ) -> Tensor:
         """
         Args:
@@ -98,6 +99,8 @@ class StructureScalar(nn.Module):
                 is the actual atomic number according to the periodic table.
             num_atoms: The number of atoms in each atomic configuration.
                 Shape (n_config,)
+            batch: Tensor of shape (n_atoms,) that identifies the configuration each
+                atom belongs to. If None, it is inferred from `num_atoms`.
 
         Returns:
             Total energy of each configuration. Shape (n_config,).
@@ -126,7 +129,9 @@ class StructureScalar(nn.Module):
             V += self.element_bias[atom_type]
 
         # Output of each configuration; (num_config,)
-        out = scatter(V, torch.repeat_interleave(num_atoms), reduce="sum", dim=0)
+        if batch is None:
+            batch = torch.repeat_interleave(num_atoms)
+        out = scatter(V, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0])
 
         return out
 
@@ -360,6 +365,7 @@ class StructureTensor(nn.Module):
         atom_feats: list[Tensor],
         atom_type: Tensor,
         num_atoms: Tensor,
+        batch: Tensor = None,
     ) -> dict[int, Tensor]:
         """
         Args:
@@ -367,7 +373,9 @@ class StructureTensor(nn.Module):
                 where `F` is the channel dimension, and `T` is the tensor dimension.
             atom_type: The atomic type of each atom. Shape (n_atoms,).
             num_atoms: The number of atoms in each atomic configuration.
-                Shape (n_atoms,)
+                Shape (n_config,)
+            batch: Tensor of shape (n_atoms,) that identifies the configuration each
+                atom belongs to. If None, it is inferred from `num_atoms`.
         Returns:
             Dictionary of natural tensors for each atomic configuration.
             {l: T}, where `l` is the rank of the natural tensor, and `T` is the tensor.
@@ -379,8 +387,11 @@ class StructureTensor(nn.Module):
         atom_out = self.atomic_tensor_model(atom_feats, atom_type)
 
         # Gather to get output for each configuration; {l: (n_config, n_l, 3**l)
+        if batch is None:
+            batch = torch.repeat_interleave(num_atoms)
+
         conf_out = {
-            l: scatter(x, torch.repeat_interleave(num_atoms), reduce=self.reduce, dim=0)
+            l: scatter(x, batch, reduce=self.reduce, dim=0, dim_size=num_atoms.shape[0])
             for l, x in atom_out.items()
         }
 

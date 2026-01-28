@@ -133,7 +133,18 @@ class MultiTaskModel(nn.Module):
         atom_type: Tensor,
         num_atoms: Tensor,
         atomic_selector: list[bool] = None,
+        batch: Tensor = None,
     ) -> dict[str, Tensor]:
+        """
+        Args:
+            edge_vector:
+            edge_idx:
+            atom_type:
+            num_atoms:
+            atomic_selector:
+            batch: Tensor of shape (n_atoms,) that identifies the configuration each
+                atom belongs to. If None, it is inferred from `num_atoms`.
+        """
         # Get the atom feats
         all_atom_feats = self.backbone(
             edge_vector,
@@ -149,13 +160,13 @@ class MultiTaskModel(nn.Module):
             if target_name == "energy":
                 # Energy, only needs the scalar features
                 selected_feats = [feats[..., 0:1] for feats in all_atom_feats]
-                output[target_name] = head(selected_feats, atom_type, num_atoms)
+                output[target_name] = head(selected_feats, atom_type, num_atoms, batch)
             elif target_name == "dipole_moment_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(selected_feats, atom_type, num_atoms)
+                output[target_name] = head(selected_feats, atom_type, num_atoms, batch)
             elif target_name == "polarizability_tensor":
                 selected_feats = all_atom_feats
-                output[target_name] = head(selected_feats, atom_type, num_atoms)
+                output[target_name] = head(selected_feats, atom_type, num_atoms, batch)
             elif target_name == "shielding_tensor":
                 selected_feats = all_atom_feats
                 output[target_name] = head(selected_feats, atom_type)

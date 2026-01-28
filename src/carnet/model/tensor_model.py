@@ -246,7 +246,20 @@ class StructureTensorModel(nn.Module):
         atomic_selector: list[bool] = None,
         # `atomic_selector` is not needed; it is added for API uniformity with the
         # AtomicTensorModel()
+        batch: Tensor = None,
     ) -> Tensor:
+        """
+        Args:
+            edge_vector:
+            edge_idx:
+            atom_type:
+            num_atoms:
+            atomic_selector: A list of boolean values that indicates the features of which
+                atoms to use for later processing. The length of the list should be equal to
+                the number of atoms. If None, the features of all atoms are used.
+            batch: Tensor of shape (n_atoms,) that identifies the configuration each
+                atom belongs to. If None, it is inferred from `num_atoms`.
+        """
         # Get the atom feats
         all_atom_feats = self.backbone(
             edge_vector,
@@ -258,6 +271,6 @@ class StructureTensorModel(nn.Module):
         )
 
         # Compute the structure tensor of each configuration
-        output = self.readout(all_atom_feats, atom_type, num_atoms)
+        output = self.readout(all_atom_feats, atom_type, num_atoms, batch)
 
         return output

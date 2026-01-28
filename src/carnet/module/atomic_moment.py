@@ -135,6 +135,9 @@ class AtomicMoment(nn.Module):
         product = self.tp(atom_feats[j_idx], polyadics, R_all)
 
         # aggregate atoms j (src) to atom i (dst); (n_atoms, F, T3)
-        M = scatter(product, i_idx, reduce="sum", dim=0) / self.num_average_neigh**0.5
+        M = (
+            scatter(product, i_idx, reduce="sum", dim=0, dim_size=atom_feats.shape[0])
+            / self.num_average_neigh**0.5
+        )
 
         return M

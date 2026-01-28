@@ -89,7 +89,7 @@ class ZBLEnergy(torch.nn.Module):
 
         # 0.5: half to i and half to j
         v_edges = 0.5 * v_edges * envelope
-        v_atom = scatter(v_edges, i_idx, dim=0, reduce="sum")
+        v_atom = scatter(v_edges, i_idx, dim=0, reduce="sum", dim_size=Z.shape[0])
 
         return v_atom
 

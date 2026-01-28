@@ -139,6 +139,7 @@ class BaseLitModule(LightningModule):
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_selector=atomic_selector,
+            batch=batch.batch,
         )
 
     def forward_ema(self, batch):
@@ -153,6 +154,7 @@ class BaseLitModule(LightningModule):
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_selector=atomic_selector,
+            batch=batch.batch,
         )
 
     def training_step(self, batch, batch_idx):

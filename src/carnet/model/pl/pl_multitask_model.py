@@ -95,6 +95,7 @@ class MultiTaskLitModule(LightningModule):
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_selector=atomic_selector,
+            batch=batch.batch,
         )
         output["forces"] = compute_forces(output["energy"], batch.pos, self.training)
 
@@ -121,6 +122,7 @@ class MultiTaskLitModule(LightningModule):
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_selector=atomic_selector,
+            batch=batch.batch,
         )
 
         output["forces"] = compute_forces(output["energy"], batch.pos, self.training)

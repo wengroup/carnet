@@ -151,6 +151,7 @@ class InteratomicPotentialLitModule(LightningModule):
             atom_type=batch.atom_type,
             num_atoms=batch.num_atoms,
             atomic_number=batch.atomic_number,
+            batch=batch.batch,
         )
 
         if self.need_stress:

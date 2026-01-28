@@ -103,6 +103,7 @@ class InteratomicPotential(nn.Module):
         atom_type: Tensor,
         num_atoms: Tensor,
         atomic_number: Tensor = None,
+        batch: Tensor = None,
     ) -> Tensor:
         """
         Args:
@@ -114,6 +115,8 @@ class InteratomicPotential(nn.Module):
                 Note, this should be distinguished from `atom_type`. For example,
                 for a system with three atoms, [H, H, O], the `atom_type` is [0, 0, 1]
                 (H is type 0 and O is type 1), while the `atomic_number` is [1, 1, 8].
+            batch: Tensor of shape (n_atoms,) that identifies the configuration each
+                atom belongs to. If None, it is inferred from `num_atoms`.
 
         Returns:
             Total energy of each atomic configuration. Shape (n_config,).
@@ -129,15 +132,19 @@ class InteratomicPotential(nn.Module):
         )
 
         # Compute the total energy
-        energy = self.readout(all_scalar_feats, atom_type, atomic_number, num_atoms)
+        energy = self.readout(
+            all_scalar_feats, atom_type, atomic_number, num_atoms, batch
+        )
 
         if self.zbl is not None:
             # ZBL energy of each atom
             zbl_atom = self.zbl(edge_vector, edge_idx, atomic_number)
 
             # ZBL energy of each configuration
+            if batch is None:
+                batch = torch.repeat_interleave(num_atoms)
             zbl_conf = scatter(
-                zbl_atom, torch.repeat_interleave(num_atoms), reduce="sum", dim=0
+                zbl_atom, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0]
             )
 
             energy = energy + zbl_conf
