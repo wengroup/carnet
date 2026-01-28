@@ -27,13 +27,10 @@ class Polyadics(nn.Module):
 
         H_dict = self._get_H_unit_vector(normalize)
 
-        # Ranks 0 and 1 are handled specially in forward
-        # Store H tensors for ranks l >= 2 as buffers
-        Hs = []
-        for l in range(2, L + 1):
-            # Transpose H for efficient matrix multiplication in forward:
-            # n_l = a_flat @ H_l
-            Hs.append(H_dict[l]["H"].t())
+        # Ranks 0 and 1 are handled specially in forward.
+        # Precompute and store transposed H tensors for ranks l >= 2 as buffers.
+        # Transposing makes the forward contraction efficient: n_l = a_flat @ H_l
+        Hs = [H_dict[l]["H"].t() for l in range(2, L + 1)]
 
         self.Hs = BufferList(Hs)
 
