@@ -8,7 +8,7 @@ from .product import TensorProduct
 
 
 class HyperMoment(nn.Module):
-    """
+    r"""
     Self tensor product of atomic moment feature tensor:
 
     $H = x_L \otimes x_L \otimes ... \otimes x_L$
@@ -72,11 +72,6 @@ class HyperMoment(nn.Module):
         # case for the final output hyper moment tensor, H^{max_degree}, where the
         # maximum rank of the natural tensors is set to max_out_L.
         #
-        # TODO, it might be possible that, for a given max_out_L < L, the rank of the
-        #   natural tensor in H^{i} can be smaller than L. Well, maybe not. For example,
-        #   if L=2, and max_out_L=0, then the scalar part of H^2 = H^1 \otimes x_2 can
-        #   still come from H^1_2 and x_2. So, we need H^1 to have ranks up to L.
-
         self.tp = nn.ModuleList()
         for i in range(1, max_degree):
             if i == max_degree - 1:
@@ -99,12 +94,14 @@ class HyperMoment(nn.Module):
         # Linear combination of different degree
         # H = \sum_d w_d H^d
         if max_degree <= 1:
-            # Do not need linear combination if max_degree is 1 or less
             self.register_buffer("linear_degree", None)
         else:
             self.linear_degree = SlicedLinearCombination(
                 max_degree, F, [3**l for l in range(self.max_out_L + 1)]
             )
+
+        # Precompute the number of tensor components to keep in the output
+        self.size = int((3 ** (self.max_out_L + 1) - 1) // 2)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -118,27 +115,56 @@ class HyperMoment(nn.Module):
         """
         assert x.shape[-1] == (3 ** (self.L + 1) - 1) // 2, "Invalid input shape."
 
-        # The number of tensor components to keep in the output
-        size = int((3 ** (self.max_out_L + 1) - 1) // 2)
-
         # Essentially, there is no hyper moment if max_degree is 1 or less.
         if self.max_degree <= 1:
-            return x[..., :size]
+            return x[..., : self.size]
 
-        # Output hyper moments from different coupling degrees
-        # Shape of each element is (..., F, T'), where T' is the size above
-        out_H = [x[..., :size]]
+        # # Shape of each element is (..., F, T'), where T' is the size above
+        # out_H = [x[..., :self.size]]
+        #
+        # H_tmp = x
+        # for fn in self.tp:
+        #     product = fn(H_tmp, x)
+        #     H_tmp = product
+        #     out_H.append(product[..., :self.size])
+        #
+        # out_H = torch.stack(out_H, dim=-3)  # (..., max_degree, F, T')
+        # H = self.linear_degree(out_H)  # (..., F, T')
+        #
+        # return H
 
-        # TODO, given that we only need `:size` component, is it possible to enforce
-        #  this in fn (namely TensorProduct)? This will make it more efficient.
-        #  A: We did this for the last layer, but not for the others, yet.
+        # Below is an equivalent but more memory efficient implementation. out_H takes
+        # up a lot of memory when max_degree is large.
+
+        # Degree d=1 contribution
+        H_final = self._get_degree_weights(1) * x[..., : self.size]
+
         H_tmp = x
-        for fn in self.tp:
-            product = fn(H_tmp, x)
-            H_tmp = product
-            out_H.append(product[..., :size])
+        for d in range(2, self.max_degree + 1):
+            H_tmp = self.tp[d - 2](H_tmp, x)
+            current_H = H_tmp[..., : self.size]
 
-        out_H = torch.stack(out_H, dim=-3)  # (..., max_degree, F, T')
-        H = self.linear_degree(out_H)  # (..., F, T')
+            # Weights for degree d: (F, T')
+            w_d = self._get_degree_weights(d)
 
-        return H
+            # (F, T') * (..., F, T') -> (..., F, T')
+            H_final += w_d * current_H
+
+        return H_final
+
+    def _get_degree_weights(self, d: int) -> Tensor:
+        """
+        Extract weights for a specific correlation degree d.
+
+        Args:
+            d: Correlation degree (1-based index).
+
+        Returns:
+            Weights of shape (F, T').
+        """
+        # linear_degree.weight is (num_slices, max_degree, F)
+        # weight_map maps T' components to slice indices
+        # Result w is (T', F), transposed to (F, T')
+        w = self.linear_degree.weight[self.linear_degree.weight_map, d - 1, :]
+        return w.t()
+
