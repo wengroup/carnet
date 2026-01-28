@@ -22,7 +22,7 @@ def test_tensor_product_standard(NT0, NT1, NT2, NT3):
     tp = TensorProduct(F, L1, L2, L3, for_atomic_moment=False)
     tp1 = TensorProduct1(F, L1, L2, L3, for_atomic_moment=False)
     tp2 = TensorProduct2(F, L1, L2, L3, for_atomic_moment=False)
-    
+
     # Synchronize kernel weights
     for k, k1, k2 in zip(tp.kernels, tp1.kernels, tp2.kernels):
         if k is not None:
@@ -33,7 +33,7 @@ def test_tensor_product_standard(NT0, NT1, NT2, NT3):
     z = tp(x, x)
     z1 = tp1(x, x)
     z2 = tp2(x, x)
-    
+
     # Check consistency between implementations
     assert torch.allclose(z, z1, atol=1e-6)
     assert torch.allclose(z, z2, atol=1e-6)
@@ -70,15 +70,17 @@ def test_tensor_product_atomic_moment(NT0, NT1, NT2, NT3):
             k2.weight.data.copy_(k.weight.data)
 
     # Weights R for atomic moment (required)
-    R = {}
+    all_paths = []
     for l3 in tp.L3:
-        for p in tp.paths[l3]:
-            # Same weights across batch for batch invariance test
-            R[str(p)] = torch.randn(1, F).repeat(B, 1)
+        all_paths.extend(tp.paths[l3])
 
-    z = tp(x, y, R=R)
-    z1 = tp1(x, y, R=R)
-    z2 = tp2(x, y, R=R)
+    num_paths = len(all_paths)
+    # Same weights across batch for batch invariance test
+    R_tensor = torch.randn(1, num_paths, F).repeat(B, 1, 1)
+
+    z = tp(x, y, R=R_tensor)
+    z1 = tp1(x, y, R=R_tensor)
+    z2 = tp2(x, y, R=R_tensor)
 
     # Check consistency between implementations
     assert torch.allclose(z, z1, atol=1e-6)
