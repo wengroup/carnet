@@ -132,8 +132,6 @@ class TensorProduct(nn.Module):
 
             self.path_H[str(l3)] = BufferList(Hs)
 
-        self.z_tensor_dims = [3**l3 for l3 in self.L3]
-
     def forward(self, x: Tensor, y: Tensor, R: Optional[Tensor] = None) -> Tensor:
         """
         Evaluate the tensor product of two feature tensors:

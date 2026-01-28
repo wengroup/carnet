@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+import torch
 from torch import Tensor, nn
 
 from carnet.core.unit_vector import Polyadics
@@ -81,6 +82,11 @@ class AtomicMoment(nn.Module):
             out_activation=False,
         )
 
+        self.register_buffer(
+            "inv_sqrt_num_average_neigh",
+            torch.tensor(1.0 / num_average_neigh**0.5, dtype=torch.get_default_dtype()),
+        )
+
     def forward(
         self,
         edge_vector: Tensor,
@@ -137,7 +143,7 @@ class AtomicMoment(nn.Module):
         # aggregate atoms j (src) to atom i (dst); (n_atoms, F, T3)
         M = (
             scatter(product, i_idx, reduce="sum", dim=0, dim_size=atom_feats.shape[0])
-            / self.num_average_neigh**0.5
+            * self.inv_sqrt_num_average_neigh
         )
 
         return M
