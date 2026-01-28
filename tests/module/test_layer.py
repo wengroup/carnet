@@ -1,6 +1,8 @@
 from natt.utils import is_symmetric, is_traceless
+import torch
 
 from carnet.module.layer import Layer
+from carnet.module.radial import RadialPart1
 
 from ..conftest import create_feature_tensors
 
@@ -14,6 +16,19 @@ def test_Layer(config_info):
 
     x = create_feature_tensors(num_atoms, F, L1)
 
+    # Need radial basis
+    max_chebyshev_degree = 8
+    r_cut = 5.0
+    radial = RadialPart1(F, num_atom_types, max_chebyshev_degree, r_cut, envelope=6)
+
+    i_idx = edge_idx[0]
+    j_idx = edge_idx[1]
+    radial_basis = radial(
+        torch.linalg.vector_norm(edge_vector, dim=-1),
+        atom_type[i_idx],
+        atom_type[j_idx],
+    )
+
     layer = Layer(
         F,
         L1,
@@ -21,10 +36,11 @@ def test_Layer(config_info):
         L3,
         num_atom_types=num_atom_types,
         num_average_neigh=1.0,
+        radial_output_dim=radial.output_dim,
         max_out_L=max_out_L,
     )
 
-    out = layer(edge_vector, edge_idx, atom_type, x)
+    out = layer(edge_vector, edge_idx, atom_type, x, radial_basis, None)
 
     # Check the total shape
     assert out.shape == (num_atoms, F, (3 ** (max_out_L + 1) - 1) // 2)
