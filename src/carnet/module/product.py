@@ -90,7 +90,7 @@ class TensorProduct(nn.Module):
                 which is simply a wrapper around the tp_even and tp_odd functions.
                 When it is True, it is used in the context of atomic moments,
                 Z= RXY, where X is of shape (..., F, T1) and Y is of shape (..., T2),
-                and R is a dictionary of additional weights, of shape (..., F).
+                and R is an additional weight tensor of shape (..., P, F).
         """
         super().__init__()
         self.L1 = L1
@@ -130,28 +130,35 @@ class TensorProduct(nn.Module):
             else:
                 self.kernels.append(LinearCombination(len(paths_l3), F))
 
-        T1 = (3**(L1 + 1) - 1) // 2
-        T2 = (3**(L2 + 1) - 1) // 2
+        T1 = (3 ** (L1 + 1) - 1) // 2
+        T2 = (3 ** (L2 + 1) - 1) // 2
 
+        # Precompute indices for slicing weight tensor R if provided as a tensor
+        self._l3_path_slices = []
+        start_idx = 0
+        for l3 in self.L3:
+            num_paths = len(self.paths[l3])
+            self._l3_path_slices.append(slice(start_idx, start_idx + num_paths))
+            start_idx += num_paths
+
+        # Combine H matrices for all paths of each l3
         H_combined = []
         for l3 in self.L3:
             paths_l3 = self.paths[l3]
+            num_paths = len(paths_l3)
+
             # Combined H tensor for all paths of this l3
             # Shape: (Np, 3^l3, T1, T2)
-            H_combined_l3 = torch.zeros(len(paths_l3), 3**l3, T1, T2)
+            H_combined_l3 = torch.zeros(num_paths, 3**l3, T1, T2)
             for j, (l1, l2, _) in enumerate(paths_l3):
                 H = H_data[f"{l1}-{l2}-{l3}-{normalize}"]["H"]
-                start1 = (3**l1 - 1) // 2
-                end1 = (3**(l1 + 1) - 1) // 2
-                start2 = (3**l2 - 1) // 2
-                end2 = (3**(l2 + 1) - 1) // 2
+                start1, end1 = (3**l1 - 1) // 2, (3 ** (l1 + 1) - 1) // 2
+                start2, end2 = (3**l2 - 1) // 2, (3 ** (l2 + 1) - 1) // 2
                 H_combined_l3[j, :, start1:end1, start2:end2] = H
             H_combined.append(H_combined_l3)
         self.H_combined = BufferList(H_combined)
 
-    def forward(
-        self, x: Tensor, y: Tensor, R: Optional[dict[str, Tensor]] = None
-    ) -> Tensor:
+    def forward(self, x: Tensor, y: Tensor, R: Optional[Tensor] = None) -> Tensor:
         """
         Evaluate the tensor product of two feature tensors:
         z_l3 = R_l1l2l3 x_l1 \otimes y_l2
@@ -163,7 +170,8 @@ class TensorProduct(nn.Module):
                 where T2 = \sum_{l2} 3**l2. The shape depends on `for_atomic_moment`.
             R: additional parameters to be multiplied with the tensor product. If None,
                 the tensor product is evaluated without additional parameters.
-                Shape (..., F), where F is the number of features.
+                If Tensor, it has shape (..., P, F) where P is the total number of paths.
+                The shape of R should be (..., F) for each path.
 
         Returns:
             z: Output feature tensor, whose ranks are determined the input L3. Shape
@@ -178,11 +186,12 @@ class TensorProduct(nn.Module):
             kernel = self.kernels[idx]
 
             if self.for_atomic_moment:
-                # Stack weights for all paths of this l3: (..., Np, F)
-                W_l3 = torch.stack([R[str(p)] for p in self.paths[l3]], dim=-2)
+                # R is a Tensor of shape (..., P, F)
+                # Slice it to get (..., Np, F)
+                W_l3 = R[..., self._l3_path_slices[idx], :]
+
                 # Multiply by kernel weight if it exists
                 if kernel is not None:
-                    # kernel.weight: (Np, F)
                     W_l3 = W_l3 * kernel.weight
 
                 # H_combined_l3: (Np, 3^l3, T1, T2)
@@ -190,7 +199,9 @@ class TensorProduct(nn.Module):
                 # x: (..., F, T1)
                 # y: (..., T2)
                 # Result z_l3: (..., F, 3^l3)
-                z_l3 = torch.einsum("pabc, ...pF, ...Fb, ...c -> ...Fa", H_combined_l3, W_l3, x, y)
+                z_l3 = torch.einsum(
+                    "pabc, ...pF, ...Fb, ...c -> ...Fa", H_combined_l3, W_l3, x, y
+                )
             else:
                 # Standard tensor product
                 if kernel is not None:
@@ -201,7 +212,13 @@ class TensorProduct(nn.Module):
                     # x: (..., F, T1)
                     # y: (..., F, T2)
                     # Result z_l3: (..., F, 3^l3)
-                    z_l3 = torch.einsum("pabc, pF, ...Fb, ...Fc -> ...Fa", H_combined_l3, kernel.weight, x, y)
+                    z_l3 = torch.einsum(
+                        "pabc, pF, ...Fb, ...Fc -> ...Fa",
+                        H_combined_l3,
+                        kernel.weight,
+                        x,
+                        y,
+                    )
                 else:
                     # Single-path: kernel is None, use first slice of H_combined_l3
 
@@ -209,7 +226,9 @@ class TensorProduct(nn.Module):
                     # x: (..., F, T1)
                     # y: (..., F, T2)
                     # Result z_l3: (..., F, 3^l3)
-                    z_l3 = torch.einsum("abc, ...Fb, ...Fc -> ...Fa", H_combined_l3[0], x, y)
+                    z_l3 = torch.einsum(
+                        "abc, ...Fb, ...Fc -> ...Fa", H_combined_l3[0], x, y
+                    )
 
             z.append(z_l3)
 

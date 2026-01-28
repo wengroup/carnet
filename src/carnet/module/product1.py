@@ -1,9 +1,9 @@
 r"""
 Product of natural tensors.
 
-This module provides the original, unoptimized reference implementation of the 
-tensor product between two feature tensors. It uses Python loops to iterate 
-over every path and every rank, performing separate `torch.einsum` calls for 
+This module provides the original, unoptimized reference implementation of the
+tensor product between two feature tensors. It uses Python loops to iterate
+over every path and every rank, performing separate `torch.einsum` calls for
 each.
 
 For more efficient implementations, see `product.py` and `product2.py`.
@@ -80,7 +80,7 @@ class TensorProduct(nn.Module):
                 which is simply a wrapper around the tp_even and tp_odd functions.
                 When it is True, it is used in the context of atomic moments,
                 Z= RXY, where X is of shape (..., F, T1) and Y is of shape (..., T2),
-                and R is a dictionary of additional weights, of shape (..., F).
+                and R is an additional weight tensor of shape (..., P, F).
         """
         super().__init__()
         self.L1 = L1
@@ -134,9 +134,7 @@ class TensorProduct(nn.Module):
 
         self.z_tensor_dims = [3**l3 for l3 in self.L3]
 
-    def forward(
-        self, x: Tensor, y: Tensor, R: Optional[dict[str, Tensor]] = None
-    ) -> Tensor:
+    def forward(self, x: Tensor, y: Tensor, R: Optional[Tensor] = None) -> Tensor:
         """
         Evaluate the tensor product of two feature tensors:
         z_l3 = R_l1l2l3 x_l1 \otimes y_l2
@@ -148,7 +146,8 @@ class TensorProduct(nn.Module):
                 where T2 = \sum_{l2} 3**l2. The shape depends on `for_atomic_moment`.
             R: additional parameters to be multiplied with the tensor product. If None,
                 the tensor product is evaluated without additional parameters.
-                Shape (..., F), where F is the number of features.
+                If Tensor, it has shape (..., P, F) where P is the total number of paths.
+                The shape of R should be (..., F) for each path.
 
         Returns:
             z: Output feature tensor, whose ranks are determined the input L3. Shape
@@ -158,6 +157,7 @@ class TensorProduct(nn.Module):
             assert R is not None, "Weights are needed for atomic moment, but R is None"
 
         z = []
+        path_idx = 0
         for idx, l3 in enumerate(self.L3):
             l3_H = self.path_H[str(l3)]
             kernel = self.kernels[idx]
@@ -173,7 +173,7 @@ class TensorProduct(nn.Module):
                 y_l2 = y[..., int((3**l2 - 1) // 2) : int((3 ** (l2 + 1) - 1) // 2)]
 
                 if self.for_atomic_moment:
-                    w = R[str((l1, l2, l3))]
+                    w = R[..., path_idx, :]
                     # H: (3^l3, 3^l1, 3^l2)
                     # x: (..., F, 3^l1)
                     # y: (..., 3^l2)
@@ -188,6 +188,7 @@ class TensorProduct(nn.Module):
                     z_tmp = torch.einsum("aAB,...A,...B->...a", H, x_l1, y_l2)
 
                 z_l3_list.append(z_tmp)  # list of tensors of shape (..., F, 3**l3)
+                path_idx += 1
 
             # Combine paths for current l3
             if len(z_l3_list) == 1:
