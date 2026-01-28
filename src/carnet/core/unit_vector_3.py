@@ -10,14 +10,14 @@ import torch
 from torch import Tensor, nn
 
 from carnet.core.generate_H_unit_vector import load_H_unit_vector
+from carnet.module.utils import BufferList
 
 
 class Polyadics(nn.Module):
     """
     Module to compute natural tensors (polyadics) from unit vectors.
 
-    This module caches the transformation matrices H as a single block-diagonal
-    buffer for efficiency.
+    This module caches the transformation matrices H as buffers for efficiency.
     """
 
     def __init__(self, L: int, normalize: str = "unity"):
@@ -27,18 +27,12 @@ class Polyadics(nn.Module):
 
         H_dict = self._get_H_unit_vector(normalize)
 
-        # Combine H tensors for all ranks 0 to L into a single block-diagonal matrix.
-        # Rank 0 is [1], Rank 1 is I3.
-        # Precompute and store transposed H tensors as a single buffer.
-        # Transposing makes the forward contraction efficient: out = a_all @ H_total
-        Hs = [torch.ones((1, 1))]
-        if L >= 1:
-            Hs.append(torch.eye(3))
+        # Ranks 0 and 1 are handled specially in forward.
+        # Precompute and store transposed H tensors for ranks l >= 2 as buffers.
+        # Transposing makes the forward contraction efficient: n_l = a_flat @ H_l
+        Hs = [H_dict[l]["H"].t() for l in range(2, L + 1)]
 
-        for l in range(2, L + 1):
-            Hs.append(H_dict[l]["H"].t())
-
-        self.register_buffer("H_total", torch.block_diag(*Hs))
+        self.Hs = BufferList(Hs)
 
     def forward(self, a: Tensor) -> Tensor:
         """
@@ -53,26 +47,27 @@ class Polyadics(nn.Module):
         """
         batch_dims = a.shape[:-1]
 
-        # Generate all polyadic tensors (flattened outer products) from rank 0 to L.
         # Rank 0: (..., 1)
-        a_flats = [torch.ones(batch_dims + (1,), dtype=a.dtype, device=a.device)]
+        out = [torch.ones(batch_dims + (1,), dtype=a.dtype, device=a.device)]
 
         # Rank 1: (..., 3)
         if self.L >= 1:
-            a_flats.append(a)
+            out.append(a)
 
         # Ranks 2 to L
         if self.L >= 2:
-            curr = a
+            a_flat = a
             for l in range(2, self.L + 1):
-                # Flattened outer product: curr = a \otimes ... \otimes a (rank l)
+                # Flattened outer product: a_flat = a \otimes ... \otimes a (rank l)
                 # (..., 3**(l-1), 1) * (..., 1, 3) -> (..., 3**(l-1), 3) -> flatten
-                curr = (curr.unsqueeze(-1) * a.unsqueeze(-2)).flatten(-2)
-                a_flats.append(curr)
+                a_flat = (a_flat.unsqueeze(-1) * a.unsqueeze(-2)).flatten(-2)
 
-        # Concatenate all polyadics and perform a single matrix multiplication.
-        a_all = torch.cat(a_flats, dim=-1)
-        return a_all @ self.H_total
+                # N_l = a_flat @ H_l
+                H_l = self.Hs[l - 2]
+                n_l = a_flat @ H_l
+                out.append(n_l)
+
+        return torch.cat(out, dim=-1)
 
     @classmethod
     def _get_H_unit_vector(cls, normalize: str) -> dict[int, dict[str, any]]:

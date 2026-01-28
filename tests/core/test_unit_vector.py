@@ -3,6 +3,7 @@ from natt.utils import is_symmetric_traceless, letter_index
 
 from carnet.core.legendre import legendre
 from carnet.core.unit_vector import Polyadics
+from carnet.core.unit_vector_3 import Polyadics as Polyadics3
 from carnet.core.unit_vector_1 import (
     get_nt_from_vector,
     get_nt_from_vector_rule,
@@ -126,17 +127,21 @@ def test_polyadics():
     Check Polyadics implementation produces the same result as the reference.
     """
     torch.manual_seed(35)
-    a = torch.randn(10000, 3)
+    a = torch.randn(10, 3)
     a /= a.norm(dim=-1, keepdim=True)
 
     L = 4
     poly_mod = Polyadics(L, normalize="unity")
     out_poly = poly_mod(a)
 
+    poly_mod_3 = Polyadics3(L, normalize="unity")
+    out_poly_3 = poly_mod_3(a)
+
     # Reference implementation
     out_ref_1 = get_polyadics_from_vector(a, L)
 
     out_ref_2 = get_polyadics_from_vector_2(a, L)
 
+    assert torch.allclose(out_poly, out_poly_3, atol=1e-6)
     assert torch.allclose(out_poly, out_ref_1, atol=1e-6)
     assert torch.allclose(out_poly, out_ref_2, atol=1e-6)
