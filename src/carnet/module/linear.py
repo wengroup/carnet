@@ -116,7 +116,9 @@ class LinearMap(nn.Module):
     Args:
         in_features: F
         out_features: F'
-        bias: whether to add bias
+        bias: whether to add bias. Typically, should be `False`, except when t=1
+            (scalar case); otherwise, the bias would be added to all slices along t,
+            which will break the equivariance.
     """
 
     def __init__(self, in_features: int, out_features: int, bias: bool = False):
@@ -175,6 +177,11 @@ class LinearMap2(nn.Module):
 
     Similar to LinearMap, but the weight matrix is different for atoms of different
     species.
+
+    Args:
+        bias: whether to add bias. Typically, should be `False`, except when t=1
+            (scalar case); otherwise, the bias would be added to all slices along t,
+            which will break the equivariance.
     """
 
     def __init__(
@@ -241,6 +248,10 @@ class SlicedLinearMap(nn.Module):
 
     Unlike LinearMap, where a single weight matrix is used for the entire tensor, here
     separate weight matrices are used for each slice across the T dimension.
+
+    Args:
+        bias: whether to add bias. If True, the bias is only added to the first slice,
+            which should be a scalar (size 1); otherwise, an error is raised.
     """
 
     def __init__(
@@ -321,6 +332,10 @@ class SlicedLinearMap2(nn.Module):
 
     Similar to SlicedLinearMap, but the weight matrix is different for atoms of
     different species.
+
+    Args:
+        bias: whether to add bias. If True, the bias is only added to the first slice,
+            which should be a scalar (size 1); otherwise, an error is raised.
     """
 
     def __init__(

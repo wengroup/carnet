@@ -190,7 +190,7 @@ class TensorProduct(nn.Module):
                 # Slice it to get (..., Np, F)
                 W_l3 = R[..., self._l3_path_slices[idx], :]
 
-                # Multiply by kernel weight if it exists
+                # Combine path weights in R and linear combination weights in kernel
                 if kernel is not None:
                     W_l3 = W_l3 * kernel.weight
 

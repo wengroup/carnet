@@ -269,8 +269,11 @@ class AtomicTensor(nn.Module):
         """
         assert len(atom_feats) == self.num_atom_feats, "Incorrect number of atom feats."
 
+        # Avoid modifying the input list, since it can be used in other places like in
+        # multitask learning.
+        new_atom_feats = atom_feats.copy()
+
         # Apply layer norm to the last layer's atomic feats
-        new_atom_feats = atom_feats.copy()  # Avoid modifying the input list
         if self.layer_norm is not None:
             new_atom_feats[-1] = self.layer_norm(new_atom_feats[-1])
 
