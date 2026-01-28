@@ -66,20 +66,21 @@ class SlicedLinearCombination(nn.Module):
         self.const_features = const_features
         self.slice_sizes = slice_sizes
 
-        self.slices = []
-        self.linear = nn.ModuleList()
-        start = 0
-        for size in slice_sizes:
-            end = start + size
-            self.slices.append(slice(start, end))
-            start = end
+        self.num_slices = len(slice_sizes)
+        # Separate weights for each slice
+        self.weight = nn.Parameter(
+            torch.empty(self.num_slices, in_features, const_features)
+        )
 
-            self.linear.append(
-                LinearCombination(
-                    in_features=in_features,
-                    const_features=const_features,
-                )
-            )
+        # Mapping from t index to slice index
+        weight_map = torch.repeat_interleave(torch.tensor(slice_sizes))
+        self.register_buffer("weight_map", weight_map)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        k = 1 / self.in_features**0.5
+        nn.init.uniform_(self.weight, -k, k)
 
     def forward(self, input: Tensor) -> Tensor:
         """
@@ -89,13 +90,12 @@ class SlicedLinearCombination(nn.Module):
         Returns:
             tensor of shape (..., F, t)
         """
+        # Expand weights to (t, P, F)
+        W_full = self.weight[self.weight_map]
 
-        out = []
-        for layer, s in zip(self.linear, self.slices):
-            out.append(layer(input[..., s]))
-        out = torch.cat(out, dim=-1)
-
-        return out
+        # (t, p, f) * (..., p, f, t) -> (..., f, t)
+        # We use einsum to handle the shared t dimension correctly
+        return torch.einsum("tpf, ...pft -> ...ft", W_full, input)
 
     def __repr__(self):
         return (
@@ -241,18 +241,6 @@ class SlicedLinearMap(nn.Module):
 
     Unlike LinearMap, where a single weight matrix is used for the entire tensor, here
     separate weight matrices are used for each slice across the T dimension.
-
-    For example, let T = t1+t2+...+tn, then n weight matrices are used, each for a slice
-    of size ti across the T dimension.
-
-    This is essentially a generalization of LinearMap.
-
-    Args:
-        in_features: F
-        out_features: F'
-        slice_sizes: Sizes of slices across the T dimension.
-        bias: Whether to add bias for the first slice. Bias is only added to the first
-            slice and when slice_sizes[0] == 1, namely when the first slice is a scalar.
     """
 
     def __init__(
@@ -268,27 +256,35 @@ class SlicedLinearMap(nn.Module):
         self.slice_sizes = slice_sizes
         self.bias = bias
 
-        self.slices = []
-        self.linear = nn.ModuleList()
-        start = 0
-        for size in slice_sizes:
-            end = start + size
-            self.slices.append(slice(start, end))
-            start = end
+        self.num_slices = len(slice_sizes)
+        # Separate weights for each slice
+        self.weight = nn.Parameter(
+            torch.empty(self.num_slices, out_features, in_features)
+        )
 
-            # Apply bias for scalars
-            if bias and size == 1:
-                b = True
-            else:
-                b = False
-
-            self.linear.append(
-                LinearMap(
-                    in_features=in_features,
-                    out_features=out_features,
-                    bias=b,
+        # Bias only for the first slice, which should be a scalar (size 1)
+        if bias:
+            if slice_sizes[0] != 1 or any(s == 1 for s in slice_sizes[1:]):
+                raise ValueError(
+                    f"Bias can only be added if the first slice is a scalar (size 1) "
+                    f"and it is the only scalar. Got slice_sizes {slice_sizes}."
                 )
-            )
+            self.bias_param = nn.Parameter(torch.empty(out_features))
+        else:
+            self.register_parameter("bias_param", None)
+
+        # Mapping from T index to slice index
+        weight_map = torch.repeat_interleave(torch.tensor(slice_sizes))
+        self.register_buffer("weight_map", weight_map)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias_param is not None:
+            fan_in = self.in_features
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias_param, -bound, bound)
 
     def forward(self, input: Tensor) -> Tensor:
         """
@@ -298,11 +294,16 @@ class SlicedLinearMap(nn.Module):
         Returns:
             tensor of shape (..., F', T)
         """
+        # Expand weights to (T, out_F, in_F)
+        W_full = self.weight[self.weight_map]
 
-        out = []
-        for layer, s in zip(self.linear, self.slices):
-            out.append(layer(input[..., s]))
-        out = torch.cat(out, dim=-1)  # Shape (..., F', T)
+        # (T, out_F, in_F) * (..., in_F, T) -> (..., out_F, T)
+        out = torch.einsum("tif, ...ft -> ...it", W_full, input)
+
+        if self.bias_param is not None:
+            # Add bias only to the first entry of the T dimension (the scalar)
+            out[..., 0] = out[..., 0] + self.bias_param
+
         return out
 
     def __repr__(self):
