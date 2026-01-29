@@ -154,20 +154,21 @@ class Layer(nn.Module):
         if self.residual:
             # Only do it for the ranks that exist in both the input atom feats and the
             # output hyper moment
-            self.min_max_out_L_L1 = min(self.max_out_L, self.L1)
+            min_max_out_L_L1 = min(self.max_out_L, self.L1)
+            self.residual_size = (3 ** (min_max_out_L_L1 + 1) - 1) // 2
 
         if self.residual and use_linear_channel_residual:
             if self.uadw_residual:
                 self.linear_channel_residual = SlicedLinearMap2(
                     F,
                     F,
-                    [3**l for l in range(self.min_max_out_L_L1 + 1)],
+                    [3**l for l in range(min_max_out_L_L1 + 1)],
                     num_atom_types=num_atom_types,
                     bias=True,
                 )
             else:
                 self.linear_channel_residual = SlicedLinearMap(
-                    F, F, [3**l for l in range(self.min_max_out_L_L1 + 1)], bias=True
+                    F, F, [3**l for l in range(min_max_out_L_L1 + 1)], bias=True
                 )
         else:
             self.register_buffer("linear_channel_residual", None)
@@ -223,8 +224,7 @@ class Layer(nn.Module):
 
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:
-            size = int((3 ** (self.min_max_out_L_L1 + 1) - 1) // 2)
-            feats_skip = atom_feats[..., :size]
+            feats_skip = atom_feats[..., : self.residual_size]
 
             if self.linear_channel_residual is not None:
                 if self.uadw_residual:
@@ -232,6 +232,6 @@ class Layer(nn.Module):
                 else:
                     feats_skip = self.linear_channel_residual(feats_skip)
 
-            hm[..., :size] += feats_skip
+            hm[..., : self.residual_size] += feats_skip
 
         return hm

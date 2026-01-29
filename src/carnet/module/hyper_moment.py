@@ -1,6 +1,5 @@
 """Hyper moment constructed as the tensor product of multiple atomic moments."""
 
-import torch
 from torch import Tensor, nn
 
 from .linear import SlicedLinearCombination
@@ -167,4 +166,3 @@ class HyperMoment(nn.Module):
         # Result w is (T', F), transposed to (F, T')
         w = self.linear_degree.weight[self.linear_degree.weight_map, d - 1, :]
         return w.t()
-

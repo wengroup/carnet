@@ -1,7 +1,8 @@
 """CarNet backbone module that performs multiple iterations of feature updates."""
 
-from torch import Tensor, nn
 import torch
+from torch import Tensor, nn
+
 from carnet.core.unit_vector import Polyadics
 from carnet.module.layer import Layer
 from carnet.module.radial import RadialPart1, RadialPart2, RadialPart3, RadialPart4
