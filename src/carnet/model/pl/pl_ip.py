@@ -107,12 +107,13 @@ class InteratomicPotentialLitModule(LightningModule):
     def _forward(self, batch, func):
         """Compute energy, forces, and stress."""
 
-        # Note, it is tempting to compute the edge_vector in the collate_fn of the
-        # dataloader; however, this will not work will pytorch lightning. Internally
-        # it does something to the batch, modifying both pos and edge_index. As a
-        # result, the edge_vector is not directly derived from pos, and thus we won't
-        # be able to compute the forces.
-        # This is why we compute the edge_vector here.
+        # Note: edge_vector must be computed here rather than in the DataLoader.
+        # Computing it earlier would break the autograd graph during multiprocessing
+        # serialization and data transfer. As a result, edge_vector becomes leaf nodes
+        # in the autograd graph (instead of being connected to `pos`), preventing the
+        # computation of forces via gradients of energy w.r.t. positions.
+        # We compute it here after setting `requires_grad` to ensure forces (gradients)
+        # can be correctly derived.
 
         # requires_grad to enable force computation
         pos = batch.pos

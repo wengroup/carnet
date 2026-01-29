@@ -145,11 +145,11 @@ def apply_strain(
     strain_sym = 0.5 * (strain + strain.transpose(-1, -2))
 
     # strain positions
-    # batched [n_atoms, 1, 3] @ [n_atoms, 3, 3] -> [n_atoms, 1, 3] -> [n_atoms, 3]
+    # (n_atoms, 1, 3) @ (n_atoms, 3, 3) -> (n_atoms, 3)
     strained_pos = pos + torch.bmm(pos.unsqueeze(-2), strain_sym[batch]).squeeze(-2)
 
     # strain cell
-    # [B, 3, 3] @ [B, 3, 3] -> [B, 3, 3]
+    # (B, 3, 3) @ (B, 3, 3) -> (B, 3, 3)
     strained_cell = cell + torch.bmm(cell, strain_sym)
 
     return strain, strained_pos, strained_cell
