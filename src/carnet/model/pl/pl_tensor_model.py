@@ -69,11 +69,6 @@ class BaseLitModule(LightningModule):
         else:
             raise ValueError(f"Unknown metrics type: {self.metrics_type}")
 
-        # validation will only start after this
-        self.validation_start_epoch = self.metrics_hparams.get(
-            "validation_start_epoch", 0
-        )
-
         # metrics for natural tensors
         self.metrics = nn.ModuleDict(
             {
@@ -190,14 +185,12 @@ class BaseLitModule(LightningModule):
         return losses["train/loss_total"]
 
     def validation_step(self, batch, batch_idx):
-        self._val_test_step(
-            batch, batch_idx, mode="val", start_epoch=self.validation_start_epoch
-        )
+        self._val_test_step(batch, batch_idx, mode="val")
 
     def test_step(self, batch, batch_idx):
         self._val_test_step(batch, batch_idx, mode="test")
 
-    def _val_test_step(self, batch, batch_idx, mode: str, start_epoch: int = 0):
+    def _val_test_step(self, batch, batch_idx, mode: str):
         batch_size = batch.num_graphs
 
         ref_nat = batch.y[self.loss_hparams["target_name"] + "_natural"]
@@ -206,11 +199,7 @@ class BaseLitModule(LightningModule):
         ]
 
         # use current model
-        if self.current_epoch >= start_epoch:
-            pred_nat = self(batch)
-        else:
-            # Dummy values to skip validation for the first few epochs
-            pred_nat = {int(k): v + 1e10 for k, v in ref_nat.items()}
+        pred_nat = self(batch)
 
         if self.target_mode in ["full", "voigt"]:
             pred = self.to_cartesian(pred_nat)
@@ -220,12 +209,7 @@ class BaseLitModule(LightningModule):
         metrics = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode)
 
         # use EMA model
-        if self.current_epoch >= start_epoch:
-            pred_nat = self.forward_ema(batch)
-        else:
-            # Dummy values to skip validation for the first few epochs
-            pred_nat = {int(k): v + 1e5 for k, v in ref_nat.items()}
-
+        pred_nat = self.forward_ema(batch)
         if self.target_mode in ["full", "voigt"]:
             pred = self.to_cartesian(pred_nat)
         else:

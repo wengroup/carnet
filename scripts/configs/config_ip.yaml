@@ -114,7 +114,6 @@ loss:
 metrics:
   type: mae
   normalize: true # normalize energy by number of atoms
-  validation_start_epoch: 0 # start calculating metrics at this epoch
 
 optimizer:
   class_path: torch.optim.AdamW

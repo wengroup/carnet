@@ -68,7 +68,6 @@ loss:
 
 metrics:
   type: mae
-  validation_start_epoch: 0 # start calculating metrics at this epoch, can be used to avoid nan in the first few epochs
 
 optimizer:
   class_path: torch.optim.AdamW

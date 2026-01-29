@@ -71,11 +71,6 @@ class InteratomicPotentialLitModule(LightningModule):
         else:
             raise ValueError(f"Unknown metrics type: {self.metrics_type}")
 
-        # validation will only start after this
-        self.validation_start_epoch = self.metrics_hparams.get(
-            "validation_start_epoch", 0
-        )
-
         self.energy_metric = nn.ModuleDict(
             {
                 f"metrics_{mode}": MetricClass()
@@ -191,14 +186,12 @@ class InteratomicPotentialLitModule(LightningModule):
         return losses["train/loss_total"]
 
     def validation_step(self, batch, batch_idx):
-        self._val_test_step(
-            batch, batch_idx, mode="val", start_epoch=self.validation_start_epoch
-        )
+        self._val_test_step(batch, batch_idx, mode="val")
 
     def test_step(self, batch, batch_idx):
         self._val_test_step(batch, batch_idx, mode="test")
 
-    def _val_test_step(self, batch, batch_idx, mode: str, start_epoch: int = 0):
+    def _val_test_step(self, batch, batch_idx, mode: str):
         with torch.enable_grad():
 
             e_ref = batch.y["energy"]
@@ -209,43 +202,27 @@ class InteratomicPotentialLitModule(LightningModule):
             batch_size = batch.num_graphs
 
             # use current model
-            if self.current_epoch >= start_epoch:
-                e_pred, f_pred, s_pred = self(batch)
-            else:
-                # dummy values to skip validation for the first few epochs
-                e_pred = f_pred = s_pred = torch.zeros(
-                    1, dtype=e_ref.dtype, device=e_ref.device
-                )
-                e_ref = f_ref = s_ref = 1e10 * torch.ones(
-                    1, dtype=e_ref.dtype, device=e_ref.device
-                )
+            e_pred, f_pred, s_pred = self(batch)
 
             metrics = self.compute_metrics(
                 e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode
             )
-            self.log_dict(
-                metrics,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=batch_size,
-            )
 
             # use EMA model
-            if self.current_epoch >= start_epoch:
-                e_pred, f_pred, s_pred = self.forward_ema(batch)
-            else:
-                # dummy values to skip validation for the first few epochs
-                e_pred = f_pred = s_pred = torch.zeros(
-                    1, dtype=e_ref.dtype, device=e_ref.device
-                )
-                e_ref = f_ref = s_ref = 1e10 * torch.ones(
-                    1, dtype=e_ref.dtype, device=e_ref.device
-                )
+            e_pred_ema, f_pred_ema, s_pred_ema = self.forward_ema(batch)
 
-            metrics = self.compute_metrics(
-                e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode + "_ema"
+            metrics_ema = self.compute_metrics(
+                e_pred_ema,
+                f_pred_ema,
+                s_pred_ema,
+                e_ref,
+                f_ref,
+                s_ref,
+                num_atoms,
+                mode + "_ema",
             )
+            metrics.update(metrics_ema)
+
             self.log_dict(
                 metrics,
                 on_step=False,
@@ -284,12 +261,11 @@ class InteratomicPotentialLitModule(LightningModule):
         If we want to treat each structure equally, use `compute_loss_1` instead.
         """
         if self.loss_hparams["normalize"]:
-            e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
-                e_pred / num_atoms, e_ref / num_atoms
-            )
-        else:
-            e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(e_pred, e_ref)
+            # e_pred and e_ref are (B,), num_atoms is (B,)
+            e_pred = e_pred / num_atoms
+            e_ref = e_ref / num_atoms
 
+        e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(e_pred, e_ref)
         f_loss = self.loss_hparams["forces_ratio"] * self.loss_func(f_pred, f_ref)
 
         loss = e_loss + f_loss
@@ -328,8 +304,11 @@ class InteratomicPotentialLitModule(LightningModule):
 
         where N_k is the number of atoms in the k-th structure
         """
+        # e_pred and e_ref are (B,), num_atoms is (B,)
+        e_pred = e_pred / num_atoms
+        e_ref = e_ref / num_atoms
         e_loss = self.loss_hparams["energy_ratio"] * self.loss_func(
-            e_pred / num_atoms, e_ref / num_atoms, reduction="mean"
+            e_pred, e_ref, reduction="mean"
         )
 
         f_norm = torch.repeat_interleave(num_atoms, num_atoms).sqrt().reshape(-1, 1)
@@ -367,9 +346,11 @@ class InteratomicPotentialLitModule(LightningModule):
 
         """
         if self.metrics_hparams["normalize"]:
-            self.energy_metric[f"metrics_{mode}"](e_pred / num_atoms, e_ref / num_atoms)
-        else:
-            self.energy_metric[f"metrics_{mode}"](e_pred, e_ref)
+            # e_pred and e_ref are (B,), num_atoms is (B,)
+            e_pred = e_pred / num_atoms
+            e_ref = e_ref / num_atoms
+
+        self.energy_metric[f"metrics_{mode}"](e_pred, e_ref)
 
         # NOTE, the below will bias the MAE towards larger structures, because each
         # atom contributes to the MAE.

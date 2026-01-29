@@ -47,7 +47,7 @@ class BasePyTorchTrainer:
         self.ema = EMA(self.model, **self.ema_hparams)
 
         # Setup metrics
-        self.metrics_type = self.metrics_hparams.get("type", "mae")
+        self.metrics_type = self.metrics_hparams.get("type", None)
         if self.metrics_type == "mae":
             MetricClass = MeanAbsoluteError
         elif self.metrics_type == "mse":
@@ -55,12 +55,6 @@ class BasePyTorchTrainer:
         else:
             raise ValueError(f"Unknown metrics type: {self.metrics_type}")
 
-        # Validation start epoch
-        self.validation_start_epoch = self.metrics_hparams.get(
-            "validation_start_epoch", 0
-        )
-
-        # Initialize metrics for natural tensors
         self.metrics = nn.ModuleDict(
             {
                 f"metrics_{mode}_{rank}": MetricClass().to(self.device)
@@ -209,15 +203,13 @@ class BasePyTorchTrainer:
 
     def validation_step(self, batch):
         """Single validation step."""
-        return self._val_test_step(
-            batch, mode="val", start_epoch=self.validation_start_epoch
-        )
+        return self._val_test_step(batch, mode="val")
 
     def test_step(self, batch):
         """Single test step."""
         return self._val_test_step(batch, mode="test")
 
-    def _val_test_step(self, batch, mode: str, start_epoch: int = 0):
+    def _val_test_step(self, batch, mode: str):
         """Common validation/test step logic."""
         self.model.eval()
         batch_size = batch.num_graphs
@@ -232,11 +224,7 @@ class BasePyTorchTrainer:
 
         with torch.no_grad():
             # Use current model
-            if self.current_epoch >= start_epoch:
-                pred_nat = self.forward(batch)
-            else:
-                # Dummy values to skip validation for the first few epochs
-                pred_nat = {int(k): v + 1e10 for k, v in ref_nat.items()}
+            pred_nat = self.forward(batch)
 
             if self.target_mode in ["full", "voigt"]:
                 pred = self.to_cartesian(pred_nat)
@@ -246,11 +234,7 @@ class BasePyTorchTrainer:
             metrics = self.compute_metrics(pred_nat, ref_nat, pred, ref, mode)
 
             # Use EMA model
-            if self.current_epoch >= start_epoch:
-                pred_nat_ema = self.forward_ema(batch)
-            else:
-                # Dummy values to skip validation for the first few epochs
-                pred_nat_ema = {int(k): v + 1e5 for k, v in ref_nat.items()}
+            pred_nat_ema = self.forward_ema(batch)
 
             if self.target_mode in ["full", "voigt"]:
                 pred_ema = self.to_cartesian(pred_nat_ema)
