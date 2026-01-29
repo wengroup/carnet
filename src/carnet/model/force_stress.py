@@ -107,6 +107,7 @@ def compute_forces_stress_single_config(
     return forces, stress
 
 
+@torch.jit.script
 def apply_strain(
     pos: Tensor, cell: Tensor, batch: Tensor
 ) -> tuple[Tensor, Tensor, Tensor]:
@@ -155,6 +156,7 @@ def apply_strain(
     return strain, strained_pos, strained_cell
 
 
+@torch.jit.script
 def apply_strain_single_config(
     pos: Tensor, cell: Tensor
 ) -> tuple[Tensor, Tensor, Tensor]:
