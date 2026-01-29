@@ -107,7 +107,7 @@ class InteratomicPotential(nn.Module):
     ) -> Tensor:
         """
         Args:
-            edge_vector: Edge vector tensor. Shape (n_edges, F).
+            edge_vector: Edge vector tensor. Shape (n_edges, 3).
             edge_idx: Edge index tensor. Shape (2, n_edges).
             atom_type: Atomic type of each atom. Shape (n_atoms,).
             num_atoms: Number of atoms in each atomic configuration. Shape (n_config,).
