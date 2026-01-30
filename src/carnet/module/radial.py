@@ -1,412 +1,130 @@
 """Radial basis functions."""
 
-from typing import Optional
-
 import torch
 from torch import Tensor, nn
 
 
-class RadialPart1(nn.Module):
-    r"""Radial part.
+class RadialBasis(nn.Module):
+    r"""Radial basis functions.
 
     Weight: not depend on chemical species.
-    output_dim: chebyshev degree + 1.
+    output_dim: radial_basis_degree + 1 if chebyshev, radial_basis_degree if bessel.
     """
 
     def __init__(
         self,
-        n_u: int,
-        n_z: int,
-        max_chebyshev_degree: int = 9,
+        radial_basis_degree: int = 8,
         r_cut: float = 5,
-        envelope: Optional[int] = None,
+        envelope: int = 6,
+        basis_type: str = "bessel",
     ):
         """
         Args:
-            n_u: number of radial basis functions.
-            n_z: number of atomic species.
-            max_chebyshev_degree: max degree of the Chebyshev polynomial. The total
-                number of chebyshev polynomials is `max_chebyshev_degree + 1`; +1 for
-                the zeroth degree.
+            radial_basis_degree: max degree of the Chebyshev polynomial or number
+                of basis functions. The total number of functions is
+                `radial_basis_degree + 1` for chebyshev and `radial_basis_degree` for bessel.
             r_cut: cutoff distance.
-            envelope: envelope function to make the radial basis function smooth at
-                r_cut. if None, using the MTP 2nd order polynomial envelope. Otherwise,
-                p is a positive integer, and the envelope function in dimenet is used.
+            envelope: power of the dimenet_envelope function.
+            basis_type: Type of basis function to use. Either "chebyshev" or "bessel".
         """
         super().__init__()
-        self.n_u = n_u
-        self.n_z = n_z
-        self.max_chebyshev_degree = max_chebyshev_degree
+        self.radial_basis_degree = radial_basis_degree
         self.r_cut = r_cut
         self.envelope = envelope
+        self.basis_type = basis_type
 
-        self.register_buffer(
-            "output_dim", torch.tensor(max_chebyshev_degree + 1, dtype=torch.int)
-        )
+        if basis_type == "chebyshev":
+            output_dim = radial_basis_degree + 1
+            self.basis = ChebyshevBasis(degree=radial_basis_degree, r_cut=r_cut)
+        elif basis_type == "bessel":
+            output_dim = radial_basis_degree
+            self.basis = BesselBasis(r_cut=r_cut, num_basis=radial_basis_degree)
+        else:
+            raise ValueError(f"Unknown basis type: {basis_type}")
 
-    def forward(self, r: Tensor, zi: Tensor, zj: Tensor):
-        """
-        Args:
-            r: 1D tensor of distances between atoms i and j.
-            zi: 1D tensor of integers. type of atom i. The choice are 0, 1, 2, ...
-                the number of atom types.
-            zj: 1D tensor of integers. type of atom j. The choice are 0, 1, 2, ...
-                the number of atom types.
+        self.register_buffer("output_dim", torch.tensor(output_dim, dtype=torch.int))
 
-        Returns:
-            A tensor of shape (len(r), n_nu). The first dimension corresponds to `nu`
-            in Eq. 3 of Shapeev, and the second dimension denotes the size of the
-            distances.
-        """
-        # shape (len(r), degrees)
-        return radial_basis(
-            r, self.max_chebyshev_degree, r_cut=self.r_cut, envelope=self.envelope
-        )
-
-
-class RadialPart2(nn.Module):
-    r"""Radial part.
-
-    f_nu(r) = \sum_\beta c_nu * radial_basis_\beta(r)
-
-    Weight: not depend on chemical species.
-    output_dim: n_u.
-    """
-
-    def __init__(
-        self,
-        n_u: int,
-        n_z: int,
-        max_chebyshev_degree: int = 9,
-        r_cut: float = 5,
-        envelope: Optional[int] = None,
-    ):
-        """
-        Args:
-            n_u: number of radial basis functions.
-            n_z: number of atomic species.
-            max_chebyshev_degree: max degree of the Chebyshev polynomial. The total
-                number of chebyshev polynomials is `max_chebyshev_degree + 1`; +1 for
-                the zeroth degree.
-            r_cut: cutoff distance.
-            envelope: envelope function to make the radial basis function smooth at
-                r_cut. if None, using the MTP 2nd order polynomial envelope. Otherwise,
-                p is a positive integer, and the envelope function in dimenet is used.
-        """
-        super().__init__()
-
-        self.n_u = n_u
-        self.n_z = n_z
-        self.max_chebyshev_degree = max_chebyshev_degree
-        self.r_cut = r_cut
-        self.envelope = envelope
-
-        self.linear = nn.Linear(max_chebyshev_degree + 1, n_u)
-
-        self.register_buffer("output_dim", torch.tensor(n_u, dtype=torch.int))
-
-    def forward(self, r: Tensor, zi: Tensor, zj: Tensor):
-        """
-        Args:
-            r: 1D tensor of distances between atoms i and j.
-            zi: 1D tensor of integers. type of atom i. The choice are 0, 1, 2, ...
-                the number of atom types.
-            zj: 1D tensor of integers. type of atom j. The choice are 0, 1, 2, ...
-                the number of atom types.
-
-        Returns:
-            A tensor of shape (len(r), n_nu). The first dimension corresponds to `nu`
-            in Eq. 3 of Shapeev, and the second dimension denotes the size of the
-            distances.
-        """
-        # shape (len(r), degrees)
-        radial = radial_basis(
-            r, self.max_chebyshev_degree, r_cut=self.r_cut, envelope=self.envelope
-        )
-
-        return self.linear(radial)  # (len(r), n_nu)
-
-
-class RadialPart3(nn.Module):
-    r"""Radial part.
-
-    Unlike RadialPartCAMP, here, the weight does not depend on chemical species.
-
-    f_nu(r) = \sum_\beta c_nu * radial_basis_\beta(r)
-
-    Weight: depend on chemical species.
-    output_dim: max_chebyshev_degree + 1.
-    """
-
-    def __init__(
-        self,
-        n_u: int,
-        n_z: int,
-        max_chebyshev_degree: int = 9,
-        r_cut: float = 5,
-        envelope: Optional[int] = None,
-    ):
-        """
-        Args:
-            n_u: number of radial basis functions.
-            n_z: number of atomic species.
-            max_chebyshev_degree: max degree of the Chebyshev polynomial. The total
-                number of chebyshev polynomials is `max_chebyshev_degree + 1`; +1 for
-                the zeroth degree.
-            r_cut: cutoff distance.
-            envelope: envelope function to make the radial basis function smooth at
-                r_cut. if None, using the MTP 2nd order polynomial envelope. Otherwise,
-                p is a positive integer, and the envelope function in dimenet is used.
-        """
-        super().__init__()
-
-        self.n_u = n_u
-        self.n_z = n_z
-        self.max_chebyshev_degree = max_chebyshev_degree
-        self.r_cut = r_cut
-        self.envelope = envelope
-
-        self.c = nn.Parameter(torch.empty(n_z, n_z, max_chebyshev_degree + 1))
-        self.reset_parameters()
-
-        self.register_buffer(
-            "output_dim", torch.tensor(max_chebyshev_degree + 1, dtype=torch.int)
-        )
-
-    def reset_parameters(self):
-        """Initialize the weights to:
-
-            uniform(-1/sqrt(in_features), 1/sqrt(in_features)).
-
-        Note, self.c can be regarded as a collection of multiple linear layers, each for
-        a specific combination of zi and zj.
-
-        https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#L109
-        """
-        k = 1 / (self.max_chebyshev_degree + 1) ** 0.5
-        nn.init.uniform_(self.c, -k, k)
-
-    def forward(self, r: Tensor, zi: Tensor, zj: Tensor):
+    def forward(self, r: Tensor):
         """
         Args:
             r: 1D tensor of distances between atoms i and j.
 
         Returns:
-            A tensor of shape (len(r), n_nu). The first dimension corresponds to `nu`
-            in Eq. 3 of Shapeev, and the second dimension denotes the size of the
-            distances.
+            A tensor of shape (len(r), output_dim).
         """
-        # shape (len(r), degrees)
-        radial = radial_basis(
-            r, self.max_chebyshev_degree, r_cut=self.r_cut, envelope=self.envelope
-        )
+        basis_out = self.basis(r)
+        env = dimenet_envelope(r, self.r_cut, p=self.envelope)
 
-        # select c for r according to zi and zj
-        c = self.c[zi, zj, :]  # shape(len(r), degrees)
-
-        # linear combination of radial basis functions of different degrees
-        out = radial * c  # shape (len(r), degrees)
-
-        return out
+        return basis_out * env.unsqueeze(-1)
 
 
-class RadialPart4(nn.Module):
-    r"""Radial part used in the CAMP model.
-
-    f_nu_i_j(r) = \sum_\beta c_nu_i_j * radial_basis_\beta(r)
-
-    Eq. 3 of Shapeev.
-
-    # Note, this will be extremely large when there are lots of species. Then you
-    want to use RadialPart2, which is not dependent on the species.
-
-    Weight: depend on chemical species.
-    output_dim: n_u.
+class ChebyshevBasis(nn.Module):
+    """
+    Chebyshev polynomial basis functions.
     """
 
-    def __init__(
-        self,
-        n_u: int,
-        n_z: int,
-        max_chebyshev_degree: int = 9,
-        r_cut: float = 5,
-        envelope: Optional[int] = None,
-    ):
-        """
-        Args:
-            n_u: number of radial basis functions.
-            n_z: number of atom types.
-            max_chebyshev_degree: max degree of the Chebyshev polynomial. The total
-                number of chebyshev polynomials is `max_chebyshev_degree + 1`; +1 for
-                the zeroth degree.
-            r_cut: cutoff distance.
-            envelope: envelope function to make the radial basis function smooth at
-                r_cut. if None, using the MTP 2nd order polynomial envelope. Otherwise,
-                p is a positive integer, and the envelope function in dimenet is used.
-        """
+    def __init__(self, degree: int, r_cut: float):
         super().__init__()
+        self.degree = degree
+        self.register_buffer("r_cut", torch.tensor(r_cut))
 
-        self.n_u = n_u
-        self.n_z = n_z
-        self.max_chebyshev_degree = max_chebyshev_degree
-        self.r_cut = r_cut
-        self.envelope = envelope
+    def forward(self, r: Tensor) -> Tensor:
+        # Normalize distance to [0, 1] range
+        x = (r / self.r_cut).clamp(0.0, 1.0)
 
-        self.c = nn.Parameter(torch.empty(n_z, n_z, n_u, max_chebyshev_degree + 1))
-        self.reset_parameters()
+        # Chebyshev polynomials of the first kind.
+        # Note: Should not use torch.special.chebyshev_polynomial_t, because it does
+        # NOT support gradient calculation (upto torch v-2.8.1).
 
-        self.register_buffer("output_dim", torch.tensor(n_u, dtype=torch.int))
+        T = [torch.ones_like(x), x]  # T0 and T1
+        for i in range(2, self.degree + 1):
+            T.append(2.0 * x * T[i - 1] - T[i - 2])
 
-    def reset_parameters(self):
-        """Initialize the weights to:
+        return torch.stack(T, dim=-1)
 
-            uniform(-1/sqrt(in_features), 1/sqrt(in_features)).
 
-        Note, self.c can be regarded as a collection of multiple linear layers, each for
-        a specific combination of zi and zj.
+class BesselBasis(nn.Module):
+    """
+    Bessel basis functions using the 0th spherical Bessel function j0.
+    For more information, see the DimeNet paper: https://arxiv.org/abs/2003.03123
+    """
 
-        https://github.com/pytorch/pytorch/blob/e3ca7346ce37d756903c06e69850bdff135b6009/torch/nn/modules/linear.py#L109
-        """
-        k = 1 / (self.max_chebyshev_degree + 1) ** 0.5
-        nn.init.uniform_(self.c, -k, k)
+    def __init__(self, r_cut: float, num_basis: int = 8):
+        super().__init__()
+        self.num_basis = num_basis
 
-    def forward(self, r: Tensor, zi: Tensor, zj: Tensor):
-        """
-        Args:
-            r: 1D tensor of distances between atoms i and j.
-            zi: 1D tensor of integers. type of atom i. The choice are 0, 1, 2, ...
-                the number of atom types.
-            zj: 1D tensor of integers. type of atom j. The choice are 0, 1, 2, ...
-                the number of atom types.
+        self.register_buffer("freqs", torch.arange(1, num_basis + 1) * torch.pi / r_cut)
+        self.register_buffer("prefactor", torch.tensor((2.0 / r_cut) ** 0.5))
 
-        Note:
-            The shape of r, zi, and zj should be the same.
-
-        Returns:
-            A tensor of shape (len(r), n_nu). The first dimension corresponds to `nu`
-            in Eq. 3 of Shapeev, and the second dimension denotes the size of the
-            distances.
-        """
-        # shape (len(r), degrees)
-        radial = radial_basis(
-            r, self.max_chebyshev_degree, r_cut=self.r_cut, envelope=self.envelope
+    def forward(self, r: Tensor) -> Tensor:
+        return (
+            self.prefactor * torch.sin(self.freqs * r.unsqueeze(-1)) / r.unsqueeze(-1)
         )
-
-        # select c for r according to zi and zj
-        c = self.c[zi, zj, :, :]  # shape(len(r), n_nu, degrees)
-
-        # linear combination of radial basis functions of different degrees
-        out = torch.bmm(c, radial.unsqueeze(-1)).squeeze(-1)  # shape (len(r), n_nu)
-
-        return out
 
 
 @torch.jit.script
-def chebyshev_first(n: int, x: Tensor) -> Tensor:
-    """Chebyshev polynomials of the first kind.
-
-    Args:
-        n: highest degree of the polynomial to compute.
-        x: input tensor.
-
-    Returns:
-        A tensor of shape (*x.shape, n+1). The last dimension denotes the degree
-        of the polynomial, e.g. T[:,1] is the result of the first degree polynomial.
-    """
-
-    ## WARNING, WARNING, WARNING
-    # Should not use torch.special.chebyshev_polynomial_t, because it does NOT
-    # support gradient calculation (upto torch v-2.8.1).
-    # T = torch.stack(
-    #     [torch.special.chebyshev_polynomial_t(x, i) for i in range(n + 1)], dim=-1
-    # )
-    #
-
-    T = [torch.ones_like(x), x]  # T0 and T1
-    for i in range(2, n + 1):
-        T.append(2.0 * x * T[i - 1] - T[i - 2])
-
-    T = torch.stack(T, dim=-1)
-
-    return T
-
-
-def mtp_envelope(r: Tensor):
-    """The envelope function used in the MTP."""
-    return (1 - r) ** 2
-
-
-@torch.jit.script
-def dimenet_envelope(r: Tensor, p: int = 6):
+def dimenet_envelope(r: Tensor, r_cut: float, p: int = 6):
     """The envelope function used in DimNet.
 
     1 - (p+1)(p+2)/2*x**p + p*(p+2)*x**(p+1) - p*(p+1)/2*x**(p+2)
 
     Args:
-        r: normalized distance, in the range [0, 1].
-
-    This is also the envelope function used hybrid NN of Mingjian Wen when p = 3.
+        r: distance tensor.
+        r_cut: cutoff distance.
+        p: power.
     """
+    x = (r / r_cut).clamp(0.0, 1.0)
+
     if p == 6:
-        return 1 - 28 * r**6 + 48 * r**7 - 21 * r**8
+        env = 1 - 28 * x**6 + 48 * x**7 - 21 * x**8
     elif p == 3:
-        return 1 - 10 * r**3 + 15 * r**4 - 6 * r**5
+        env = 1 - 10 * x**3 + 15 * x**4 - 6 * x**5
     else:
-        return (
+        env = (
             1
-            - (p + 1) * (p + 2) / 2 * r**p
-            + p * (p + 2) * r ** (p + 1)
-            - p * (p + 1) / 2 * r ** (p + 2)
+            - (p + 1) * (p + 2) / 2 * x**p
+            + p * (p + 2) * x ** (p + 1)
+            - p * (p + 1) / 2 * x ** (p + 2)
         )
 
-
-@torch.jit.script
-def radial_basis(
-    r: Tensor,
-    degree: int,
-    r_min: float = 0,
-    r_cut: float = 5,
-    envelope: Optional[int] = None,
-) -> Tensor:
-    """
-    Radial basis function using Chebyshev polynomials and a smoothing envelope.
-
-    This function computes the radial basis $Q_{ij} = T_n(\tilde{r}_{ij}) \cdot f_{env}(r_{ij})$,
-    where $T_n$ are Chebyshev polynomials of the first kind and $f_{env}$ is an
-    envelope function that ensures the basis goes smoothly to zero at the cutoff.
-
-    To maintain memory continuity and autograd stability, the basis is computed for
-    all input distances, and components beyond the cutoff are explicitly zeroed.
-
-    Args:
-        r: Distance between atoms. Shape (n_edges,).
-        degree: Maximum degree of the Chebyshev polynomial to compute. The output
-            will have `degree + 1` components (including the 0-th degree).
-        r_min: Minimum distance for normalization (default: 0).
-        r_cut: Cutoff distance.
-        envelope: Type of envelope function to use. If `None`, uses the MTP
-            2nd-order polynomial envelope. If an integer, uses the `dimenet_envelope`
-            with that power.
-
-    Returns:
-        Radial basis tensor of shape (n_edges, degree + 1).
-    """
-    # Normalize distance to [0, 1] range for Chebyshev domain
-    # We clamp to [0, 1] to ensure numerical stability for r >= r_cut
-    normalized_r = ((r - r_min) / (r_cut - r_min)).clamp(0.0, 1.0)
-
-    # Compute Chebyshev polynomials for all distances
-    che = chebyshev_first(degree, normalized_r)
-
-    if envelope is None:
-        env = mtp_envelope(normalized_r)
-    else:
-        env = dimenet_envelope(normalized_r, p=envelope)
-
-    Q = che * env.unsqueeze(-1)
-
-    # Force basis to zero for all edges beyond the cutoff
-    mask = r >= r_cut
-    Q[mask, :] = 0.0
-
-    return Q
+    return env
