@@ -2,7 +2,7 @@ from natt.utils import is_symmetric, is_traceless
 import torch
 
 from carnet.module.atomic_moment import AtomicMoment
-from carnet.module.radial import RadialPart1
+from carnet.module.radial import RadialBasis
 
 from ..conftest import create_feature_tensors
 
@@ -15,16 +15,12 @@ def test_AtomicMoment(config_info):
     x = create_feature_tensors(num_atoms, F, L1)
 
     # Need radial basis
-    max_chebyshev_degree = 8
+    radial_basis_degree = 8
     r_cut = 5.0
-    radial = RadialPart1(F, num_atom_types, max_chebyshev_degree, r_cut, envelope=6)
+    radial = RadialBasis(radial_basis_degree, r_cut, envelope=6)
 
-    i_idx = edge_idx[0]
-    j_idx = edge_idx[1]
     radial_basis = radial(
         torch.linalg.vector_norm(edge_vector, dim=-1),
-        atom_type[i_idx],
-        atom_type[j_idx],
     )
 
     am = AtomicMoment(

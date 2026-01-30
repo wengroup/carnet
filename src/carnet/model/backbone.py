@@ -5,7 +5,7 @@ from torch import Tensor, nn
 
 from carnet.core.unit_vector import Polyadics
 from carnet.module.layer import Layer
-from carnet.module.radial import RadialPart1, RadialPart2, RadialPart3, RadialPart4
+from carnet.module.radial import RadialBasis
 
 
 class Backbone(nn.Module):
@@ -23,9 +23,9 @@ class Backbone(nn.Module):
         max_out_L: Max rank for the output feature tensor in the last layer.
             If None, set to max_L.
         max_degree: Max correlation degree to construct the hyper moment tensor.
-        max_chebyshev_degree: max degree of the Chebyshev polynomial to use to construct
+        radial_basis_degree: max degree of the Chebyshev polynomial to use to construct
             the radial basis functions. The total number of chebyshev polynomials is
-            `max_chebyshev_degree + 1`; +1 for the zeroth degree.
+            `radial_basis_degree + 1`; +1 for the zeroth degree.
         radial_mlp_hidden_layers: if list of int, this gives the size of each hidden
             layer in the MLP that is applied to the radial basis functions. If int,
             this gives the number of hidden layers, and the size of each hidden
@@ -45,8 +45,8 @@ class Backbone(nn.Module):
         max_out_L: int = None,
         max_degree: int = 3,
         # radial
-        max_chebyshev_degree: int = 8,
-        radial_part_type: int = 1,
+        radial_basis_degree: int = 8,
+        radial_basis_type: str = "bessel",
         radial_mlp_hidden_layers: list[int] | int = 2,
         #
         tp_path_mode: str = "lite",
@@ -70,26 +70,18 @@ class Backbone(nn.Module):
         self.max_out_L = max_L if max_out_L is None else max_out_L
         self.max_degree = max_degree
 
-        self.max_chebyshev_degree = max_chebyshev_degree
+        self.radial_basis_degree = radial_basis_degree
         self.radial_mlp_hidden_layers = radial_mlp_hidden_layers
 
         # Polyadics
         self.polyadics_module = Polyadics(max_L, normalize="unity")
 
         # Radial
-        if radial_part_type == 1:
-            RadialPartClass = RadialPart1
-        elif radial_part_type == 2:
-            RadialPartClass = RadialPart2
-        elif radial_part_type == 3:
-            RadialPartClass = RadialPart3
-        elif radial_part_type == 4:
-            RadialPartClass = RadialPart4
-        else:
-            raise ValueError(f"Invalid radial_part_type: {radial_part_type}")
-
-        self.radial_module = RadialPartClass(
-            F, num_atom_types, max_chebyshev_degree, r_cut, envelope=6
+        self.radial_module = RadialBasis(
+            radial_basis_degree,
+            r_cut,
+            envelope=6,
+            basis_type=radial_basis_type,
         )
 
         # Embed atom number as vectors
@@ -185,12 +177,8 @@ class Backbone(nn.Module):
         )
 
         # Precompute shared radial basis
-        i_idx = edge_idx[0]
-        j_idx = edge_idx[1]
         radial_basis = self.radial_module(
             torch.linalg.vector_norm(edge_vector, dim=-1),
-            atom_type[i_idx],
-            atom_type[j_idx],
         )
 
         output = []

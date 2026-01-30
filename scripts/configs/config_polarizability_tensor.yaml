@@ -37,9 +37,9 @@ model:
   max_degree: 3 # max correlation degree
 
   # radial
-  radial_part_type: 1
   radial_mlp_hidden_layers: 2
-  max_chebyshev_degree: 8 # max degree of Chebyshev polynomial for the radial part
+  radial_basis_degree: 8
+  radial_basis_type: bessel
 
   # optional layers
   use_linear_channel_input: false
