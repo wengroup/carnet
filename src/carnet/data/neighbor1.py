@@ -1,5 +1,5 @@
 import numpy as np
-from matscipy.neighbours import neighbour_list
+from ase.neighborlist import primitive_neighbor_list
 
 
 def get_neigh(
@@ -43,20 +43,14 @@ def get_neigh(
         else:
             raise RuntimeError("`cell` vectors not provided")
 
-    first_idx, second_idx, shift_vec, edge_vec = neighbour_list(
-        "ijSD", pbc=pbc, cell=cell, positions=coords, cutoff=r_cut
+    first_idx, second_idx, shift_vec, edge_vec = primitive_neighbor_list(
+        "ijSD",
+        pbc=pbc,
+        cell=cell,
+        positions=coords,
+        cutoff=r_cut,
+        self_interaction=self_interaction,
     )
-
-    # Remove self-edges that don't cross periodic boundaries
-    if not self_interaction:
-        bad_edge = first_idx == second_idx
-        bad_edge &= np.all(shift_vec == 0, axis=1)
-        keep_edge = ~bad_edge
-
-        first_idx = first_idx[keep_edge]
-        second_idx = second_idx[keep_edge]
-        shift_vec = shift_vec[keep_edge]
-        edge_vec = edge_vec[keep_edge]
 
     # Some atoms do not have neighbors
     n_atoms = len(coords)

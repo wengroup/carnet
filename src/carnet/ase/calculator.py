@@ -71,7 +71,10 @@ class CarnetCalculator(Calculator):
             elements = lit_model.hparams["other_hparams"]["data"]["atomic_number"]
 
         self.supported_elements = set(elements)
+
+        # Convert atomic number to atom type (consecutive integer starting from 0)
         self.transform = ConsecutiveAtomType(elements, device=self.device)
+        self.atom_type = None
 
         self.results = {}
 
@@ -96,17 +99,20 @@ class CarnetCalculator(Calculator):
 
         # convert atomic numbers to consecutive integer code starting from 0, which
         # is what the model internally expects
-        data = self.transform(data)
+        if self.atom_type is None:
+            data = self.transform(data)
+            self.atom_type = data.atom_type
+        else:
+            data.atom_type = self.atom_type
 
         has_cell = hasattr(data, "cell") and data.cell is not None
 
-        if self.need_stress and not has_cell:
-            raise RuntimeError(
-                "Stress computation is requested but the cell is not present."
-            )
-
-        # It is possible to compute stress only if the cell is present
         if self.need_stress:
+            if not has_cell:
+                raise RuntimeError(
+                    "Stress computation is requested but the cell is not present."
+                )
+
             # apply strain and get strained positions and cell
             strain, strained_pos, strained_cell = apply_strain_single_config(
                 data.pos, data.cell
@@ -118,6 +124,8 @@ class CarnetCalculator(Calculator):
         edge_vector = get_edge_vec_single(
             data.pos, data.shift_vector, cell, data.edge_index
         )
+
+        # Compute energy
         energy = self.model(
             edge_vector,
             data.edge_index,
@@ -126,7 +134,7 @@ class CarnetCalculator(Calculator):
             data.atomic_number,
         )
 
-        # compute energy, forces, and stress
+        # Compute forces (and stress)
         if self.need_stress:
             forces, stress = compute_forces_stress_single_config(
                 energy, data.pos, data.cell, strain

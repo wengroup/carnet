@@ -56,7 +56,7 @@ model:
   num_average_neigh: auto # average number of neighbors (float), if `auto` determined automatically from training set
 
   # ZBL repulsion
-  use_zbl: false # use ZBL potential for short-range repulsion
+  use_zbl: true # use ZBL potential for short-range repulsion
   zbl_trainable: true # Train ZBL parameters or not; ignored if `use_zbl` is `false`
 
   # angular
