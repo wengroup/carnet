@@ -239,6 +239,71 @@ class LinearMap2(nn.Module):
         return out
 
 
+class LinearMap3(nn.Module):
+    """
+    Linear map of tensors.
+
+    Similar to LinearMap, but the weight matrix is different for atoms of different
+    species.
+
+    Args:
+        bias: whether to add bias. Typically, should be `False`, except when t=1
+            (scalar case); otherwise, the bias would be added to all slices along t,
+            which will break the equivariance.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        num_atom_types: int,
+        bias: bool = False,
+    ):
+
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_atom_types = num_atom_types
+
+        self.weight_feats = nn.Parameter(torch.empty(out_features, in_features))
+        self.weight_species = nn.Parameter(torch.empty(num_atom_types))
+
+        if bias:
+            self.bias = nn.Parameter(torch.empty(num_atom_types, out_features))
+        else:
+            self.register_parameter("bias", None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        # init each of one of num_atom_types (dim 0) is the same as init them together
+        nn.init.kaiming_uniform_(self.weight_feats, a=math.sqrt(5))
+        nn.init.normal_(self.weight_species, mean=0.0, std=1.0)
+
+        if self.bias is not None:
+            bound = 1 / math.sqrt(self.in_features)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: Tensor, atom_type: Tensor) -> Tensor:
+        """
+        Args:
+            input: shape (N, F, t), where F is the in_features.
+            atom_type: shape (N,)
+
+        Returns:
+            shape (N, F', t), where F' is the out_features.
+        """
+        out = torch.matmul(self.weight_feats, input)  # (N, out_features, t)
+        w_species = self.weight_species[atom_type]  # (N,)
+        out = out * w_species.view(-1, 1, 1)
+
+        if self.bias is not None:
+            b = self.bias[atom_type]  # (N, out_features)
+            out += b.unsqueeze(-1)
+
+        return out
+
+
 class SlicedLinearMap(nn.Module):
     """
     Sliced linear map of tensors.
@@ -317,14 +382,6 @@ class SlicedLinearMap(nn.Module):
 
         return out
 
-    def __repr__(self):
-        return (
-            f"SlicedLinearMap(in_features={self.in_features}, "
-            f"out_features={self.out_features}, "
-            f"slice_sizes={self.slice_sizes}, "
-            f"bias={self.bias is not None})"
-        )
-
 
 class SlicedLinearMap2(nn.Module):
     """
@@ -369,6 +426,73 @@ class SlicedLinearMap2(nn.Module):
 
             self.linear.append(
                 LinearMap2(
+                    in_features=in_features,
+                    out_features=out_features,
+                    num_atom_types=num_atom_types,
+                    bias=b,
+                )
+            )
+
+    def forward(self, input: Tensor, atom_type: Tensor) -> Tensor:
+        """
+        Args:
+            input: tensor of shape (..., F, T)
+            atom_type: shape (N,)
+
+        Returns:
+            tensor of shape (..., F', T)
+        """
+
+        out = []
+        for layer, s in zip(self.linear, self.slices):
+            out.append(layer(input[..., s], atom_type))
+        out = torch.cat(out, dim=-1)  # Shape (..., F', T)
+        return out
+
+
+class SlicedLinearMap3(nn.Module):
+    """
+    Sliced linear map of tensors.
+
+    Similar to SlicedLinearMap, but the weight matrix is different for atoms of
+    different species.
+
+    Args:
+        bias: whether to add bias. If True, the bias is only added to the first slice,
+            which should be a scalar (size 1); otherwise, an error is raised.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        slice_sizes: list[int],
+        num_atom_types: int,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.slice_sizes = slice_sizes
+        self.bias = bias
+        self.num_atom_types = num_atom_types
+
+        self.slices = []
+        self.linear = nn.ModuleList()
+        start = 0
+        for size in slice_sizes:
+            end = start + size
+            self.slices.append(slice(start, end))
+            start = end
+
+            # Apply bias for scalars
+            if bias and size == 1:
+                b = True
+            else:
+                b = False
+
+            self.linear.append(
+                LinearMap3(
                     in_features=in_features,
                     out_features=out_features,
                     num_atom_types=num_atom_types,
