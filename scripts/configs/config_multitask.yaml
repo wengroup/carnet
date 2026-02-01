@@ -61,7 +61,15 @@ model:
   use_linear_channel_hyper: false
   residual: true
   use_linear_channel_residual: true # this is ignored if `residual` is `false`
-  use_atomic_dependent_weight: true
+  # How the weight is represented in eq. 6. Options are:
+  # `independent`: weight does not depend on atomic species
+  # `full`: a single weight W_FF'z is used, where z is atomic species
+  # `factorized`: weight is factored as W_FF'z = W_FF'*Wz
+  atomic_moment_weight_mode: full # independent, full, factorized
+
+  # How the weight is represented in eq. 8. Options are the same as above.
+  # This is used only when `residual` is true and `use_linear_channel_residual` is true
+  residual_weight_mode: full # independent, full, factorized
 
   # output
   output_mlp_hidden_layers: 2 # number of hidden layers in the output MLP for scalars
