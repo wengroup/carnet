@@ -378,33 +378,46 @@ def linear_fit_atomic_energy(
 
 
 def _get_tensor_shifts_and_scales(self, name):
+    """
+    Each tensor in self.y[name] has shape (B, F, T), where:
+      - B is the number of batches, which is 1 for structure tensors, and can be > 1 for
+        atomic tensors where each configuration consists of multiple atomic tensors;
+      - F is the number of natural tensors (namely seniority) of the same rank. For
+        example, an elastic tensor can be decomposed to two rank-0 natural tensors,
+        two rank-2 natural tensors, and one rank-4 natural tensor. Then for rank-0 and
+        rank-2 tensors, F=2; for rank-4 tensors, F=1.
+      - T is the number of tensor elements, which is 3^l, where l is the rank of the
+        natural tensor.
+
+    For rank=0, we compute a shift and scale.
+      - shift: mean over all values in the dataset
+      - scale: standard deviation over values in the dataset
+    For each rank>0, we compute the root-mean-square of all tensor norms (not elements)
+    in the dataset. This will ensure that each rank has equal weight during training.
+      Roughly, doing the following:
+        scale = sqrt( sum(tensor_elements^2) / (N * B * F))
+    where N is the number of configurations. Note, no T in the denominator, because we
+    are normalizing by the tensor norm, not the tensor elements.
+
+
+    """
     # Note, the key of y[name] is an integer that is represented as a string
     rank_0_vals = []
     scales = {rank: 0 for rank, _ in self[0].y[name].items() if rank != "0"}
+    num_rank_n = {rank: 0 for rank in scales.keys()}
 
     for config in self:
         d = config.y[name]
         for rank, val in d.items():
-            assert val.ndim == 3, "The tensor should have 3 dimensions: (1, F, T)."
+            assert val.ndim == 3, "The tensor should have 3 dimensions: (B, F, T)."
             if rank == "0":
                 rank_0_vals.append(val)
             else:
-                # sum over F, and T dims
+                # sum of squares over B, F, T dims
                 scales[rank] += val.pow(2).sum()
+                num_rank_n[rank] += val.shape[0] * val.shape[1]  # B * F
 
-    # Scale of tensors of rank > 0
-    # normalize each of scales by N*F*T (which is the total number of components summed
-    # in each of scales), where:
-    # - N is the number of configurations;
-    # - F is the number of natural tensors; Typically it is 1 for structure tensors,
-    #   and it can be > 1 for atomic tensors where each configuration consists of
-    #   multiple atomic tensors.
-    # - T is the number of tensor elements, which is 3^l, where l is the rank of the
-    #   natural tensor.
-    scales = {
-        int(rank): (v / (len(self) * val.shape[1] * 3 ** int(rank))).sqrt()
-        for rank, v in scales.items()
-    }
+    scales = {int(rank): (v / num_rank_n[rank]).sqrt() for rank, v in scales.items()}
 
     # Scale and shift of rank 0 tensors
     if rank_0_vals:
