@@ -39,8 +39,8 @@ class MultiTaskModel(nn.Module):
         # output
         output_mlp_hidden_layers: list[int] | int = 2,
         target_name: list[str] = None,
-        target_shift: dict[str, dict[str, Tensor]] = None,
-        target_scale: dict[str, dict[str, Tensor]] = None,
+        target_shift: dict[str, dict[int, Tensor]] = None,
+        target_scale: dict[str, dict[int, Tensor]] = None,
         output_signature: dict[int, int] = None,
         output_from_all_layers: bool = False,
         element_bias: bool = True,

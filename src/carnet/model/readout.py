@@ -7,9 +7,13 @@ from carnet.module.linear import LinearMap
 from carnet.module.mlp import MLP
 from carnet.module.normalize import LayerNorm
 from carnet.module.scatter import scatter
+from carnet.utils import BufferDict
 
 
 # TODO, this can be reimplemented using _AtomicScalar
+# TODO, this is for extensive structure properties, where shift and scale done at the
+#  atomic level. For intensive properties, shift and scale should be done at the
+#  structure level.
 class StructureScalar(nn.Module):
     """Get a scalar output for each configuration.
 
@@ -111,7 +115,7 @@ class StructureScalar(nn.Module):
         for i, fn in enumerate(self.out_layers):
             V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
-        # Normalization
+        # Shift and scale the output at the atomic level
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
                 V *= self.atomic_scale
@@ -350,18 +354,23 @@ class StructureTensor(nn.Module):
 
         self.reduce = reduce
 
+        # Note, all structure tensors we consider are extensive properties, so we do
+        # shift and scale at the structure level instead of the atomic level.
         self.atomic_tensor_model = AtomicTensor(
             num_layers=num_layers,
             in_features=in_features,
             hidden_features=hidden_features,
             output_signature=output_signature,
             num_atom_types=num_atom_types,
-            target_shift=target_shift,
-            target_scale=target_scale,
+            target_shift=None,
+            target_scale=None,
             element_bias=element_bias,
             num_atom_feats=num_atom_feats,
             use_layer_norm=use_layer_norm,
         )
+
+        self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
+        self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
 
     def forward(
         self,
@@ -397,6 +406,15 @@ class StructureTensor(nn.Module):
             l: scatter(x, batch, reduce=self.reduce, dim=0, dim_size=num_atoms.shape[0])
             for l, x in atom_out.items()
         }
+
+        # Shift and scale at the configuration level
+        if self.target_scale is not None:
+            for l, scale in self.target_scale.items():
+                conf_out[int(l)] = conf_out[int(l)] * scale
+
+        if self.target_shift is not None:
+            for l, shift in self.target_shift.items():
+                conf_out[int(l)] = conf_out[int(l)] + shift
 
         return conf_out
 
@@ -465,7 +483,7 @@ class _AtomicScalar(nn.Module):
             V += fn(atom_feats[i].squeeze(-1)).unsqueeze(-1)
 
         # TODO, allow the per species scale and shift?
-        # Normalization
+        # Shift and scale the output
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
                 V *= self.atomic_scale
@@ -532,7 +550,7 @@ class _AtomicTensor(nn.Module):
             V += fn(atom_feats[i])  # shape (n_atoms,out_features, 3**l)
 
         # TODO, allow the per species scale and shift?
-        # Normalization
+        # Shift and scale the output
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
                 V *= self.atomic_scale
