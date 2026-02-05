@@ -16,9 +16,9 @@ data:
   target_symmetry: i
   target_signature: # {rank: number} of the natural tensor
     1: 1
-  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
-  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20250730/ethanol_n20.json
+  trainset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20260205/ethanol_n20.json
+  valset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20260205/ethanol_n20.json
+  testset_filename: /Users/mjwen/Documents/Research/Projects/carnet_analysis/dataset/ethanol_tensor/20260205/ethanol_n20.json
   r_cut: 5.0
   train_batch_size: 8
   val_batch_size: 8
@@ -64,6 +64,9 @@ model:
   reduce: sum
 
 loss:
+  type: mse
+#  type: huber
+#  delta: 0.01
   # ratio of the loss for each rank of natural tensor
   # The loss is: \sum w_i (y_i - \hat y_i)^2,
   # where y_i is the model prediction for natural tensor of rank i, and \hat y_i is corresponding target;
