@@ -1,6 +1,7 @@
 import itertools
 import os
 import shutil
+import time
 from pathlib import Path
 from pprint import pprint
 
@@ -217,6 +218,8 @@ def get_model(
 def main(config: dict):
     L.seed_everything(config["seed_everything"])
 
+    t0 = time.perf_counter()
+
     # Set default dtype
     dtype = config.get("default_dtype", "float32")
     torch.set_default_dtype(getattr(torch, dtype))
@@ -293,6 +296,9 @@ def main(config: dict):
 
     trainer = Trainer(callbacks=callbacks, logger=logger, **config["trainer"])
 
+    t1 = time.perf_counter()
+    print(f"Time for data loading and model initialization: {t1 - t0:.5e} seconds")
+
     # Pass ckpt_path to trainer.fit() to restore epoch, optimizer state, lr_scheduler
     # state, callbacks etc. See:
     # https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
@@ -311,25 +317,34 @@ def main(config: dict):
     # native to lightning, like the ones mentioned above; it will not update stuff
     # not native to lightning. For example, ema hyperparameters will not be restored
     # since it is defined in the model class, not in the lightning module.
+    t0 = time.perf_counter()
     trainer.fit(
         model,
         train_dataloaders=train_loader,
         val_dataloaders=val_loader,
         ckpt_path=restore_checkpoint,
     )
+    t1 = time.perf_counter()
+    print(f"Time for model training: {t1 - t0:.5e} seconds")
 
     # Save the last epoch model
     # The behavior of  `save_last` in ModelCheckpoint callback is buggy; save manually
     trainer.save_checkpoint("./last_epoch.ckpt")
 
     # Test results on the best model determined by the validation set
+    t0 = time.perf_counter()
     out = trainer.test(ckpt_path="best", dataloaders=test_loader)
+    t1 = time.perf_counter()
     print("Best model test results:", out)
     print(f"Best checkpoint path: {trainer.checkpoint_callback.best_model_path}")
+    print(f"Time for testing the best model: {t1 - t0:.5e} seconds")
 
     # Validation results on best model
+    t0 = time.perf_counter()
     out = trainer.validate(ckpt_path="best", dataloaders=val_loader)
+    t1 = time.perf_counter()
     print("Best model val results:", out)
+    print(f"Time for validating the best model: {t1 - t0:.5e} seconds")
 
     # Val/test results on the last epoch model
     # Depending on the settings, this can be
