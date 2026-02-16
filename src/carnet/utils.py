@@ -122,6 +122,25 @@ def json_dump(obj: dict, filename: Path, compress: bool = True) -> None:
             json.dump(obj, f)
 
 
+def yaml_dump(obj: dict, filename: Path, compress: bool = True) -> None:
+    """Dump a dictionary to a yaml file.
+
+    Args:
+        obj: The dictionary to dump.
+        filename: The path to the yaml file.
+        compress: Whether to compress the file using gzip. Default is True.
+    """
+    import yaml
+
+    if compress:
+        filename = filename.with_suffix(filename.suffix + ".gz")
+        with gzip.open(filename, "wt") as f:
+            yaml.dump(obj, f)
+    else:
+        with open(filename, "w") as f:
+            yaml.dump(obj, f)
+
+
 def json_load(filename: Path) -> dict:
     """Load a json file into a dictionary.
 

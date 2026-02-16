@@ -226,3 +226,9 @@ if __name__ == "__main__":
 
     a = torch.randn(2, 3)
     out = get_nt_from_vector(a, l=2)
+
+    # Check symbolic H
+    l = 3
+    H, X_idx, Z_idx = get_H(l)
+    H = simplify_linear_combination(H)
+    print(f"H (l={l}):", H)
