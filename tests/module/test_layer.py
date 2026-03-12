@@ -1,5 +1,5 @@
-from natt.utils import is_symmetric, is_traceless
 import torch
+from natt.utils import is_symmetric, is_traceless
 
 from carnet.module.layer import Layer
 from carnet.module.radial import RadialBasis

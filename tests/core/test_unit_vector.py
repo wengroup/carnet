@@ -3,7 +3,6 @@ from natt.utils import is_symmetric_traceless, letter_index
 
 from carnet.core.legendre import legendre
 from carnet.core.unit_vector import Polyadics
-from carnet.core.unit_vector_3 import Polyadics as Polyadics3
 from carnet.core.unit_vector_1 import (
     get_nt_from_vector,
     get_nt_from_vector_rule,
@@ -13,6 +12,7 @@ from carnet.core.unit_vector_2 import get_nt_from_vector as get_nt_from_vector_2
 from carnet.core.unit_vector_2 import (
     get_polyadics_from_vector as get_polyadics_from_vector_2,
 )
+from carnet.core.unit_vector_3 import Polyadics as Polyadics3
 
 
 def test_get_nt_from_vector_rule():

@@ -1,5 +1,7 @@
-import torch
 import time
+
+import torch
+
 from carnet.core.unit_vector import Polyadics as PolyadicsOpt
 from carnet.core.unit_vector_3 import Polyadics as PolyadicsRef
 from carnet.module.product import TensorProduct as TPOpt

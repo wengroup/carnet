@@ -1,4 +1,5 @@
 import torch
+
 from carnet.module.scatter import scatter
 
 

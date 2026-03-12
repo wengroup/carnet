@@ -8,7 +8,6 @@ from pathlib import Path
 
 import torch
 
-
 from carnet.core.unit_vector_2 import get_H_numerical
 from carnet.utils import json_dump, json_load
 
