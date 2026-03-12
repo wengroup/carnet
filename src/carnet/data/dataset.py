@@ -141,6 +141,19 @@ class DatasetIP(BaseDataset):
             else:
                 pbc = row["pbc"]
 
+            # stress can be 3x3 array, or np.array(None)
+            if "stress" in y:
+                if y["stress"].shape == (3, 3):
+                    has_stress = np.asarray([True])
+                elif y["stress"] == None:
+                    # cannot use `is None` here, since y["stress"] can be a np array
+                    # Create a dummy stress, for batching
+                    y["stress"] = np.zeros((3, 3))
+                    has_stress = np.asarray([False])
+                else:
+                    raise ValueError("Stress should be either a 3x3 array or None.")
+                y["has_stress"] = has_stress
+
             data = Config.from_points(
                 pos=np.asarray(row["coords"]),
                 atomic_number=np.asarray(row["atomic_number"]),

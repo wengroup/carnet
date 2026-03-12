@@ -154,7 +154,7 @@ class InteratomicPotentialLitModule(LightningModule):
             f_pred, s_pred = compute_forces_stress(
                 e_pred, pos, cell, strain, self.training
             )
-            s_pred = s_pred.reshape(-1, 3)  # (B, 3, 3) -> (B*3, 3)
+
         else:
             f_pred = compute_forces(e_pred, pos, self.training)
             s_pred = None
@@ -171,6 +171,16 @@ class InteratomicPotentialLitModule(LightningModule):
         batch_size = batch.num_graphs
 
         e_pred, f_pred, s_pred = self(batch)
+
+        # select only the samples that have stress labels
+        if self.need_stress:
+            s_ref = s_ref.reshape(-1, 3, 3)  # (B*3, 3) -> (B, 3, 3)
+
+            # bool to indicate whether a config has stress, shape (B,)
+            has_stress = batch.y.get("has_stress", None)
+            if has_stress is not None:
+                s_pred = s_pred[has_stress]
+                s_ref = s_ref[has_stress]
 
         losses = self.compute_loss(
             e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms
@@ -205,12 +215,33 @@ class InteratomicPotentialLitModule(LightningModule):
             # use current model
             e_pred, f_pred, s_pred = self(batch)
 
+            # select only the samples that have stress labels
+            if self.need_stress:
+                s_ref = s_ref.reshape(-1, 3, 3)  # (B*3, 3) -> (B, 3, 3)
+
+                # bool to indicate whether a config has stress, shape (B,)
+                has_stress = batch.y.get("has_stress", None)
+                if has_stress is not None:
+                    s_pred = s_pred[has_stress]
+                    s_ref = s_ref[has_stress]
+
             metrics = self.compute_metrics(
                 e_pred, f_pred, s_pred, e_ref, f_ref, s_ref, num_atoms, mode
             )
 
             # use EMA model
             e_pred_ema, f_pred_ema, s_pred_ema = self.forward_ema(batch)
+
+            # select only the samples that have stress labels
+            if self.need_stress:
+                # No need to deal with s_ref, already processed above
+                # s_ref = s_ref.reshape(-1, 3, 3)  # (B*3, 3) -> (B, 3, 3)
+
+                # bool to indicate whether a config has stress, shape (B,)
+                has_stress = batch.y.get("has_stress", None)
+                if has_stress is not None:
+                    s_pred = s_pred[has_stress]
+                    # s_ref = s_ref[has_stress]
 
             metrics_ema = self.compute_metrics(
                 e_pred_ema,
