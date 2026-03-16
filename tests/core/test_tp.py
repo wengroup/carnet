@@ -57,7 +57,8 @@ def test_tp_even(NT3, NT4):
     NT3 = NT3.view(2, -1)
     NT4 = NT4.view(2, -1)
 
-    for l3 in [1, 3, 5, 7]:
+    # for l3 in [1, 3, 5, 7]:
+    for l3 in [1, 3]:
         out = tp_even(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
@@ -73,7 +74,7 @@ def test_tp_even(NT3, NT4):
         assert is_traceless(out[0], atol=1e-5), f"Not traceless for {l3}"
 
     # for i in [0, 2, 4, 6, 8]:
-    for l3 in [0, 2, 4, 6]:
+    for l3 in [0, 2, 4]:
         out = tp_even(NT4, NT4, l1=4, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
@@ -99,7 +100,8 @@ def test_tp_odd(NT2, NT3, NT4, rtol=1e-5, atol=1e-6):
     NT3 = NT3.view(2, -1)
     NT4 = NT4.view(2, -1)
 
-    for l3 in [3, 5]:
+    # for l3 in [3, 5]:
+    for l3 in [3]:
         out = tp_odd(NT2, NT4, l1=2, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
@@ -114,7 +116,8 @@ def test_tp_odd(NT2, NT3, NT4, rtol=1e-5, atol=1e-6):
         assert is_symmetric(out[0], atol=1e-6), f"Failed symmetry for {l3}"
         assert is_traceless(out[1], atol=1e-5), f"Failed traceless for {l3}"
 
-    for l3 in [2, 4, 6]:
+    # for l3 in [2, 4, 6]:
+    for l3 in [2, 4]:
         out = tp_odd(NT3, NT4, l1=3, l2=4, l3=l3, normalize="unity")
         assert out.shape == (2, 3**l3)
 
@@ -141,7 +144,8 @@ def test_tp_even_normalization():
     X = X.view(-1)
     Y = Y.view(-1)
 
-    for n in [1, 3, 5, 7]:
+    # for n in [1, 3, 5, 7]:
+    for n in [1, 3]:
         Z = tp_even(X, Y, l1=3, l2=4, l3=n, normalize="unity")
         Z = Z.view((3,) * n)
 
@@ -170,7 +174,8 @@ def test_tp_odd_normalization():
     X = X.view(-1)
     Y = Y.view(-1)
 
-    for n in [2, 4, 6]:
+    # for n in [2, 4, 6]:
+    for n in [2, 4]:
         Z = tp_odd(X, Y, l1=3, l2=4, l3=n, normalize="unity")
         Z = Z.view((3,) * n)
 

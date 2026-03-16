@@ -369,8 +369,15 @@ class StructureTensor(nn.Module):
             use_layer_norm=use_layer_norm,
         )
 
-        self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
-        self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
+        if target_shift is not None:
+            self.target_shift = BufferDict({str(k): v for k, v in target_shift.items()})
+        else:
+            self.target_shift = None
+
+        if target_scale is not None:
+            self.target_scale = BufferDict({str(k): v for k, v in target_scale.items()})
+        else:
+            self.target_scale = None
 
     def forward(
         self,
