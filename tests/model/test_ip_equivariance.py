@@ -1,9 +1,4 @@
-import numpy as np
 import torch
-from ase.io import read
-
-from carnet.ase.calculator import CarnetCalculator
-from carnet.utils import get_rotation_matrix
 
 torch.use_deterministic_algorithms(True)
 
