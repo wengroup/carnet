@@ -83,7 +83,7 @@ class AtomicMoment(nn.Module):
         )
 
         self.register_buffer(
-            "inv_sqrt_num_average_neigh", torch.tensor(1.0 / num_average_neigh**0.5)
+            "inv_sqrt_num_average_neigh", torch.as_tensor(1.0 / num_average_neigh**0.5)
         )
 
     def forward(
