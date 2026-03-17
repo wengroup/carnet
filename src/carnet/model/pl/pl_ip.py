@@ -141,7 +141,7 @@ class InteratomicPotentialLitModule(LightningModule):
             pos, batch.shift_vector, cell, batch.edge_index, batch.batch
         )
 
-        e_pred = func(
+        e_pred, _ = func(
             edge_vector=edge_vector,
             edge_idx=batch.edge_index,
             atom_type=batch.atom_type,

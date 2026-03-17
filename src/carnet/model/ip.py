@@ -106,7 +106,7 @@ class InteratomicPotential(nn.Module):
         num_atoms: Tensor,
         atomic_number: Tensor = None,
         batch: Tensor = None,
-    ) -> Tensor:
+    ) -> tuple[Tensor, Tensor]:
         """
         Args:
             edge_vector: Edge vector tensor. Shape (n_edges, 3).
@@ -121,7 +121,8 @@ class InteratomicPotential(nn.Module):
                 atom belongs to. If None, it is inferred from `num_atoms`.
 
         Returns:
-            Total energy of each atomic configuration. Shape (n_config,).
+            energy: Total energy of each atomic configuration. Shape (n_config,).
+            e_atom: Atomic energy of each atom. Shape (n_atoms,).
         """
         # Get the scalar feats from all layers
         all_scalar_feats = self.backbone(
@@ -134,7 +135,7 @@ class InteratomicPotential(nn.Module):
         )
 
         # Compute the total energy
-        energy = self.readout(
+        energy, e_atom = self.readout(
             all_scalar_feats, atom_type, atomic_number, num_atoms, batch
         )
 
@@ -149,6 +150,7 @@ class InteratomicPotential(nn.Module):
                 zbl_atom, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0]
             )
 
+            e_atom = e_atom + zbl_atom
             energy = energy + zbl_conf
 
-        return energy
+        return energy, e_atom

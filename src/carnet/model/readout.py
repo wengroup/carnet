@@ -91,7 +91,7 @@ class StructureScalar(nn.Module):
         atomic_number: Tensor,
         num_atoms: Tensor,
         batch: Tensor = None,
-    ) -> Tensor:
+    ) -> tuple[Tensor, Tensor]:
         """
         Args:
             atom_feats: list of scalar atomic features, each of shape (n_atoms, F, 1),
@@ -107,37 +107,38 @@ class StructureScalar(nn.Module):
                 atom belongs to. If None, it is inferred from `num_atoms`.
 
         Returns:
-            Total energy of each configuration. Shape (n_config,).
+            v: Total energy of each configuration. Shape (n_config,).
+            v_atom: Energy of each atom. Shape (n_atoms,).
         """
         assert len(atom_feats) == self.num_layers, "Incorrect number of atom feats."
 
-        V = 0
+        v_atom = 0
         for i, fn in enumerate(self.out_layers):
-            V += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
+            v_atom += fn(atom_feats[i].squeeze(-1)).view(-1)  # shape (n_atoms,)
 
         # Shift and scale the output at the atomic level
         if self.atomic_scale is not None:
             if self.atomic_scale.ndim == 0:
-                V *= self.atomic_scale
+                v_atom *= self.atomic_scale
             else:
-                V *= self.atomic_scale[atomic_number]
+                v_atom *= self.atomic_scale[atomic_number]
 
         if self.atomic_shift is not None:
             if self.atomic_shift.ndim == 0:
-                V += self.atomic_shift
+                v_atom += self.atomic_shift
             else:
-                V += self.atomic_shift[atomic_number]
+                v_atom += self.atomic_shift[atomic_number]
 
         # Bias for each atomic type
         if self.element_bias is not None:
-            V += self.element_bias[atom_type]
+            v_atom += self.element_bias[atom_type]
 
         # Output of each configuration; (num_config,)
         if batch is None:
             batch = torch.repeat_interleave(num_atoms)
-        out = scatter(V, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0])
+        v = scatter(v_atom, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0])
 
-        return out
+        return v, v_atom
 
 
 class AtomicTensor(nn.Module):

@@ -32,9 +32,10 @@ def test_StructureScalar(batched_config_info):
         hidden_features=2,
         num_atom_types=num_atom_types,
     )
-    out = module(atom_feats, atom_type, atomic_number, num_atoms)
+    out, out_atom = module(atom_feats, atom_type, atomic_number, num_atoms)
 
     assert out.shape == (n_configs,)
+    assert out_atom.shape == (total_num_atoms,)
 
 
 def test_AtomicTensor(batched_config_info):

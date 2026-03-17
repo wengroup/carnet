@@ -162,7 +162,10 @@ class MultiTaskModel(nn.Module):
             if target_name == "energy":
                 # Energy, only needs the scalar features
                 selected_feats = [feats[..., 0:1] for feats in all_atom_feats]
-                output[target_name] = head(selected_feats, atom_type, num_atoms, batch)
+                # Head returns (energy, e_atom), we only need energy for now
+                output[target_name], _ = head(
+                    selected_feats, atom_type, num_atoms, batch
+                )
             elif target_name == "dipole_moment_tensor":
                 selected_feats = all_atom_feats
                 output[target_name] = head(selected_feats, atom_type, num_atoms, batch)

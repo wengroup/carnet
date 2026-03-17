@@ -126,7 +126,7 @@ class CarnetCalculator(Calculator):
         )
 
         # Compute energy
-        energy = self.model(
+        energy, _ = self.model(
             edge_vector,
             data.edge_index,
             data.atom_type,
