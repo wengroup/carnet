@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from typing import Dict, Tuple
 
 import torch
+from ase.data import chemical_symbols
 
 from carnet._dtype import DTYPE_INT
 
@@ -85,19 +86,17 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         """
         super().__init__()
         self.model = model
-        self.device = device
         self.dtype = getattr(torch, dtype)
-
-        self.config = CarNetLammpsConfig()
-
-        self.atomic_numbers = self.model.atomic_numbers
-        r_cut = self.model.r_cut
+        self.device = device
 
         # Set standard MLIAP Unified fields
-        self.rcutfac = 0.5 * r_cut  # 0.5 since lammps multiplies 2 in mliap_unified.cpp
+        self.element_types = [chemical_symbols[s] for s in model.atomic_numbers]
+        self.rcutfac = 0.5 * model.r_cut  # 0.5: a 2 is multiplied in mliap_unified.cpp
         self.ndescriptors = 1
         self.nparams = 1
 
+        self.config = CarNetLammpsConfig()
+        self.atomic_numbers = model.atomic_numbers
         self.initialized = False
         self.step = 0
 
