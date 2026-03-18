@@ -91,7 +91,6 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
         # Set standard MLIAP Unified fields
         self.element_types = [chemical_symbols[s] for s in model.atomic_numbers]
-        # TODO, the cutoff is incorrect. Should set it to the influence distance.
         self.rcutfac = 0.5 * model.r_cut  # 0.5: a 2 is multiplied in mliap_unified.cpp
         self.ndescriptors = 1
         self.nparams = 1
@@ -167,10 +166,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         atomic_number: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and per-pair forces."""
-        # Ensure edge_vector requires grad for force computation
         edge_vector.requires_grad_(True)
 
-        # 1. Forward pass to get per-atom energy
         _, e_atom = self.model(
             edge_vector,
             edge_index,
@@ -179,11 +176,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             atomic_number,
         )
 
-        # 2. Backward pass for pairwise forces
-        # pair_forces[e] = - d(sum(e_atom)) / d(rij[e])
-        pair_forces = -torch.autograd.grad(
-            e_atom.sum(), edge_vector, retain_graph=False
-        )[0]
+        # force = -dE/dR, but here we do not apply -1 to match LAMMPS sign convention
+        pair_forces = torch.autograd.grad(e_atom, edge_vector, retain_graph=False)[0]
 
         return e_atom, pair_forces
 
