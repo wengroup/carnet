@@ -91,12 +91,20 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
         # Set standard MLIAP Unified fields
         self.element_types = [chemical_symbols[s] for s in model.atomic_numbers]
+        # TODO, the cutoff is incorrect. Should set it to the influence distance.
         self.rcutfac = 0.5 * model.r_cut  # 0.5: a 2 is multiplied in mliap_unified.cpp
         self.ndescriptors = 1
         self.nparams = 1
 
+        # Mapping atomic numbers to contiguous indices
+        transform = ConsecutiveAtomType(model.atomic_numbers)
+        self.mapping = transform.mapping
+
+        # self.model.eval()
+        for p in self.model.parameters():
+            p.requires_grad = False
+
         self.config = CarNetLammpsConfig()
-        self.atomic_numbers = model.atomic_numbers
         self.initialized = False
         self.step = 0
 
@@ -116,19 +124,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             device = torch.device(self.device)
 
         self.device = device
-
-        # Prepare model
         self.model = self.model.to(self.device)
-        self.model.eval()
-        for p in self.model.parameters():
-            p.requires_grad = False
-
-        # Transform for mapping atomic numbers to contiguous indices
-        transform = ConsecutiveAtomType(self.atomic_numbers, device=self.device)
-        self.mapping = transform.mapping
-
-        # Clear temporary attributes
-        self.device = None
+        self.mapping = self.mapping.to(self.device)
 
         self.initialized = True
         logging.info(f"LAMMPS_MLIAP_CarNet model loaded on {self.device}")
@@ -137,6 +134,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         """Compute forces and per-atom energies for LAMMPS."""
         nlocal = data.nlocal
         ntotal = data.ntotal
+        npairs = data.npairs
 
         if not self.initialized:
             self._initialize_device(data)
@@ -144,7 +142,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         self.step += 1
         self._manage_profiling()
 
-        if nlocal == 0:
+        if nlocal == 0 or npairs <= 1:
             return
 
         with timer("total_step", enabled=self.config.debug_time):
@@ -191,7 +189,9 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
     def _prepare_batch(self, data, ntotal) -> Dict[str, torch.Tensor]:
         """Prepare the input batch for the CarNet model."""
+
         atomic_number = torch.as_tensor(data.elems, dtype=DTYPE_INT, device=self.device)
+        atomic_number += 1  # +1 to convert zero-based lammps value to one-based
         atom_type = self.mapping[atomic_number]
 
         return {
