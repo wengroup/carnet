@@ -142,18 +142,16 @@ class InteratomicPotential(nn.Module):
             lammps_class=lammps_class,
         )
 
-        atomic_number_orig = atomic_number
-
         # Truncate to local atoms if in LAMMPS mode
         # If in LAMMPS mode, `all_scalar_feats` is already truncated in the backbone,
         # but other arguments like `atom_type` are not. So we perform the truncation
         # here to ensure the correct size in the readout.
+        atomic_number_orig = atomic_number
         if lammps_class is not None:
             n_real = lammps_natoms[0]
             atom_type = atom_type[:n_real]
-            num_atoms = torch.tensor(
-                [n_real], device=num_atoms.device, dtype=num_atoms.dtype
-            )
+            num_atoms = num_atoms.clone()
+            num_atoms[0] = n_real
             if atomic_number is not None:
                 atomic_number = atomic_number[:n_real]
             if batch is not None:
@@ -174,9 +172,12 @@ class InteratomicPotential(nn.Module):
 
             # ZBL energy of each configuration
             if batch is None:
-                batch = torch.repeat_interleave(num_atoms)
+                batch_zbl = torch.repeat_interleave(num_atoms)
+            else:
+                batch_zbl = batch
+
             zbl_conf = scatter(
-                zbl_atom, batch, reduce="sum", dim=0, dim_size=num_atoms.shape[0]
+                zbl_atom, batch_zbl, reduce="sum", dim=0, dim_size=num_atoms.shape[0]
             )
 
             e_atom = e_atom + zbl_atom

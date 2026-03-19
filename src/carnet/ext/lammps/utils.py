@@ -20,9 +20,10 @@ class LAMMPS_Exchange(torch.autograd.Function):
         return out
 
     @staticmethod
-    def backward(ctx, grad_outputs: torch.Tensor):
-        gout = torch.empty_like(grad_outputs)
-        ctx.lammps_class.reverse_exchange(grad_outputs, gout, ctx.vec_len)
+    def backward(ctx, *grad_outputs):
+        (grad,) = grad_outputs
+        gout = torch.empty_like(grad)
+        ctx.lammps_class.reverse_exchange(grad, gout, ctx.vec_len)
         return gout, None
 
 

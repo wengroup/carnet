@@ -185,8 +185,15 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
         # force = -dE/dR, but here we do not apply -1 to match LAMMPS sign convention
         pair_forces = torch.autograd.grad(
-            e_atom.sum(), edge_vector, retain_graph=False
+            outputs=e_atom.sum(),
+            inputs=edge_vector,
+            retain_graph=False,
+            create_graph=False,
+            allow_unused=True,
         )[0]
+
+        if pair_forces is None:
+            pair_forces = torch.zeros_like(edge_vector)
 
         return e_atom, pair_forces
 
