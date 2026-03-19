@@ -13,8 +13,10 @@ class LAMMPS_Exchange(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, feats: torch.Tensor, lammps_class: Any) -> torch.Tensor:
-        ctx.vec_len = feats.shape[-1]
+        ctx.vec_len = feats[0].numel()  # Regard feats as 2D and get number of columns
         ctx.lammps_class = lammps_class
+        # Ensure memory is contiguous for the C++ MPI call
+        feats = feats.contiguous()
         out = torch.empty_like(feats)
         lammps_class.forward_exchange(feats, out, ctx.vec_len)
         return out
@@ -22,6 +24,8 @@ class LAMMPS_Exchange(torch.autograd.Function):
     @staticmethod
     def backward(ctx, *grad_outputs):
         (grad,) = grad_outputs
+        # Ensure memory is contiguous for the C++ MPI call
+        grad = grad.contiguous()
         gout = torch.empty_like(grad)
         ctx.lammps_class.reverse_exchange(grad, gout, ctx.vec_len)
         return gout, None
@@ -50,7 +54,6 @@ def handle_lammps(
     if lammps_class is None or first_layer or torch.jit.is_scripting():
         return node_feats
 
-    node_feats = node_feats.contiguous()
     n_real, n_ghost = lammps_natoms
     expected_total = n_real + n_ghost
 
