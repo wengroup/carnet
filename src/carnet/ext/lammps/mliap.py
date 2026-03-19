@@ -165,6 +165,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         atom_type: torch.Tensor,
         num_atoms: torch.Tensor,
         atomic_number: torch.Tensor,
+        batch: torch.Tensor,
         lammps_natoms: Tuple[int, int],
         lammps_class: Any,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -177,6 +178,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             atom_type,
             num_atoms,
             atomic_number,
+            batch,
             lammps_natoms=lammps_natoms,
             lammps_class=lammps_class,
         )
