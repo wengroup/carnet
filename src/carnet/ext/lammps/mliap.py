@@ -5,7 +5,7 @@ import os
 import sys
 import time
 from contextlib import contextmanager
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import torch
 from ase.data import chemical_symbols
@@ -133,6 +133,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         """Compute forces and per-atom energies for LAMMPS."""
         nlocal = data.nlocal
         ntotal = data.ntotal
+        nghost = ntotal - nlocal
         npairs = data.npairs
 
         if not self.initialized:
@@ -146,7 +147,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
         with timer("total_step", enabled=self.config.debug_time):
             with timer("prepare_batch", enabled=self.config.debug_time):
-                batch = self._prepare_batch(data, ntotal)
+                batch = self._prepare_batch(data, ntotal, nlocal, nghost)
 
             with timer("model_forward", enabled=self.config.debug_time):
                 atom_energies, pair_forces = self._model_forward(**batch)
@@ -164,6 +165,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         atom_type: torch.Tensor,
         num_atoms: torch.Tensor,
         atomic_number: torch.Tensor,
+        lammps_natoms: Tuple[int, int],
+        lammps_class: Any,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and per-pair forces."""
         edge_vector.requires_grad_(True)
@@ -174,6 +177,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             atom_type,
             num_atoms,
             atomic_number,
+            lammps_natoms=lammps_natoms,
+            lammps_class=lammps_class,
         )
 
         # force = -dE/dR, but here we do not apply -1 to match LAMMPS sign convention
@@ -183,7 +188,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
 
         return e_atom, pair_forces
 
-    def _prepare_batch(self, data, ntotal) -> Dict[str, torch.Tensor]:
+    def _prepare_batch(self, data, ntotal, nlocal, nghost) -> Dict[str, torch.Tensor]:
         """Prepare the input batch for the CarNet model."""
 
         atomic_number = torch.as_tensor(data.elems, dtype=DTYPE_INT, device=self.device)
@@ -204,6 +209,9 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             "atom_type": atom_type,
             "num_atoms": torch.tensor([ntotal], dtype=DTYPE_INT, device=self.device),
             "atomic_number": atomic_number,
+            "batch": torch.zeros(ntotal, dtype=DTYPE_INT, device=self.device),
+            "lammps_natoms": (nlocal, nghost),
+            "lammps_class": data,
         }
 
     def _update_lammps_data(self, data, atom_energies, pair_forces, nlocal):

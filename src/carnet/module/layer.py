@@ -1,8 +1,10 @@
 """CarNet layer module."""
 
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 from torch import Tensor, nn
+
+from carnet.ext.lammps.utils import handle_lammps, truncate_ghosts
 
 from .atomic_moment import AtomicMoment
 from .hyper_moment import HyperMoment
@@ -188,6 +190,9 @@ class Layer(nn.Module):
         atom_feats: Tensor,
         radial_basis: Tensor,
         polyadics: Optional[Tensor] = None,
+        lammps_natoms: Tuple[int, int] = (0, 0),
+        lammps_class: Optional[Any] = None,
+        first_layer: bool = False,
     ) -> Tensor:
         """
         Args:
@@ -200,12 +205,24 @@ class Layer(nn.Module):
                 number of features, and T1 = (3**(L1+1)-1)//2 is the tensor dim.
             radial_basis: Precomputed shared radial basis. Shape (n_edges, radial_output_dim).
             polyadics: Precomputed polyadic tensors of unit vectors. Shape (n_edges, T2).
+            lammps_natoms: (n_local, n_ghost) for LAMMPS MLIAP.
+            lammps_class: The LAMMPS MLIAP Python object.
+            first_layer: Whether this is the first interaction layer.
 
         Returns:
             Updated atom feats. Shape (Na, F, T'), where T' is the number of tensor
             components, determined by max_out_L.
         """
         am = atom_feats  # (Na, F, T1)
+
+        # Handle LAMMPS exchange between layers - syncing atomic features between
+        # local and global atoms to make it work for multi layers
+        am = handle_lammps(
+            am,
+            lammps_class=lammps_class,
+            lammps_natoms=lammps_natoms,
+            first_layer=first_layer,
+        )
 
         # Mixing input atom feats across channel
         if self.linear_channel_input is not None:
@@ -215,6 +232,11 @@ class Layer(nn.Module):
         am = self.atomic_moment(
             edge_vector, edge_idx, atom_type, am, radial_basis, polyadics
         )
+
+        # Truncate ghosts in LAMMPS mode
+        n_real = lammps_natoms[0] if lammps_class is not None else None
+        am = truncate_ghosts(am, n_real)
+        atom_type = truncate_ghosts(atom_type, n_real)
 
         # Mix atomic moments across channel
         if self.atomic_moment_weight_mode == "independent":
@@ -232,6 +254,9 @@ class Layer(nn.Module):
         # Residual: mix input atom feats across channel and add to the output
         if self.residual:
             feats_skip = atom_feats[..., : self.residual_size]
+
+            # Truncate ghosts in LAMMPS mode
+            feats_skip = truncate_ghosts(feats_skip, n_real)
 
             if self.linear_channel_residual is not None:
                 if self.residual_weight_mode == "independent":

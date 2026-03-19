@@ -1,5 +1,7 @@
 """CarNet backbone module that performs multiple iterations of feature updates."""
 
+from typing import Any, Optional, Tuple
+
 import torch
 from torch import Tensor, nn
 
@@ -145,6 +147,8 @@ class Backbone(nn.Module):
         num_atoms: Tensor,
         return_all: bool = False,
         scalar_only: bool = False,
+        lammps_natoms: Tuple[int, int] = (0, 0),
+        lammps_class: Optional[Any] = None,
     ) -> list[Tensor]:
         """
         Args:
@@ -154,6 +158,8 @@ class Backbone(nn.Module):
             num_atoms: 1D tensor of the number of atoms in each atomic configuration.
             return_all: Whether to return the atom features from all layers.
             scalar_only: Whether to return only the scalar features.
+            lammps_natoms: (n_local, n_ghost) for LAMMPS MLIAP.
+            lammps_class: The LAMMPS MLIAP Python object.
 
 
         Returns:
@@ -187,7 +193,15 @@ class Backbone(nn.Module):
         for i, layer in enumerate(self.layers):
 
             atom_feats = layer(
-                edge_vector, edge_idx, atom_type, atom_feats, radial_basis, polyadics
+                edge_vector,
+                edge_idx,
+                atom_type,
+                atom_feats,
+                radial_basis,
+                polyadics,
+                lammps_natoms=lammps_natoms,
+                lammps_class=lammps_class,
+                first_layer=(i == 0),
             )
 
             # Gather output

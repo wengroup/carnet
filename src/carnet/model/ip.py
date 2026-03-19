@@ -1,5 +1,7 @@
 """Interatomic potential model."""
 
+from typing import Any, Optional, Tuple
+
 import torch
 from torch import Tensor, nn
 
@@ -106,6 +108,8 @@ class InteratomicPotential(nn.Module):
         num_atoms: Tensor,
         atomic_number: Tensor = None,
         batch: Tensor = None,
+        lammps_natoms: Tuple[int, int] = (0, 0),
+        lammps_class: Optional[Any] = None,
     ) -> tuple[Tensor, Tensor]:
         """
         Args:
@@ -119,6 +123,8 @@ class InteratomicPotential(nn.Module):
                 (H is type 0 and O is type 1), while the `atomic_number` is [1, 1, 8].
             batch: Tensor of shape (n_atoms,) that identifies the configuration each
                 atom belongs to. If None, it is inferred from `num_atoms`.
+            lammps_natoms: (n_local, n_ghost) for LAMMPS MLIAP.
+            lammps_class: The LAMMPS MLIAP Python object.
 
         Returns:
             energy: Total energy of each atomic configuration. Shape (n_config,).
@@ -132,7 +138,26 @@ class InteratomicPotential(nn.Module):
             num_atoms,
             return_all=True,
             scalar_only=True,
+            lammps_natoms=lammps_natoms,
+            lammps_class=lammps_class,
         )
+
+        atomic_number_orig = atomic_number
+
+        # Truncate to local atoms if in LAMMPS mode
+        # If in LAMMPS mode, `all_scalar_feats` is already truncated in the backbone,
+        # but other arguments like `atom_type` are not. So we perform the truncation
+        # here to ensure the correct size in the readout.
+        if lammps_class is not None:
+            n_real = lammps_natoms[0]
+            atom_type = atom_type[:n_real]
+            num_atoms = torch.tensor(
+                [n_real], device=num_atoms.device, dtype=num_atoms.dtype
+            )
+            if atomic_number is not None:
+                atomic_number = atomic_number[:n_real]
+            if batch is not None:
+                batch = batch[:n_real]
 
         # Compute the total energy
         energy, e_atom = self.readout(
@@ -140,8 +165,12 @@ class InteratomicPotential(nn.Module):
         )
 
         if self.zbl is not None:
-            # ZBL energy of each atom
-            zbl_atom = self.zbl(edge_vector, edge_idx, atomic_number)
+            # ZBL energy of each atom (computed using original size to handle neighbors)
+            zbl_atom = self.zbl(edge_vector, edge_idx, atomic_number_orig)
+
+            # Truncate to local atoms if in LAMMPS mode
+            if lammps_class is not None:
+                zbl_atom = zbl_atom[: lammps_natoms[0]]
 
             # ZBL energy of each configuration
             if batch is None:
