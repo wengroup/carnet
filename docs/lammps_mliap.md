@@ -122,5 +122,3 @@ pip install -e .
 
 To verify that the installation is successful and CarNet works with LAMMPS, please refer to the examples provided in the [example/](../example/) directory.
 
-## Troubleshooting Architecture
-A full list of supported GPU architectures can be found in the [LAMMPS Kokkos Documentation](https://docs.lammps.org/Build_extras.html#kokkos).
