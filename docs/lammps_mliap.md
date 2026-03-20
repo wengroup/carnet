@@ -7,7 +7,7 @@ This guide provides a detailed walkthrough for compiling LAMMPS with the `ML-IAP
 Before proceeding, ensure your system has a compatible **CUDA Driver** and a standard **MPI Library** (e.g., OpenMPI, MPICH). It is highly recommended to use a dedicated Conda environment.
 
 ```bash
-conda create -n carnet-lammps python=3.11
+conda create -n carnet-lammps python
 conda activate carnet-lammps
 ```
 
