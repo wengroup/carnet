@@ -1,0 +1,22 @@
+units         metal
+atom_style    atomic
+atom_modify   map yes
+newton        on
+boundary      p p p
+
+read_data       water.data
+
+# Modify `<path_to_carnet_mliap_model.pt>` to the actual path of your MLIAP model file
+pair_style      mliap unified <path_to_carnet_mliap_model.pt> 0
+pair_coeff      * * H O
+
+# dump forces
+dump            my_dump all custom 1 dump.forces id type x y z fx fy fz
+dump_modify     my_dump sort id
+
+
+# energy minimization
+thermo          100
+thermo_style    custom step temp pe etotal
+min_style       cg
+minimize        1.0e-6 1.0e-8 1 1

@@ -51,6 +51,6 @@ def export_model_for_lammps_mliap(
 
 
 if __name__ == "__main__":
-    # Path to a CarNet model checkpoint
-    path = "/Users/mjwen/Packages/carnet/scripts/last_epoch.ckpt"
-    export_model_for_lammps_mliap(path)
+    # Modify `model_path` to point to a trained model checkpoint on your system
+    model_path = "<path_to_trained_carnet_model.ckpt>"
+    export_model_for_lammps_mliap(model_path)
