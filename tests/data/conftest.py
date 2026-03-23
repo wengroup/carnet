@@ -13,7 +13,7 @@ from carnet.data.transform import ConsecutiveAtomType
 def dataset():
     shutil.rmtree("processed", ignore_errors=True)
 
-    filename = Path(carnet.__file__).parents[2] / "example" / "dataset" / "SiC.json"
+    filename = Path(carnet.__file__).parents[2] / "examples" / "dataset" / "SiC.json"
 
     dataset = DatasetIP(
         filename=filename,
