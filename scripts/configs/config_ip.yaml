@@ -1,6 +1,16 @@
 seed_everything: 35
 default_dtype: float32
-restore_checkpoint: null # path to checkpoint to restore from; if `null`, train from scratch
+
+# `execution_mode` and `restore_checkpoint` control how the training is executed.
+# - `train`: Use this to train from scratch or resume training.
+#   - If `restore_checkpoint` is null, it trains from scratch.
+#   - Otherwise, it resumes training from the checkpoint by `restore_checkpoint`.
+# - `finetune`: Use this to finetune a model from a checkpoint; of course, a
+#   `restore_checkpoint` must be provided in this case. The code only restores model 
+#   parameters from the checkpoint and will use values specified in the config file
+#   for all other hyperparameters.
+execution_mode: train # options are `train` and `finetune`
+restore_checkpoint: null # path to checkpoint file
 
 data:
 
@@ -116,6 +126,13 @@ metrics:
   type: mae
   normalize: true # normalize energy by number of atoms
 
+ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
+  beta: 0.999
+  update_after_step: 1000
+  update_every: 1
+  power: 0.75
+  include_online_model: false
+
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
@@ -133,13 +150,6 @@ lr_scheduler:
 #  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
 #  init_args:
 #    T_max: 5 # should be equal to trainer.max_epochs
-
-ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
-  beta: 0.999
-  update_after_step: 1000
-  update_every: 1
-  power: 0.75
-  include_online_model: false
 
 trainer:
   max_epochs: 2

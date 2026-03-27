@@ -24,9 +24,9 @@ class InteratomicPotentialLitModule(LightningModule):
         model: nn.Module,
         loss_hparams: dict[str, float] = None,
         metrics_hparams: dict[str, float] = None,
+        ema_hparams: dict[str, Any] = None,
         optimizer_hparams: dict[str, Any] = None,
         lr_scheduler_hparams: dict[str, Any] = None,
-        ema_hparams: dict[str, Any] = None,
         other_hparams: dict[str, Any] = None,
     ):
         """

@@ -180,13 +180,13 @@ def check_configs(config: dict):
         )
 
 
-def get_model(
+def create_model(
     model_hparams: dict,
     loss_hparams=None,
     metrics_hparams=None,
+    ema_hparams=None,
     optimizer_hparams=None,
     lr_scheduler_hparams=None,
-    ema_hparams=None,
     other_hparams: dict = None,
 ):
     m = InteratomicPotential(**model_hparams)
@@ -206,9 +206,9 @@ def get_model(
         m,
         loss_hparams=loss_hparams,
         metrics_hparams=metrics_hparams,
+        ema_hparams=ema_hparams,
         optimizer_hparams=optimizer_hparams,
         lr_scheduler_hparams=lr_scheduler_hparams,
-        ema_hparams=ema_hparams,
         other_hparams=other_hparams,
     )
 
@@ -228,47 +228,62 @@ def main(config: dict):
     config = update_data_configs(config)
     train_loader, val_loader, test_loader = get_dataloaders(**config["data"])
 
-    # Get model
-    restore_checkpoint = config.pop("restore_checkpoint")
-
     # Update model
     config = update_model_configs(config, train_loader.dataset)
+
+    # Add Additional info to the config for record-keeping
     config["git_commit"] = get_git_commit()
 
     # Consistence checking
     check_configs(config)
 
-    # Create new model
-    if restore_checkpoint is None:
-        model = get_model(
+    # Get model
+    execution_mode = config.pop("execution_mode", "train")
+    restore_checkpoint = config.pop("restore_checkpoint", None)
+
+    # Training from scratch
+    if execution_mode == "train" and restore_checkpoint is None:
+        print("Training from scratch")
+
+        model = create_model(
             config["model"],  # do not pop to pass to other_hparams to track with WandB
             loss_hparams=config.pop("loss"),
             metrics_hparams=config.pop("metrics"),
+            ema_hparams=config.pop("ema"),
             optimizer_hparams=config.pop("optimizer"),
             lr_scheduler_hparams=config.pop("lr_scheduler"),
-            ema_hparams=config.pop("ema"),
             other_hparams=config,
         )
-    # Load from checkpoint
-    else:
-        print(f"Loading model from checkpoint: {restore_checkpoint}")
+        fit_ckpt_path = None
 
-        # Pass model hyperparameters to override the ones saved in the checkpoint.
-        # This becomes useful when continuing training from a checkpoint but hoping to
-        # change some hyperparameters, e.g. using a different loss weight or ema ratio.
-        #
-        # Note, given that `ckpt_path=restore_checkpoint` is passed to trainer.fit()
-        # below, anything related to Lightning Trainer, such as lr_scheduler and
-        # optimizer, if changed here, will not be effective, as they will be restored
-        # from the checkpoint.
+    # Resume training, restore model parameters and training state
+    elif execution_mode == "train" and restore_checkpoint is not None:
+        print(f"Resuming model from checkpoint: {restore_checkpoint}")
+
+        model = load_model(
+            InteratomicPotentialLitModule, InteratomicPotential, restore_checkpoint
+        )
+        fit_ckpt_path = restore_checkpoint
+
+    # Finetuning, only restore model params
+    elif execution_mode == "finetune":
+        if restore_checkpoint is None:
+            raise ValueError(
+                "`restore_checkpoint` must be provided for `finetune` mode."
+            )
+
+        print(f"Finetuning model from checkpoint: {restore_checkpoint}")
+
+        # Override ALL hyperparameters from the config file
         names = {
             "loss": "loss_hparams",
             "metrics": "metrics_hparams",
             "ema": "ema_hparams",
-            # "optimizer": "optimizer_hparams",
-            # "lr_scheduler": "lr_scheduler_hparams",
+            "optimizer": "optimizer_hparams",
+            "lr_scheduler": "lr_scheduler_hparams",
         }
         overrides = {v: config.pop(k) for k, v in names.items()}
+        overrides["other_hparams"] = config
 
         model = load_model(
             InteratomicPotentialLitModule,
@@ -276,6 +291,10 @@ def main(config: dict):
             restore_checkpoint,
             overrides=overrides,
         )
+        fit_ckpt_path = None
+
+    else:
+        raise ValueError(f"Unknown execution_mode: {execution_mode}")
 
     # Train
     try:
@@ -299,30 +318,13 @@ def main(config: dict):
     t1 = time.perf_counter()
     print(f"Time for data loading and model initialization: {t1 - t0:.5e} seconds")
 
-    # Pass ckpt_path to trainer.fit() to restore epoch, optimizer state, lr_scheduler
-    # state, callbacks etc. See:
-    # https://lightning.ai/docs/pytorch/1.6.0/common/checkpointing.html#restoring-training-state
-    #
-    # If you just want to use model parameters saved in a checkpoint, which is loaded
-    # above in load_model(), but not restore settings like epoch, comment out
-    # `ckpt_path = restore_checkpint`.
-    #
-    # In a restoring training, if, e.g., lr_scheduler hyperparameters are changed and
-    # new values are provided in `config`, they won't be effective, since their state
-    # will be restored from the checkpoint. Then, if you want to change them, you can
-    # manually update the checkpoint file, e.g. via:
-    # carnet.model.pl.utils.update_checkpoint()
-    #
-    # This will only change stuff that is related to the training process that is
-    # native to lightning, like the ones mentioned above; it will not update stuff
-    # not native to lightning. For example, ema hyperparameters will not be restored
-    # since it is defined in the model class, not in the lightning module.
+    # Train model
     t0 = time.perf_counter()
     trainer.fit(
         model,
         train_dataloaders=train_loader,
         val_dataloaders=val_loader,
-        ckpt_path=restore_checkpoint,
+        ckpt_path=fit_ckpt_path,
     )
     t1 = time.perf_counter()
     print(f"Time for model training: {t1 - t0:.5e} seconds")
@@ -345,17 +347,6 @@ def main(config: dict):
     t1 = time.perf_counter()
     print("Best model val results:", out)
     print(f"Time for validating the best model: {t1 - t0:.5e} seconds")
-
-    # Val/test results on the last epoch model
-    # Depending on the settings, this can be
-    # - the last epoch of regular model
-    # - the EMA model
-    # - the SWA model
-    # out = trainer.validate(ckpt_path="./last_epoch.ckpt", dataloaders=val_loader)
-    # print("Last epoch results on val set:", out)
-    #
-    # out = trainer.test(ckpt_path="./last_epoch.ckpt", dataloaders=test_loader)
-    # print("Last epoch results on test set:", out)
 
 
 if __name__ == "__main__":

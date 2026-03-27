@@ -32,40 +32,42 @@ def load_model(
     overrides: dict | None = None,
 ):
     """
-    Load the model from checkpoint.
+    Load the lightning module from checkpoint.
+
+    This will fully restore the lightning module: first create a new instance of
+    `lit_model_cls` using the same hyperparameters saved in the checkpoint, and then
+    load the model parameters in the state dict of the checkpoint.
+
+    Note this will not load parameters related to training, e.g. epoch, optimizer state,
+    lr_scheduler state, etc, although they are also saved in the checkpoint.
+    If you want to restore the training state, they can be loaded via
+    trainer.fit(ckpt_path=checkpoint).
 
     Args:
-        lit_model_cls: the Lightning model class, e.g.
-        `carnet.model.pl.pl_ip.InteratomicPotentialLitModule`
-        model_cls: the model class, e.g. `carnet.model.ip.InteratomicPotential`
+        lit_model_cls: the Lightning model class, e.g. `InteratomicPotentialLitModule`
+        model_cls: the pure model class, e.g. `InteratomicPotential`
         checkpoint: path to the checkpoint
         map_location: device to load the model to
-        overrides: additional hyperparameters to override these saved in the
-            checkpoint. Accepts a dictionary of hyperparameters, each should be of the
-            same format as defined in the lightning module's `__init__` method, e.g.
-            see the __init__ method of
-            `carnet.model.pl.pl_ip.InteratomicPotentialLitModule`.
-
+        overrides: additional hyperparameters to override these saved in the checkpoint.
+            They will be used to instantiate the lightning module, instead of the ones
+            saved in the checkpoint. Accepts a dictionary of hyperparameters, each
+            should be of the same format as defined in the __init__ method of the
+            `lit_model_cls`.
     """
-    # create the model to load, using the same hyperparameters saved in the checkpoint
+
+    # Create a pure PyTorch `model_cls` model
+    # Note, we cannot simply do load_from_checkpoint(checkpoint) to load the model.
+    # We have to first create a pure `model_cls` model and pass it to
+    # load_from_checkpoint. This is because in `lit_model_cls`, we pass `model` as a
+    # positional argument to the `__init__` method, and it is not saved in the
+    # checkpoint.
+    # For more, see the `encoder` example here:
+    # https://lightning.ai/docs/pytorch/stable/common/checkpointing_basic.html#initialize-with-other-parameters
     d = torch.load(checkpoint, map_location=map_location, weights_only=True)
-
-    # We should not do the below: what if a user what to run in a different dtype,
-    # e.g. for better numerical stability?
-    # dtype = d["hyper_parameters"]["other_hparams"]["default_dtype"]
-    # torch.set_default_dtype(getattr(torch, dtype))
-
-    # create model
     model_hparams = d["hyper_parameters"]["other_hparams"]["model"]
     model = model_cls(**model_hparams)
 
-    # Create the lit model
-    # Note 1, this will only restore model parameters, not the epoch, optimizer state,
-    # lr_scheduler state, etc.
-    # Note 2, model has to be provided, as the lightning module receives it as a
-    # positional argument, and it is not part of the hyperparameters (saved to
-    # checkpoint).
-    # Note 3,
+    # Create lightning module
     overrides = overrides or {}
     lit_model = lit_model_cls.load_from_checkpoint(
         checkpoint, map_location=map_location, model=model, **overrides
