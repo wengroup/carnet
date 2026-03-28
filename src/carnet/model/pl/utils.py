@@ -30,18 +30,26 @@ def load_model(
     checkpoint: Path,
     map_location: str = None,
     overrides: dict | None = None,
+    params_load_mode: str = "separate",
 ):
     """
     Load the lightning module from checkpoint.
 
-    This will fully restore the lightning module: first create a new instance of
-    `lit_model_cls` using the same hyperparameters saved in the checkpoint, and then
-    load the model parameters in the state dict of the checkpoint.
+    This will fully restore the lightning module. It first creates a new instance of
+    `lit_model_cls` using the same hyperparameters saved in the checkpoint (override
+    then if `override` is provided, and then loads the model parameters (including
+    ema) in the state dict of the checkpoint.
 
-    Note this will not load parameters related to training, e.g. epoch, optimizer state,
-    lr_scheduler state, etc, although they are also saved in the checkpoint.
-    If you want to restore the training state, they can be loaded via
-    trainer.fit(ckpt_path=checkpoint).
+    `optimizer` and `lr_scheduler` will also be created as they are defined in the
+    `lit_model_cls`. However, this only creates the optimizer and lr_scheduler,
+    instances, but not load their states (e.g. momentum, learning rate, etc) from the
+    checkpoint. These can be done by trainer.fit(ckpt_path=checkpoint) if you want to
+    restore the training state. Also trainer.fit(ckpt_path=checkpoint) will restore the
+    epoch, global step, etc.
+
+    Note, if trainer.fit(ckpt_path=checkpoint) is called after this function, settings
+    like `overrides` and `params_load_mode` will not be effective, as they will be
+    overwritten by the checkpoint loaded by the trainer.
 
     Args:
         lit_model_cls: the Lightning model class, e.g. `InteratomicPotentialLitModule`
@@ -53,6 +61,18 @@ def load_model(
             saved in the checkpoint. Accepts a dictionary of hyperparameters, each
             should be of the same format as defined in the __init__ method of the
             `lit_model_cls`.
+        params_load_mode: The checkpoint stores two set of parameters: "running"
+            parameters and "ema" parameters. This specifies how to load the parameters
+            into the model and the ema model.
+            - "separate": load the "running" parameters into the model and the "ema"
+               parameters into the ema model. This is good for resuming training.
+            - "running": load the "running" parameters into both the model and the ema
+               model.
+            - "ema": load the "ema" parameters into both the model and the ema model.
+              This is good for evaluation or inference, as the "ema" parameters usually
+              have better performance than the "running" parameters. This is typically
+              better than "running" for finetuning as well, as the "ema" parameters are
+              usually more stable than the "running".
     """
 
     # Create a pure PyTorch `model_cls` model
@@ -72,6 +92,19 @@ def load_model(
     lit_model = lit_model_cls.load_from_checkpoint(
         checkpoint, map_location=map_location, model=model, **overrides
     )
+
+    if params_load_mode == "separate":
+        # By default, lit_model_cls.load_from_checkpoint loaded separately
+        pass
+    elif params_load_mode == "running":
+        lit_model.ema.copy_params_from_model_to_ema()
+    elif params_load_mode == "ema":
+        lit_model.ema.copy_params_from_ema_to_model()
+    else:
+        supported = ["separate", "running", "ema"]
+        raise ValueError(
+            f"Unsupported params_load_mode: {params_load_mode}. Options: {supported}."
+        )
 
     return lit_model
 

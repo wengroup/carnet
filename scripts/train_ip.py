@@ -261,7 +261,10 @@ def main(config: dict):
         print(f"Resuming model from checkpoint: {restore_checkpoint}")
 
         model = load_model(
-            InteratomicPotentialLitModule, InteratomicPotential, restore_checkpoint
+            InteratomicPotentialLitModule,
+            InteratomicPotential,
+            restore_checkpoint,
+            params_load_mode="separate",
         )
         fit_ckpt_path = restore_checkpoint
 
@@ -290,6 +293,7 @@ def main(config: dict):
             InteratomicPotential,
             restore_checkpoint,
             overrides=overrides,
+            params_load_mode="ema",
         )
         fit_ckpt_path = None
 
