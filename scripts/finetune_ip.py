@@ -161,7 +161,7 @@ def update_model_configs(config_ckpt: dict, config: dict, dataset: DatasetIP) ->
     ckpt_atomic_number = config["data"]["atomic_number"]
     r_cut = config["data"]["r_cut"]
 
-    for k in ["num_atom_types", "r_cut"]:
+    for k in ["atomic_number", "r_cut"]:
         if k in config["model"]:
             raise ValueError(
                 f"Parameter {k} already provided in the `data` section of the "
@@ -371,7 +371,7 @@ def main(config: dict):
         InteratomicPotential,
         checkpoint,
         overrides=overrides,
-        params_load_mode="running",
+        params_load_mode="ema",
         reset_ema_step=True,
     )
 
