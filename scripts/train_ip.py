@@ -238,11 +238,10 @@ def main(config: dict):
     check_configs(config)
 
     # Get model
-    execution_mode = config.pop("execution_mode", "train")
     restore_checkpoint = config.pop("restore_checkpoint", None)
 
     # Training from scratch
-    if execution_mode == "train" and restore_checkpoint is None:
+    if restore_checkpoint is None:
         print("Training from scratch")
 
         model = create_model(
@@ -254,11 +253,10 @@ def main(config: dict):
             lr_scheduler_hparams=config.pop("lr_scheduler"),
             other_hparams=config,
         )
-        fit_ckpt_path = None
 
     # Resume training, restore model parameters and training state
-    elif execution_mode == "train" and restore_checkpoint is not None:
-        print(f"Resuming model from checkpoint: {restore_checkpoint}")
+    else:
+        print(f"Resuming training from checkpoint: {restore_checkpoint}")
 
         model = load_model(
             InteratomicPotentialLitModule,
@@ -266,39 +264,6 @@ def main(config: dict):
             restore_checkpoint,
             params_load_mode="separate",
         )
-        fit_ckpt_path = restore_checkpoint
-
-    # Finetuning, only restore model params
-    elif execution_mode == "finetune":
-        if restore_checkpoint is None:
-            raise ValueError(
-                "`restore_checkpoint` must be provided for `finetune` mode."
-            )
-
-        print(f"Finetuning model from checkpoint: {restore_checkpoint}")
-
-        # Override ALL hyperparameters from the config file
-        names = {
-            "loss": "loss_hparams",
-            "metrics": "metrics_hparams",
-            "ema": "ema_hparams",
-            "optimizer": "optimizer_hparams",
-            "lr_scheduler": "lr_scheduler_hparams",
-        }
-        overrides = {v: config.pop(k) for k, v in names.items()}
-        overrides["other_hparams"] = config
-
-        model = load_model(
-            InteratomicPotentialLitModule,
-            InteratomicPotential,
-            restore_checkpoint,
-            overrides=overrides,
-            params_load_mode="ema",
-        )
-        fit_ckpt_path = None
-
-    else:
-        raise ValueError(f"Unknown execution_mode: {execution_mode}")
 
     # Train
     try:
@@ -328,7 +293,7 @@ def main(config: dict):
         model,
         train_dataloaders=train_loader,
         val_dataloaders=val_loader,
-        ckpt_path=fit_ckpt_path,
+        ckpt_path=restore_checkpoint,
     )
     t1 = time.perf_counter()
     print(f"Time for model training: {t1 - t0:.5e} seconds")
