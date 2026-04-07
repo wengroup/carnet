@@ -1,0 +1,118 @@
+seed_everything: 35
+default_dtype: float32
+
+# Path to pretrained model
+restore_checkpoint: /Users/mjwen/Packages/carnet/scripts/pretrain_matpes.ckpt
+
+data:
+
+  trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
+  valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
+  testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
+  target_names:
+    - energy
+    - forces
+#    - stress
+
+  r_cut: 5.0
+  train_batch_size: 4
+  val_batch_size: 20
+  test_batch_size: 20
+
+model:
+
+  # number of average neighbors:
+  # if `null`: use values from the pretrained model (i.e. restore_checkpoint)
+  # if `auto`: compute from the training set (i.e. trainset_filename)
+  num_average_neigh: null
+  # Shift of atomic energy:
+  # if `null`: use values from the pretrained model (i.e. restore_checkpoint)
+  # if `auto`: compute from the training set (i.e. trainset_filename)
+  # if path to a file: load from the json file
+  atomic_energy_shift: null
+  # Scale of atomic energy:
+  # if `null`: use values from the pretrained model (i.e. restore_checkpoint)
+  # if `auto`: compute from the training set (i.e. trainset_filename)
+  atomic_energy_scale: null
+
+
+loss:
+  type: huber # options are `mse` `mae` and `huber`
+  delta: 0.01 # Hubber delta, only used if type is `huber`
+  energy_ratio: 1.0
+  forces_ratio: 1.0
+  # Carnet adopts the usual stress convention. And virial = - stress * volume.
+  # Positive diagonal components of the stress tensor mean that the system is under
+  # tension (and wants to compress), whereas negative ones mean that the system is
+  # under compressive strain (and wants to expand).
+  # But in some DFT codes (e.g., VASP), the opposite convention is used.
+  #
+  # If stress ratio is 0 or not set, stress is not used in training
+#  stress_ratio: 1.0
+  normalize: true # normalize energy by number of atoms
+
+metrics:
+  type: mae
+  normalize: true # normalize energy by number of atoms
+
+ema: # exponential moving average, https://github.com/lucidrains/ema-pytorch
+  beta: 0.999
+  update_after_step: 1000
+  update_every: 1
+  power: 0.75
+  include_online_model: false
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.002
+    weight_decay: 1.0e-8
+
+#lr_scheduler:
+#  monitor: val_ema/mae_f
+#  class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
+#  init_args:
+#    mode: min
+#    factor: 0.8
+#    patience: 100
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+  init_args:
+    T_max: 2 # should be equal to trainer.max_epochs
+
+trainer:
+  max_epochs: 2
+  accelerator: cpu
+  num_nodes: 1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  detect_anomaly: false
+  inference_mode: false # Enable calculation of gradients (forces) in val/test step
+  gradient_clip_val: 100.0
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: carnet_proj
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelSummary
+      init_args:
+        max_depth: -1
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: null
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val_ema/mae_f
+        mode: min
+        save_top_k: 3
+        verbose: false
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val_ema/mae_f
+        mode: min
+        patience: 200
+        verbose: true
+
+wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top

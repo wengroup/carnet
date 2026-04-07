@@ -3,7 +3,8 @@ from ase.io import read
 from carnet.ext.ase.calculator import CarnetCalculator
 
 # Modify `model_path` to point to a trained model checkpoint on your system
-model_path = "<path_to_trained_carnet_model.ckpt>"
+# model_path = "/Users/mjwen/Packages/carnet/scripts/pretrain_matpes.ckpt"
+model_path = "/Users/mjwen/Packages/carnet/scripts/finetune_water.ckpt"
 
 calc = CarnetCalculator(model_path, device="cpu", need_stress=False)
 
