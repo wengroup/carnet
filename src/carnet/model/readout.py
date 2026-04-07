@@ -75,8 +75,10 @@ class StructureScalar(nn.Module):
             MLP(in_features, 1, hidden_features, out_activation=False)
         )
 
-        self.register_buffer("atomic_shift", atomic_shift)
-        self.register_buffer("atomic_scale", atomic_scale)
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
+        self.register_buffer("atomic_shift", atomic_shift, persistent=False)
+        self.register_buffer("atomic_scale", atomic_scale, persistent=False)
 
         # Register a separate bias for each atomic type
         if element_bias:
@@ -469,8 +471,10 @@ class _AtomicScalar(nn.Module):
                     )
                 )
 
-        self.register_buffer("atomic_shift", atomic_shift)
-        self.register_buffer("atomic_scale", atomic_scale)
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
+        self.register_buffer("atomic_shift", atomic_shift, persistent=False)
+        self.register_buffer("atomic_scale", atomic_scale, persistent=False)
 
         # Register a separate bias for each atomic type
         if element_bias:
@@ -544,7 +548,9 @@ class _AtomicTensor(nn.Module):
             else:
                 self.layers.append(LinearMap(in_features, out_features))
 
-        self.register_buffer("atomic_scale", atomic_scale)
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
+        self.register_buffer("atomic_scale", atomic_scale, persistent=False)
 
     def forward(self, atom_feats: list[Tensor], atom_type: Tensor) -> Tensor:
         """

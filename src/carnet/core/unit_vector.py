@@ -38,7 +38,7 @@ class Polyadics(nn.Module):
         for l in range(2, L + 1):
             Hs.append(H_dict[l]["H"].t())
 
-        self.register_buffer("H_total", torch.block_diag(*Hs))
+        self.register_buffer("H_total", torch.block_diag(*Hs), persistent=False)
 
     def forward(self, a: Tensor) -> Tensor:
         """

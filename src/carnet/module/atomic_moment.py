@@ -82,8 +82,12 @@ class AtomicMoment(nn.Module):
             out_activation=False,
         )
 
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
         self.register_buffer(
-            "inv_sqrt_num_average_neigh", torch.as_tensor(1.0 / num_average_neigh**0.5)
+            "inv_sqrt_num_average_neigh",
+            torch.as_tensor(1.0 / num_average_neigh**0.5),
+            persistent=False,
         )
 
     def forward(

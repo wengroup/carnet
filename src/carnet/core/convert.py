@@ -63,8 +63,12 @@ class Converter(nn.Module):
             # TODO, the tensors of different G_j_p might be batched, which can
             #  accelerate the computation
             for p, (G, H) in enumerate(zip(out_l["G"], out_l["H"])):
-                self.register_buffer(f"G_{l}_{p}", G["numerical"].to(dtype))
-                self.register_buffer(f"H_{l}_{p}", H["numerical"].to(dtype))
+                self.register_buffer(
+                    f"G_{l}_{p}", G["numerical"].to(dtype), persistent=False
+                )
+                self.register_buffer(
+                    f"H_{l}_{p}", H["numerical"].to(dtype), persistent=False
+                )
                 setattr(self, f"G_{l}_{p}_rule", G["rule"])
                 setattr(self, f"H_{l}_{p}_rule", H["rule"])
 

@@ -34,15 +34,13 @@ class RadialBasis(nn.Module):
         self.basis_type = basis_type
 
         if basis_type == "chebyshev":
-            output_dim = radial_basis_degree + 1
+            self.output_dim = radial_basis_degree + 1
             self.basis = ChebyshevBasis(degree=radial_basis_degree, r_cut=r_cut)
         elif basis_type == "bessel":
-            output_dim = radial_basis_degree
+            self.output_dim = radial_basis_degree
             self.basis = BesselBasis(r_cut=r_cut, num_basis=radial_basis_degree)
         else:
             raise ValueError(f"Unknown basis type: {basis_type}")
-
-        self.register_buffer("output_dim", torch.tensor(output_dim, dtype=torch.int))
 
     def forward(self, r: Tensor):
         """
@@ -66,7 +64,10 @@ class ChebyshevBasis(nn.Module):
     def __init__(self, degree: int, r_cut: float):
         super().__init__()
         self.degree = degree
-        self.register_buffer("r_cut", torch.tensor(r_cut))
+
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
+        self.register_buffer("r_cut", torch.tensor(r_cut), persistent=False)
 
     def forward(self, r: Tensor) -> Tensor:
         # Normalize distance to [0, 1] range
@@ -93,8 +94,14 @@ class BesselBasis(nn.Module):
         super().__init__()
         self.num_basis = num_basis
 
-        self.register_buffer("freqs", torch.arange(1, num_basis + 1) * torch.pi / r_cut)
-        self.register_buffer("prefactor", torch.tensor((2.0 / r_cut) ** 0.5))
+        # `persistent=False` to not save in state dict, so that they can be overridden
+        # when loading the model, e.g., for finetuning.
+        self.register_buffer(
+            "freqs", torch.arange(1, num_basis + 1) * torch.pi / r_cut, persistent=False
+        )
+        self.register_buffer(
+            "prefactor", torch.tensor((2.0 / r_cut) ** 0.5), persistent=False
+        )
 
     def forward(self, r: Tensor) -> Tensor:
         return (

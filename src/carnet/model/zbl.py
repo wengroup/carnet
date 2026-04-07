@@ -44,9 +44,9 @@ class ZBLEnergy(torch.nn.Module):
         # e^2 / (4 * pi * epsilon_0) in eV * Angstrom
         factor = torch.tensor(14.3996, dtype=dtype)
 
-        self.exponents = nn.Parameter(exponents, requires_grad=False)
-        self.coefficients = nn.Parameter(coefficients, requires_grad=False)
-        self.factor = nn.Parameter(factor, requires_grad=False)
+        self.register_buffer("exponents", exponents)
+        self.register_buffer("coefficients", coefficients)
+        self.register_buffer("factor", factor)
 
         # Other constants
         self.register_buffer("p", torch.tensor(p, dtype=torch.int))

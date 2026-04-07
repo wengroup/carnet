@@ -43,9 +43,10 @@ class InteratomicPotentialLitModule(LightningModule):
         self.model = model
         self.loss_hparams = loss_hparams
         self.metrics_hparams = metrics_hparams
+        self.ema_hparams = ema_hparams
         self.optimizer_hparams = optimizer_hparams
         self.lr_scheduler_hparams = lr_scheduler_hparams
-        self.ema_hparams = ema_hparams
+
         self.ema = EMA(self.model, **self.ema_hparams)
 
         loss_type = self.loss_hparams.get("type", None)

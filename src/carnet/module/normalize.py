@@ -47,7 +47,7 @@ class LayerNorm(nn.Module):
         self.affine = affine
         self.normalization = normalization
 
-        self.register_buffer("slice_sizes", torch.tensor(slice_sizes))
+        self.register_buffer("slice_sizes", torch.tensor(slice_sizes), persistent=False)
 
         if affine:
             self.a = nn.Parameter(torch.ones(dim, len(slice_sizes)))
