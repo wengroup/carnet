@@ -1,11 +1,21 @@
 import gzip
 import json
 import math
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
 import torch
 from torch import Tensor, nn
+
+
+@contextmanager
+def timer(label: str):
+    """Context manager that prints wall-clock time for a labeled block."""
+    t0 = time.perf_counter()
+    yield
+    print(f"Time for {label}: {time.perf_counter() - t0:.5e} seconds")
 
 
 def time_it(func, *args, **kwargs):

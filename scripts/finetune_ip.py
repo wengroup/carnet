@@ -2,7 +2,6 @@ import copy
 import itertools
 import os
 import shutil
-import time
 import warnings
 from pathlib import Path
 from pprint import pprint
@@ -23,6 +22,7 @@ from carnet.model.pl.utils import (
     instantiate_class,
     load_model,
 )
+from carnet.utils import timer
 
 
 def get_dataset(
@@ -327,8 +327,6 @@ def check_configs(config: dict):
 def main(config: dict):
     L.seed_everything(config["seed_everything"])
 
-    t0 = time.perf_counter()
-
     # Set default dtype
     dtype = config.get("default_dtype", "float32")
     torch.set_default_dtype(getattr(torch, dtype))
@@ -343,7 +341,8 @@ def main(config: dict):
 
     # Load data
     config = update_data_configs(config_ckpt, config)
-    train_loader, val_loader, test_loader = get_dataloaders(**config["data"])
+    with timer("data loading"):
+        train_loader, val_loader, test_loader = get_dataloaders(**config["data"])
 
     # # Update model
     config = update_model_configs(config_ckpt, config, train_loader.dataset)
@@ -394,38 +393,29 @@ def main(config: dict):
 
     trainer = Trainer(callbacks=callbacks, logger=logger, **config["trainer"])
 
-    t1 = time.perf_counter()
-    print(f"Time for data loading and model initialization: {t1 - t0:.5e} seconds")
-
     # Train model
-    t0 = time.perf_counter()
-    trainer.fit(
-        model,
-        train_dataloaders=train_loader,
-        val_dataloaders=val_loader,
-        ckpt_path=None,
-    )
-    t1 = time.perf_counter()
-    print(f"Time for model training: {t1 - t0:.5e} seconds")
+    with timer("model training"):
+        trainer.fit(
+            model,
+            train_dataloaders=train_loader,
+            val_dataloaders=val_loader,
+            ckpt_path=None,
+        )
 
     # Save the last epoch model
     # The behavior of  `save_last` in ModelCheckpoint callback is buggy; save manually
     trainer.save_checkpoint("./last_epoch.ckpt")
 
     # Test results on the best model determined by the validation set
-    t0 = time.perf_counter()
-    out = trainer.test(ckpt_path="best", dataloaders=test_loader)
-    t1 = time.perf_counter()
+    with timer("testing the best model"):
+        out = trainer.test(ckpt_path="best", dataloaders=test_loader)
     print("Best model test results:", out)
     print(f"Best checkpoint path: {trainer.checkpoint_callback.best_model_path}")
-    print(f"Time for testing the best model: {t1 - t0:.5e} seconds")
 
     # Validation results on best model
-    t0 = time.perf_counter()
-    out = trainer.validate(ckpt_path="best", dataloaders=val_loader)
-    t1 = time.perf_counter()
+    with timer("validating the best model"):
+        out = trainer.validate(ckpt_path="best", dataloaders=val_loader)
     print("Best model val results:", out)
-    print(f"Time for validating the best model: {t1 - t0:.5e} seconds")
 
 
 if __name__ == "__main__":
