@@ -26,7 +26,7 @@ cd carnet
 pip install -e .
 ```
 
-To include optional dependencies for testing:
+(Optional) To include dependencies for testing:
 
 ```bash
 pip install -e ".[test]"
