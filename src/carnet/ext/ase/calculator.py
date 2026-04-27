@@ -74,7 +74,6 @@ class CarnetCalculator(Calculator):
 
         # Convert atomic number to atom type (consecutive integer starting from 0)
         self.transform = ConsecutiveAtomType(elements, device=self.device)
-        self.atom_type = None
 
         self.results = {}
 
@@ -99,11 +98,7 @@ class CarnetCalculator(Calculator):
 
         # convert atomic numbers to consecutive integer code starting from 0, which
         # is what the model internally expects
-        if self.atom_type is None:
-            data = self.transform(data)
-            self.atom_type = data.atom_type
-        else:
-            data.atom_type = self.atom_type
+        data = self.transform(data)
 
         has_cell = hasattr(data, "cell") and data.cell is not None
 
