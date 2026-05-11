@@ -21,7 +21,6 @@ except ImportError:
             pass
 
 
-from carnet.data.transform import ConsecutiveAtomType
 from carnet.model.ip import InteratomicPotential
 
 
@@ -95,9 +94,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
         self.ndescriptors = 1
         self.nparams = 1
 
-        # Mapping atomic numbers to contiguous indices
-        transform = ConsecutiveAtomType(model.atomic_numbers)
-        self.mapping = transform.mapping
+        # Mapping consecutive indices to atomic numbers
+        self.mapping = torch.as_tensor(model.atomic_numbers)
 
         # self.model.eval()
         for p in self.model.parameters():
@@ -117,7 +115,8 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
             device = torch.as_tensor(data.elems).device
             if device.type == "cpu" and not self.config.allow_cpu:
                 raise ValueError(
-                    "GPU requested but tensor is on CPU. Set CARNET_ALLOW_CPU=true to allow CPU computation."
+                    "GPU requested but tensor is on CPU. Set CARNET_ALLOW_CPU=true to "
+                    "allow CPU computation."
                 )
         else:
             device = torch.device(self.device)
@@ -196,9 +195,12 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
     def _prepare_batch(self, data, ntotal, nlocal, nghost) -> Dict[str, torch.Tensor]:
         """Prepare the input batch for the CarNet model."""
 
-        atomic_number = torch.as_tensor(data.elems, dtype=DTYPE_INT, device=self.device)
-        atomic_number += 1  # +1 to convert zero-based lammps value to one-based
-        atom_type = self.mapping[atomic_number]
+        # data.elems: 0-based index into self.element_types, which is exactly the
+        # consecutive atom type carnet expects
+        atom_type = torch.as_tensor(data.elems, dtype=DTYPE_INT, device=self.device)
+
+        # Get atomic number (in periodic table) from atom type
+        atomic_number = self.mapping[atom_type]
 
         return {
             "edge_vector": torch.as_tensor(

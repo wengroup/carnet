@@ -35,6 +35,9 @@ class ConsecutiveAtomType(BaseTransform):
         self.mapping = mapping
 
     def forward(self, data: Union[Config, Batch]):
+        """
+        Return zero-based consecutive atom types.
+        """
         atom_type = self.mapping[data.atomic_number]
         if atom_type.min() < 0:
             raise RuntimeError(

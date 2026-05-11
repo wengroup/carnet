@@ -72,6 +72,7 @@ def update_data_configs(config: dict) -> dict:
         filename = config["data"]["trainset_filename"]
         df = pd.read_json(filename)
         atomic_number = df["atomic_number"].to_list()
+        # Should be sorted, the lammps interfaces uses this
         unique_atomic_number = sorted(set(itertools.chain.from_iterable(atomic_number)))
 
         config["data"]["atomic_number"] = unique_atomic_number
