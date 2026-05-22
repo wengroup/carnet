@@ -438,7 +438,7 @@ def get_sym_rules_2(group_a: str, group_b: str) -> list[str]:
         group_b: a string of indices, e.g. "pqr"
 
     Example:
-        >>> get_sym_rules_2('ij', 'pq')
+        >>> get_sym_rules_2("ij", "pq")
         ['ijpq', 'ipjq', 'ipqj', 'pijq', 'piqj', 'pqij']
 
     Returns:
@@ -476,7 +476,7 @@ def get_sym_rules_3(group_a: str, group_b: str, group_c: str) -> list[str]:
         group_c: a string of indices, e.g. "xy"
 
     Example:
-        >>> get_sym_rules_3('z', 'pq', 'xy')
+        >>> get_sym_rules_3("z", "pq", "xy")
         ['zpqxy', 'zpxqy', 'zpxyq', 'zxpqy', zxpyq', 'zxypq',
          'pzqxy', 'pzxqy', 'pzxyq', 'xzpqy', 'xzpyq', 'xzypq',
          ...

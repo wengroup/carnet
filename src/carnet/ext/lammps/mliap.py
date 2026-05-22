@@ -67,6 +67,7 @@ class LAMMPS_MLIAP_CarNet(MLIAPUnified):
     Example LAMMPS input (when using a Python script to set up LAMMPS):
     ```python
     from carnet.ext.lammps.mliap import load_model_for_lammps, LAMMPS_MLIAP_CarNet
+
     model = load_model_for_lammps("model.ckpt", use_ema=True)
     mliap = LAMMPS_MLIAP_CarNet(model, device="cuda")
     # pass mliap to lammps
