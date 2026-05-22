@@ -47,7 +47,6 @@ def generate_H(
         for l2 in range(max_l2 + 1):
             for l3 in range(abs(l1 - l2), min(l1 + l2 + 1, max_l3 + 1)):
                 for normalize in ["unity", "none"]:
-
                     # Even
                     if (l1 + l2 - l3) % 2 == 0:
                         H_symbolic, _, _, _ = get_H_even(l1, l2, l3)

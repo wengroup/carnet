@@ -54,9 +54,9 @@ def run_benchmarks(L=2, B=10000, F=128):
     m_ref = get_memory(poly_ref)
     m_opt = get_memory(poly_opt)
 
-    print(f"Ref (unit_vector_3): {t_ref*1000:.4f} ms, Mem: {m_ref:.4f} MB")
-    print(f"Opt (unit_vector):   {t_opt*1000:.4f} ms, Mem: {m_opt:.4f} MB")
-    print(f"Speedup: {t_ref/t_opt:.2f}x")
+    print(f"Ref (unit_vector_3): {t_ref * 1000:.4f} ms, Mem: {m_ref:.4f} MB")
+    print(f"Opt (unit_vector):   {t_opt * 1000:.4f} ms, Mem: {m_opt:.4f} MB")
+    print(f"Speedup: {t_ref / t_opt:.2f}x")
 
     # --- TensorProduct Benchmark ---
     print(f"\n--- TensorProduct Benchmark (L1=L2=L3={L}, B={B}, F={F}) ---")
@@ -78,10 +78,10 @@ def run_benchmarks(L=2, B=10000, F=128):
     m_tp_opt1 = get_memory(tp_opt1)
     m_tp_opt = get_memory(tp_opt)
 
-    print(f"Ref (product1): {t_tp_ref*1000:.4f} ms, Mem: {m_tp_ref:.4f} MB")
-    print(f"Opt1 (product2): {t_tp_opt1*1000:.4f} ms, Mem: {m_tp_opt1:.4f} MB")
-    print(f"Opt (product):  {t_tp_opt*1000:.4f} ms, Mem: {m_tp_opt:.4f} MB")
-    print(f"Speedup Opt vs Ref: {t_tp_ref/t_tp_opt:.2f}x")
+    print(f"Ref (product1): {t_tp_ref * 1000:.4f} ms, Mem: {m_tp_ref:.4f} MB")
+    print(f"Opt1 (product2): {t_tp_opt1 * 1000:.4f} ms, Mem: {m_tp_opt1:.4f} MB")
+    print(f"Opt (product):  {t_tp_opt * 1000:.4f} ms, Mem: {m_tp_opt:.4f} MB")
+    print(f"Speedup Opt vs Ref: {t_tp_ref / t_tp_opt:.2f}x")
 
     # Atomic Moment TP
     tp_ref_am = TPRef(F, L, L, L, for_atomic_moment=True).to(device)
@@ -98,10 +98,10 @@ def run_benchmarks(L=2, B=10000, F=128):
     t_am_opt1 = benchmark_speed(tp_opt1_am, x, y_atomic, R=R)
     t_am_opt = benchmark_speed(tp_opt_am, x, y_atomic, R=R)
 
-    print(f"\nAtomic TP Ref (product1): {t_am_ref*1000:.4f} ms")
-    print(f"Atomic TP Opt1 (product2): {t_am_opt1*1000:.4f} ms")
-    print(f"Atomic TP Opt (product):  {t_am_opt*1000:.4f} ms")
-    print(f"Speedup Opt vs Ref: {t_am_ref/t_am_opt:.2f}x")
+    print(f"\nAtomic TP Ref (product1): {t_am_ref * 1000:.4f} ms")
+    print(f"Atomic TP Opt1 (product2): {t_am_opt1 * 1000:.4f} ms")
+    print(f"Atomic TP Opt (product):  {t_am_opt * 1000:.4f} ms")
+    print(f"Speedup Opt vs Ref: {t_am_ref / t_am_opt:.2f}x")
 
 
 if __name__ == "__main__":

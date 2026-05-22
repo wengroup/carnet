@@ -126,7 +126,7 @@ def compute_metrics(target_name, symmetry, filename, checkpoint):
         # and seniority dim, but not over data point dim
         mae = torch.mean(torch.abs(v_r - v_p), axis=tuple(range(1, v_r.ndim)))
         plot_hist(
-            mae.detach().numpy(), "MAE of each structure", f"natural_MAE_rank" f"={k}"
+            mae.detach().numpy(), "MAE of each structure", f"natural_MAE_rank={k}"
         )
 
     # Metrics on ordinary tensors
@@ -178,7 +178,6 @@ def process_dict(data: list[dict[int, Tensor]]) -> dict[int, Tensor]:
 
 
 if __name__ == "__main__":
-
     target_name = "nmr_tensor_natural"
 
     filename = "/Users/mjwen/Packages/carnet_analysis/dataset/nmr_tensor/20250424/nmr_tensor_n20.json"

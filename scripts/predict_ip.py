@@ -112,7 +112,6 @@ def plot_hist(data, x_label, title: str, filename=None):
 
 
 if __name__ == "__main__":
-
     filename = (
         "/Users/mjwen/Packages/camp_analysis/dataset/nequip_LiPS/train_100_LiPS.json"
     )

@@ -161,7 +161,7 @@ def get_sym_part(S: Tensor, T: Tensor, num_delta: int = 0) -> Tensor:
     """
     if num_delta > min(S.ndim, T.ndim):
         raise ValueError(
-            "Expect `num_delta` to be <= min(S.ndim, T.ndim), but got " f"{num_delta}"
+            f"Expect `num_delta` to be <= min(S.ndim, T.ndim), but got {num_delta}"
         )
 
     S_indices = letter_index(S.ndim)

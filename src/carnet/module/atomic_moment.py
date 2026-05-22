@@ -116,9 +116,9 @@ class AtomicMoment(nn.Module):
             Updated atom feats. Shape (Na, F, T3), where T3 is the number tensor
             components determined by L3.
         """
-        assert (
-            atom_feats.shape[-1] == (3 ** (self.L1 + 1) - 1) // 2
-        ), "Invalid atom feats shape."
+        assert atom_feats.shape[-1] == (3 ** (self.L1 + 1) - 1) // 2, (
+            "Invalid atom feats shape."
+        )
 
         # Indices of center atoms (i) and neighbor atoms (j); (n_edges,)
         i_idx = edge_idx[0]

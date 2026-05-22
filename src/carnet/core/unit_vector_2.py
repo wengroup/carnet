@@ -146,7 +146,6 @@ def get_H(l: int) -> tuple[LinearCombination, str, str]:
 
     out = []
     for d in range(l // 2 + 1):
-
         coeff = Fraction(
             (-1) ** d, double_factorial(2 * l - 1, 2 * l - 2 * d - 1 + 2).item()
         )

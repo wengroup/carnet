@@ -320,7 +320,7 @@ def flatten_tensor_dims(
             raise ValueError(
                 f"The last {rank} dimensions of the input tensor should all be 3, "
                 f"representing the shape of the natural tensor. But got "
-                f"{t.shape[-rank :]} instead."
+                f"{t.shape[-rank:]} instead."
             )
 
     if rank == 0:

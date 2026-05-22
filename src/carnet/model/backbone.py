@@ -97,7 +97,6 @@ class Backbone(nn.Module):
         # according to max_out_L (this can save some computation).
         self.layers = nn.ModuleList()
         for i in range(num_layers):
-
             # The first layer only has scalar inputs
             if i == 0:
                 L1 = 0
@@ -191,7 +190,6 @@ class Backbone(nn.Module):
 
         output = []
         for i, layer in enumerate(self.layers):
-
             atom_feats = layer(
                 edge_vector,
                 edge_idx,

@@ -5,14 +5,13 @@ default_dtype: float32
 restore_checkpoint: /Users/mjwen/Packages/carnet/scripts/pretrain_matpes.ckpt
 
 data:
-
   trainset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
   valset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
   testset_filename: /Users/mjwen/Documents/Research/Projects/camp_analysis/dataset/water/n10_water.json
   target_names:
     - energy
     - forces
-#    - stress
+  #    - stress
 
   r_cut: 5.0
   train_batch_size: 4
@@ -20,7 +19,6 @@ data:
   test_batch_size: 20
 
 model:
-
   # number of average neighbors:
   # if `null`: use values from the pretrained model (i.e. restore_checkpoint)
   # if `auto`: compute from the training set (i.e. trainset_filename)
@@ -35,7 +33,6 @@ model:
   # if `auto`: compute from the training set (i.e. trainset_filename)
   atomic_energy_scale: null
 
-
 loss:
   type: huber # options are `mse` `mae` and `huber`
   delta: 0.01 # Hubber delta, only used if type is `huber`
@@ -48,7 +45,7 @@ loss:
   # But in some DFT codes (e.g., VASP), the opposite convention is used.
   #
   # If stress ratio is 0 or not set, stress is not used in training
-#  stress_ratio: 1.0
+  #  stress_ratio: 1.0
   normalize: true # normalize energy by number of atoms
 
 metrics:
@@ -115,4 +112,4 @@ trainer:
         patience: 200
         verbose: true
 
-wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top
+wandb_base_url: https://api.bandw.top # https://api.wandb-cn.top

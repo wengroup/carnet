@@ -456,7 +456,6 @@ class _AtomicScalar(nn.Module):
         self.layers = nn.ModuleList()
 
         for i in range(self.num_atom_feats):
-
             # Linear mapping for atom features in early layers
             if i < self.num_atom_feats - 1:
                 self.layers.append(nn.Linear(in_features, out_features))
@@ -538,7 +537,6 @@ class _AtomicTensor(nn.Module):
         self.layers = nn.ModuleList()
 
         for i in range(self.num_atom_feats):
-
             # Linear mapping for atom features in early layers
             if i < self.num_atom_feats - 1:
                 self.layers.append(LinearMap(in_features, out_features))

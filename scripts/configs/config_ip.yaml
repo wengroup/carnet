@@ -6,7 +6,6 @@ default_dtype: float32
 restore_checkpoint: null # path to checkpoint file
 
 data:
-
   trainset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
   valset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
   testset_filename: /Users/mjwen/Documents/Research/Dataset/matpes/matpes_n20.json
@@ -15,27 +14,27 @@ data:
     - forces
     - stress
 
-#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
-#  valset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
-#  testset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
-#  target_names:
-#    - energy
-#    - forces
-#    - stress
+  #  trainset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Dataset/UNEP-v1/unep-v1_n20.json
+  #  target_names:
+  #    - energy
+  #    - forces
+  #    - stress
 
-#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
-#  valset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
-#  testset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
-#  target_names:
-#    - energy
-#    - forces
+  #  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Dataset/mad/mad_n20.json
+  #  target_names:
+  #    - energy
+  #    - forces
 
-#  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-#  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-#  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
-#  target_names:
-#    - energy
-#    - forces
+  #  trainset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  #  valset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  #  testset_filename: /Users/mjwen/Documents/Research/Dataset/mace-off23/251125/mace-off23_n20.json
+  #  target_names:
+  #    - energy
+  #    - forces
 
   r_cut: 5.0
   train_batch_size: 4
@@ -179,4 +178,4 @@ trainer:
         patience: 200
         verbose: true
 
-wandb_base_url: https://api.bandw.top  # https://api.wandb-cn.top
+wandb_base_url: https://api.bandw.top # https://api.wandb-cn.top

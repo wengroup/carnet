@@ -205,7 +205,6 @@ class InteratomicPotentialLitModule(LightningModule):
 
     def _val_test_step(self, batch, batch_idx, mode: str):
         with torch.enable_grad():
-
             e_ref = batch.y["energy"]
             f_ref = batch.y["forces"]
             s_ref = batch.y.get("stress", None)

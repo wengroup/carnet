@@ -176,9 +176,9 @@ def update_loss_configs(config: dict) -> dict:
             )
 
     # Check ranks in target_signature and loss.ratio are consistent
-    assert set(target_signature.keys()) == set(
-        config["loss"]["ratio"].keys()
-    ), "target_signature and loss.ratio have inconsistent ranks"
+    assert set(target_signature.keys()) == set(config["loss"]["ratio"].keys()), (
+        "target_signature and loss.ratio have inconsistent ranks"
+    )
 
     config["loss"]["target_name"] = target_name
     config["loss"]["target_mode"] = target_mode
@@ -353,7 +353,6 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
-
     config_file = Path(__file__).parent / "configs" / "config_shielding_tensor.yaml"
 
     config = get_args(config_file)

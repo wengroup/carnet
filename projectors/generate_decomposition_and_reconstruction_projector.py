@@ -28,7 +28,6 @@ def convert_to_list(tensor):
 
 
 if __name__ == "__main__":
-
     physical_tensors = {
         "nuclear_shielding": {
             "rank": 2,

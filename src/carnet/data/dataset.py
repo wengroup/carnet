@@ -208,7 +208,6 @@ class DatasetTensor(BaseDataset):
             # TODO, this is hard coded for `full` and `voigt` tensors
             for k, v in y.items():
                 if k.endswith("_full"):
-
                     # TODO, this is hard coded for `atomic tensor`, we do not need a
                     #   new dim for batching.
                     if "shielding" in k:

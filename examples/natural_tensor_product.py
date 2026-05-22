@@ -51,7 +51,6 @@ def tp_even_general(X: Tensor, Y: Tensor, l1: int, l2: int, l3: int) -> Tensor:
 
 
 if __name__ == "__main__":
-
     l1 = 3
     l2 = 3
     l3 = 2

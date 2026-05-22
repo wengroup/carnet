@@ -224,13 +224,13 @@ class Config(Data):
             for k, v in d.items():
                 Config._check_tensor_shape(v, name=f"{name}.{k}")
         else:
-            assert isinstance(
-                d, Tensor
-            ), f"Expect `{name}` to be a tensor, got `{type(d)}`."
+            assert isinstance(d, Tensor), (
+                f"Expect `{name}` to be a tensor, got `{type(d)}`."
+            )
 
-            assert (
-                len(d.shape) >= 1
-            ), f"Expect `{name}` to be a tensor at least 1D, got shape `{d.shape}`."
+            assert len(d.shape) >= 1, (
+                f"Expect `{name}` to be a tensor at least 1D, got shape `{d.shape}`."
+            )
 
     @staticmethod
     def _convert_to_tensor(x):

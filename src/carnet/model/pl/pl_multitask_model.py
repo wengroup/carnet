@@ -163,7 +163,6 @@ class MultiTaskLitModule(LightningModule):
 
     def _val_test_step(self, batch, batch_idx, mode: str):
         with torch.enable_grad():
-
             batch_size = batch.num_graphs
 
             # References
@@ -197,7 +196,6 @@ class MultiTaskLitModule(LightningModule):
         losses = {}
         total = 0
         for target in self.loss_hparams["target_name"]:
-
             if "tensor" in target:
                 l = nn.functional.mse_loss(
                     pred[target + "_full"], ref[target + "_full"], reduction="mean"

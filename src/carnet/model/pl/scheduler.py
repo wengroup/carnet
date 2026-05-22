@@ -25,7 +25,6 @@ def LinearWarmupCosineAnnealingWarmRestarts(
 
 
 if __name__ == "__main__":
-
     optimizer = torch.optim.SGD([torch.nn.Parameter(torch.tensor(0.0))], lr=0.01)
 
     scheduler = LinearWarmupCosineAnnealingWarmRestarts(

@@ -222,7 +222,6 @@ class BufferList(nn.Module):
 
 
 if __name__ == "__main__":
-
     L1 = 2
     L2 = 2
     L3 = list(range(L2 + 1))

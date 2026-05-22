@@ -26,9 +26,7 @@ def _gated_linear(g: Callable, x: Tensor) -> Tensor:
         Gated linear activation.
     """
     if len(x.shape) < 2:
-        raise ValueError(
-            "shape of x must have at least two dimensions, got " f"{x.shape}"
-        )
+        raise ValueError(f"shape of x must have at least two dimensions, got {x.shape}")
     return g(x[..., :, 0:1]) * x
 
 

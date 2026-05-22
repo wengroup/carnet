@@ -5,7 +5,6 @@ from torch import Tensor, nn
 
 
 class LayerNorm(nn.Module):
-
     def __init__(
         self,
         dim: int,

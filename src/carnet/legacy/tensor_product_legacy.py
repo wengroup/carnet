@@ -184,7 +184,7 @@ def get_sym_part(
     """
     if num_delta > min(rank_S, rank_T):
         raise ValueError(
-            "Expect `num_delta` to be <= min(rank_S, rank_T), but got " f"{num_delta}"
+            f"Expect `num_delta` to be <= min(rank_S, rank_T), but got {num_delta}"
         )
 
     mul_S = S.shape[-rank_S - 1]
