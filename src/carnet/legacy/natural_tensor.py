@@ -237,7 +237,7 @@ class NaturalTensors:
             # all leading dimensions of the input tensors are the same
             if not len(set(tuple(t.shape[:-1] for t in data))) == 1:
                 raise ValueError(
-                    f"Input chunk tensors have different shapes before the last dim."
+                    "Input chunk tensors have different shapes before the last dim."
                 )
 
         return cls(signature, torch.cat(data, dim=-1))

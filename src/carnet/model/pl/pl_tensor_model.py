@@ -284,7 +284,7 @@ class BaseLitModule(LightningModule):
                 if monitor is None:
                     raise ValueError(
                         "Please provide a `monitor` for the learning rate scheduler: "
-                        f"ReduceLROnPlateau."
+                        "ReduceLROnPlateau."
                     )
             else:
                 monitor = None

@@ -1,7 +1,3 @@
-import pytest
-
-from carnet.data.data import get_edge_vec_batch
-
 # from carnet.model.carnet import CarNet
 #
 #

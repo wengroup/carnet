@@ -358,7 +358,7 @@ class BasePyTorchTrainer:
                     val_loss = val_metrics.get(monitor, float("inf"))
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
-                        self.save_checkpoint(checkpoint_dir / f"best_model.pth")
+                        self.save_checkpoint(checkpoint_dir / "best_model.pth")
 
                     # TODO,
                     # # Save regular checkpoint

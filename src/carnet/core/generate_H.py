@@ -109,7 +109,7 @@ def load_H_tensor_and_rule(
             t = t.reshape(3**l3, 3**l1, 3**l2)
 
             # Rule, treating all tensor dim as flattened
-            rule_new = f"aAB,...A,...B->...a"
+            rule_new = "aAB,...A,...B->...a"
             data[key]["rule"] = rule_new
 
         elif mode is None:

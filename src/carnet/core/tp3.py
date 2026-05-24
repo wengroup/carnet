@@ -8,7 +8,6 @@ Same as tp2.py, but:
 from pathlib import Path
 
 import torch
-from natt.H_tp import get_H_numerical_even, get_H_numerical_odd
 from torch import Tensor
 
 from carnet.core.generate_H import load_H_tensor_and_rule

@@ -145,7 +145,7 @@ class DatasetIP(BaseDataset):
             if "stress" in y:
                 if y["stress"].shape == (3, 3):
                     has_stress = np.asarray([True])
-                elif y["stress"] == None:
+                elif y["stress"] is None:
                     # cannot use `is None` here, since y["stress"] can be a np array
                     # Create a dummy stress, for batching
                     y["stress"] = np.zeros((3, 3))

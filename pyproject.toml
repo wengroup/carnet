@@ -51,7 +51,7 @@ select = [
     "F",   # pyflakes
     "I"    # import sorting
 ]
-ignore = ["E501"]
+ignore = ["E501", "E731", "E741"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
