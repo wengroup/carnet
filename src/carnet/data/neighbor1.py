@@ -19,11 +19,14 @@ def get_neigh(
             each entry corresponds to a supercell vector. If a single bool, then the
             same value is used for all supercell vectors.
         cell: (3, 3) array of supercell vectors. cell[i] is the i-th supercell vector.
-            Ignored if `pbc == False` or pbc == None`.
-        self_interaction: Whether to include self-interaction, i.e. an atom being the
-            neighbor of itself in the neighbor list. Should be False for most
-            applications. Note, an atom will always interact with its periodic image.
-            This setting does not control that.
+            Rows along non-periodic axes are unused. May be None only when `pbc`
+            is fully False.
+        self_interaction: If True, include the zero-shift self-edge for every atom
+            (i.e. an atom is its own neighbor in the same cell, with shift_vec = 0
+            and edge_vec = 0). Should be False for most applications.
+            Note: an atom always interacts with its own periodic images
+            (entries where i == j and shift_vec != 0); that behaviour is
+            governed by `pbc` and `cell`, not by this flag.
 
     Returns:
         edge_index: (2, num_edges) array of edge indices. The first row contains the

@@ -19,11 +19,14 @@ def get_neigh(
             each entry corresponds to a supercell vector. If a single bool, then the
             same value is used for all supercell vectors.
         cell: (3, 3) array of supercell vectors. cell[i] is the i-th supercell vector.
-            Ignored if `pbc == False` or pbc == None`.
-        self_interaction: Whether to include self-interaction, i.e. an atom being the
-            neighbor of itself in the neighbor list. Should be False for most
-            applications. Note, an atom will always interact with its periodic image.
-            This setting does not control that.
+            Rows along non-periodic axes are unused. May be None only when `pbc`
+            is fully False.
+        self_interaction: If True, include the zero-shift self-edge for every atom
+            (i.e. an atom is its own neighbor in the same cell, with shift_vec = 0
+            and edge_vec = 0). Should be False for most applications.
+            Note: an atom always interacts with its own periodic images
+            (entries where i == j and shift_vec != 0); that behaviour is
+            governed by `pbc` and `cell`, not by this flag.
 
     Returns:
         edge_index: (2, num_edges) array of edge indices. The first row contains the
@@ -35,10 +38,12 @@ def get_neigh(
         num_neigh: (N,) array of the number of neighbors for each atom.
     """
     if isinstance(pbc, bool):
-        pbc = [pbc] * 3
+        pbc = np.array([pbc, pbc, pbc])
+    else:
+        pbc = np.asarray(pbc)
 
     if cell is None:
-        if not np.any(pbc):
+        if not pbc.any():
             cell = np.eye(3)  # dummy cell to use
         else:
             raise RuntimeError("`cell` vectors not provided")
@@ -47,19 +52,30 @@ def get_neigh(
         "ijSD", pbc=pbc, cell=cell, positions=coords, cutoff=r_cut
     )
 
-    # Remove self-edges that don't cross periodic boundaries
-    if not self_interaction:
-        bad_edge = first_idx == second_idx
-        bad_edge &= np.all(shift_vec == 0, axis=1)
-        keep_edge = ~bad_edge
+    # matscipy bug workaround: on non-periodic axes it can emit non-zero shifts S.
+    # Zero them out; i, j, D are already correct.
+    # TODO: remove this below chunk once the bug is gone.
+    #  See dev/check_matscipy_pbc_shifts.py.
+    if not pbc.all():
+        shift_vec = shift_vec.copy()
+        shift_vec[:, ~pbc] = 0
 
-        first_idx = first_idx[keep_edge]
-        second_idx = second_idx[keep_edge]
-        shift_vec = shift_vec[keep_edge]
-        edge_vec = edge_vec[keep_edge]
+    n_atoms = len(coords)
+
+    # matscipy never emits the (i == i, S = 0) same-cell self-edges. Append
+    # them when requested so this backend matches the ASE-based one.
+    if self_interaction:
+        self_idx = np.arange(n_atoms, dtype=first_idx.dtype)
+        first_idx = np.concatenate([first_idx, self_idx])
+        second_idx = np.concatenate([second_idx, self_idx])
+        shift_vec = np.concatenate(
+            [shift_vec, np.zeros((n_atoms, 3), dtype=shift_vec.dtype)]
+        )
+        edge_vec = np.concatenate(
+            [edge_vec, np.zeros((n_atoms, 3), dtype=edge_vec.dtype)]
+        )
 
     # Some atoms do not have neighbors
-    n_atoms = len(coords)
     if set(first_idx) != set(range(n_atoms)):
         raise RuntimeError("Some atoms do not have neighbors.")
 
