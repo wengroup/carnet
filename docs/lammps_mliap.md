@@ -120,5 +120,7 @@ pip install -e .
 
 ## 5. Test the Installation
 
-To verify that the installation is successful and CarNet works with LAMMPS, please refer to the examples provided in the [example/](../example/) directory.
+To verify that the installation is successful and CarNet works with LAMMPS, please 
+refer to the examples provided in the [examples/](../examples/lammps_mliap/README.md) 
+directory.
 
